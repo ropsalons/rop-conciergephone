@@ -4,7 +4,10 @@ import { VitePWA } from 'vite-plugin-pwa'
 import path from 'node:path'
 
 // ROP Connect — Vite config with React + PWA (installable on phone & desktop).
+// Base path is '/' for local dev + Netlify (root domain); set DEPLOY_BASE
+// (e.g. '/rop-conciergephone/') when building for a GitHub Pages project site.
 export default defineConfig({
+  base: process.env.DEPLOY_BASE ?? '/',
   plugins: [
     react(),
     VitePWA({
