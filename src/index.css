@@ -1,0 +1,51 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-brand-950 text-slate-100 antialiased;
+  overscroll-behavior-y: none;
+}
+
+/* Respect iOS safe areas for the installed PWA. */
+.safe-top { padding-top: env(safe-area-inset-top); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition
+           disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2
+           focus-visible:ring-brand-400/60;
+  }
+  .btn-primary { @apply btn bg-brand-500 text-white hover:bg-brand-400; }
+  .btn-gold { @apply btn bg-gold-400 text-brand-950 hover:bg-gold-300; }
+  .btn-ghost { @apply btn bg-white/5 text-slate-200 hover:bg-white/10; }
+  .btn-danger { @apply btn bg-red-600 text-white hover:bg-red-500; }
+  .input {
+    @apply w-full rounded-lg border border-white/10 bg-brand-900/60 px-3 py-2 text-sm text-slate-100
+           placeholder:text-slate-500 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400;
+  }
+  .label { @apply mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-400; }
+  .card { @apply rounded-xl border border-white/10 bg-brand-900/50 shadow-lg; }
+  .chip { @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium; }
+}
+
+/* Slim scrollbars that match the dark theme. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
+}
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.28); border-radius: 8px; }
+*::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.45); }

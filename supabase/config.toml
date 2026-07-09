@@ -1,0 +1,16 @@
+# Minimal Supabase CLI config for local development of ROP Connect.
+# Run `supabase init` yourself if you want the full generated file; this is enough to
+# `supabase link` and `supabase db push` the migrations in supabase/migrations.
+project_id = "rop-connect"
+
+[db]
+port = 54322
+major_version = 15
+
+[auth]
+# For a fast internal rollout you can disable email confirmation so staff can sign in
+# immediately after signing up. Turn this on in production if you prefer confirmations.
+enable_confirmations = false
+
+[storage]
+enabled = true

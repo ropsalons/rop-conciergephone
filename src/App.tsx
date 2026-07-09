@@ -1,0 +1,86 @@
+import { useEffect } from 'react'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { useAuthStore } from '@/stores/authStore'
+import { isSupabaseConfigured } from '@/lib/supabase'
+import { Toaster, FullPageLoader } from '@/components/ui/Feedback'
+import { MissingConfig } from '@/components/MissingConfig'
+import { AuthPage } from '@/pages/AuthPage'
+import { AppLayout } from '@/components/layout/AppLayout'
+import { DashboardPage } from '@/pages/DashboardPage'
+import { ChannelPage } from '@/pages/ChannelPage'
+import { DMPage } from '@/pages/DMPage'
+import { DMListPage } from '@/pages/DMListPage'
+import { DirectoryPage } from '@/pages/DirectoryPage'
+import { SearchPage } from '@/pages/SearchPage'
+import { NotificationsPage } from '@/pages/NotificationsPage'
+import { ProfilePage } from '@/pages/ProfilePage'
+import { AnnouncementsPage } from '@/pages/AnnouncementsPage'
+import { UrgentAlertsPage } from '@/pages/UrgentAlertsPage'
+import { HuddlePage } from '@/pages/HuddlePage'
+import { ShoutoutsPage } from '@/pages/ShoutoutsPage'
+import { GuestRecoveryPage } from '@/pages/GuestRecoveryPage'
+import { EducationPage } from '@/pages/EducationPage'
+import { SchedulingPage } from '@/pages/SchedulingPage'
+import { AdminPage } from '@/pages/AdminPage'
+import { DeactivatedPage } from '@/pages/DeactivatedPage'
+
+export default function App() {
+  const { initialized, session, profile, init } = useAuthStore()
+
+  useEffect(() => {
+    if (isSupabaseConfigured) init()
+  }, [init])
+
+  if (!isSupabaseConfigured) return <MissingConfig />
+  if (!initialized) return <FullPageLoader label="Starting ROP Connect…" />
+
+  if (!session) {
+    return (
+      <>
+        <Routes>
+          <Route path="/login" element={<AuthPage />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+        <Toaster />
+      </>
+    )
+  }
+
+  // Signed in but the admin has deactivated this account.
+  if (profile && !profile.is_active) {
+    return (
+      <>
+        <DeactivatedPage />
+        <Toaster />
+      </>
+    )
+  }
+
+  return (
+    <>
+      <Routes>
+        <Route path="/login" element={<Navigate to="/" replace />} />
+        <Route path="/" element={<AppLayout />}>
+          <Route index element={<DashboardPage />} />
+          <Route path="channel/:channelId" element={<ChannelPage />} />
+          <Route path="dms" element={<DMListPage />} />
+          <Route path="dm/:conversationId" element={<DMPage />} />
+          <Route path="people" element={<DirectoryPage />} />
+          <Route path="search" element={<SearchPage />} />
+          <Route path="notifications" element={<NotificationsPage />} />
+          <Route path="profile" element={<ProfilePage />} />
+          <Route path="announcements" element={<AnnouncementsPage />} />
+          <Route path="alerts" element={<UrgentAlertsPage />} />
+          <Route path="huddle" element={<HuddlePage />} />
+          <Route path="shoutouts" element={<ShoutoutsPage />} />
+          <Route path="recovery" element={<GuestRecoveryPage />} />
+          <Route path="education" element={<EducationPage />} />
+          <Route path="scheduling" element={<SchedulingPage />} />
+          <Route path="admin" element={<AdminPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+      </Routes>
+      <Toaster />
+    </>
+  )
+}
