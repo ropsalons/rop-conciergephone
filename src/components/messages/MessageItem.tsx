@@ -38,6 +38,17 @@ export function MessageItem({ message, grouped, showThread = true, onReact, onRe
   const canModerate = isMine || canManage(myRole)
   const isTemp = message.id.startsWith('temp-')
 
+  // Imported Slack history is owned by the archive account but carries the original
+  // author's name (and reactions) in metadata — surface those instead.
+  const meta = message.metadata as Record<string, any>
+  const archivedAuthor = typeof meta?.slack_author === 'string' ? (meta.slack_author as string) : undefined
+  const displayAuthor = archivedAuthor
+    ? ({ id: `slack:${archivedAuthor}`, full_name: archivedAuthor } as any)
+    : message.author
+  const slackReactions: Array<{ name: string; count: number }> = Array.isArray(meta?.slack_reactions)
+    ? meta.slack_reactions
+    : []
+
   // Group reactions by emoji.
   const reactionGroups = useMemo(() => {
     const map = new Map<string, { count: number; mine: boolean; users: string[] }>()
@@ -62,7 +73,7 @@ export function MessageItem({ message, grouped, showThread = true, onReact, onRe
     <div className={cn('group relative flex gap-3 px-3 hover:bg-white/[0.03] sm:px-4', grouped ? 'py-0.5' : 'mt-3 py-0.5')}>
       <div className="w-10 shrink-0">
         {!grouped ? (
-          <Avatar profile={message.author} size="md" showPresence />
+          <Avatar profile={displayAuthor} size="md" showPresence={!archivedAuthor} />
         ) : (
           <span className="mt-1 hidden text-[10px] text-slate-600 group-hover:block">
             {messageTime(message.created_at).split(' ').slice(-2).join(' ')}
@@ -73,8 +84,13 @@ export function MessageItem({ message, grouped, showThread = true, onReact, onRe
       <div className="min-w-0 flex-1">
         {!grouped && (
           <div className="flex items-baseline gap-2">
-            <span className="text-sm font-semibold text-white">{displayName(message.author)}</span>
+            <span className="text-sm font-semibold text-white">
+              {archivedAuthor ?? displayName(message.author)}
+            </span>
             <span className="text-[11px] text-slate-500">{messageTime(message.created_at)}</span>
+            {archivedAuthor && (
+              <span className="rounded bg-white/10 px-1.5 text-[10px] font-medium text-slate-400">archived</span>
+            )}
             {message.is_pinned && <Pin className="h-3 w-3 text-gold-400" />}
           </div>
         )}
@@ -134,6 +150,22 @@ export function MessageItem({ message, grouped, showThread = true, onReact, onRe
                 <span>{emoji}</span>
                 <span className="font-medium">{g.count}</span>
               </button>
+            ))}
+          </div>
+        )}
+
+        {/* Imported Slack reactions (read-only) */}
+        {reactionGroups.length === 0 && slackReactions.length > 0 && (
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {slackReactions.map((r) => (
+              <span
+                key={r.name}
+                className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs text-slate-400"
+                title={`:${r.name}:`}
+              >
+                <span>:{r.name}:</span>
+                <span className="font-medium">{r.count}</span>
+              </span>
             ))}
           </div>
         )}
