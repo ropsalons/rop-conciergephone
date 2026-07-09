@@ -150,6 +150,42 @@ posts) → everyone (chat, DMs, shoutouts, report guest issues, claim shifts).
 
 ---
 
+## 5b. Inbound integration API (post messages from other systems)
+
+ROP Connect exposes an **incoming-webhook–style endpoint** so dashboards, the phone/booking
+system, or any other API can post messages into a channel or DM — the open, easy-to-integrate
+path that replaces Slack incoming webhooks.
+
+- **Endpoint:** `POST https://<project>.supabase.co/functions/v1/ingest`
+- **Auth:** header `x-api-key: rop_live_…` (keys are minted per source and revocable; only a
+  sha-256 hash is stored). Admins mint keys in-app or via
+  `select * from create_integration_token('My Source');` (returns the plaintext once).
+- **CORS** is open, so browser-based dashboards can call it directly.
+
+Post to a channel (by slug):
+
+```bash
+curl -X POST "https://<project>.supabase.co/functions/v1/ingest" \
+  -H "x-api-key: rop_live_xxx" -H "Content-Type: application/json" \
+  -d '{"channel":"announcements-rop","text":"Nightly report is ready","author_name":"Reports Bot"}'
+```
+
+Direct-message a person (by email):
+
+```bash
+curl -X POST "https://<project>.supabase.co/functions/v1/ingest" \
+  -H "x-api-key: rop_live_xxx" -H "Content-Type: application/json" \
+  -d '{"to_email":"jordan@ropsalons.com","text":"Your 2pm cancelled","author_name":"Front Desk"}'
+```
+
+Fields: `text` (required), one of `channel`/`channel_slug`/`channel_id` **or** `to_email`,
+optional `author_name`, `source`, and `metadata` (object). Messages are authored by the inactive
+**Integrations** account and display the provided `author_name`. Returns
+`{ ok: true, message_id, channel_id | conversation_id }`.
+
+The function source is `supabase/functions/ingest/index.ts`; deploy with
+`supabase functions deploy ingest --no-verify-jwt` (it does its own API-key auth).
+
 ## 6. Security notes
 
 - RLS is enabled on every table; private/admin channels require membership, DMs are members-only,
