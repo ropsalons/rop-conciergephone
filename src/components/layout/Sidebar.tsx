@@ -12,6 +12,7 @@ import {
 import { conversationName, otherMembers } from '@/lib/dm'
 import { cn } from '@/lib/utils'
 import { APP_NAME, isAdmin } from '@/lib/constants'
+import { APP_VERSION } from '@/lib/version'
 import { CreateChannelModal } from '@/components/channels/CreateChannelModal'
 import { BrowseChannelsModal } from '@/components/channels/BrowseChannelsModal'
 import { NewDMModal } from '@/components/dms/NewDMModal'
@@ -32,6 +33,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { channels, conversations, unreadByChannel, unreadByConversation, notificationsCount } =
     useChatStore()
   const setSearchOpen = useUIStore((s) => s.setSearchOpen)
+  const setHelpOpen = useUIStore((s) => s.setHelpOpen)
   const navigate = useNavigate()
   const [showCreate, setShowCreate] = useState(false)
   const [showBrowse, setShowBrowse] = useState(false)
@@ -78,6 +80,9 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           <NavLink to="/people" onClick={go} className={({ isActive }) => cn(NAV_LINK, isActive ? active : idle)}>
             <Users className="h-4 w-4" /> People
           </NavLink>
+          <button onClick={() => { setHelpOpen(true); go() }} className={cn(NAV_LINK, idle, 'w-full')}>
+            <LifeBuoy className="h-4 w-4" /> Help &amp; Guide
+          </button>
         </div>
 
         {/* Salon */}
@@ -167,6 +172,14 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             <Shield className="h-4 w-4" /> Admin Panel
           </NavLink>
         )}
+
+        <button
+          onClick={() => { setHelpOpen(true); go() }}
+          className="w-full px-3 pt-2 text-left text-[11px] text-slate-500 hover:text-slate-300"
+          title="View version history"
+        >
+          {APP_NAME} v{APP_VERSION} · What&apos;s new
+        </button>
       </nav>
 
       {/* User footer */}

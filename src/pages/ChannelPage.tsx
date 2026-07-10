@@ -1,30 +1,79 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { supabase } from '@/lib/supabase'
 import { useChannel } from '@/hooks/useChannel'
 import { useMessages } from '@/hooks/useMessages'
 import { useChatStore } from '@/stores/chatStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useUIStore } from '@/stores/uiStore'
+import { useDirectoryStore } from '@/stores/directoryStore'
 import { MessageList } from '@/components/messages/MessageList'
 import { MessageComposer } from '@/components/messages/MessageComposer'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { FullPageLoader, EmptyState } from '@/components/ui/Feedback'
 import { Avatar } from '@/components/ui/Avatar'
-import { Hash, Lock, Megaphone, Users, Pin } from '@/components/ui/Icons'
+import { Hash, Lock, Megaphone, Users, Pin, Plus, X, LogOut, Search } from '@/components/ui/Icons'
 import { Modal } from '@/components/ui/Modal'
 import { PinnedMessagesModal } from '@/components/channels/PinnedMessagesModal'
 import { displayName } from '@/lib/utils'
-import { canModerate as canModRole } from '@/lib/constants'
+import { canModerate as canModRole, canManage } from '@/lib/constants'
 
 export function ChannelPage() {
   const { channelId } = useParams()
-  const { channel, members, isMember, loading, join } = useChannel(channelId)
+  const { channel, members, isMember, loading, join, leave, loadMembers } = useChannel(channelId)
   const me = useAuthStore((s) => s.user?.id)
   const myRole = useAuthStore((s) => s.profile?.role)
   const markChannelRead = useChatStore((s) => s.markChannelRead)
   const openThread = useUIStore((s) => s.openThread)
+  const toast = useUIStore((s) => s.toast)
+  const directory = useDirectoryStore((s) => s.profiles)
+  const loadDirectory = useDirectoryStore((s) => s.load)
+  const directoryLoaded = useDirectoryStore((s) => s.loaded)
   const [showMembers, setShowMembers] = useState(false)
   const [showPinned, setShowPinned] = useState(false)
+  const [showAddPeople, setShowAddPeople] = useState(false)
+  const [peopleQuery, setPeopleQuery] = useState('')
+  const [busyUser, setBusyUser] = useState<string | null>(null)
+
+  const iCanManageMembers = canManage(myRole)
+
+  const memberIds = useMemo(() => new Set(members.map((m) => m.user_id)), [members])
+  const addable = useMemo(() => {
+    const q = peopleQuery.trim().toLowerCase()
+    return directory
+      .filter((p) => p.is_active && !memberIds.has(p.id))
+      .filter((p) => !q || `${p.full_name} ${p.display_name ?? ''} ${p.email ?? ''}`.toLowerCase().includes(q))
+      .slice(0, 40)
+  }, [directory, memberIds, peopleQuery])
+
+  useEffect(() => {
+    if (showAddPeople && !directoryLoaded) void loadDirectory()
+  }, [showAddPeople, directoryLoaded, loadDirectory])
+
+  async function addPerson(userId: string) {
+    if (!channelId) return
+    setBusyUser(userId)
+    const { error } = await supabase.from('channel_members').insert({ channel_id: channelId, user_id: userId } as never)
+    setBusyUser(null)
+    if (error) return toast({ kind: 'error', title: 'Could not add', body: error.message })
+    await loadMembers()
+  }
+
+  async function removePerson(userId: string) {
+    if (!channelId) return
+    setBusyUser(userId)
+    const { error } = await supabase.from('channel_members').delete().eq('channel_id', channelId).eq('user_id', userId)
+    setBusyUser(null)
+    if (error) return toast({ kind: 'error', title: 'Could not remove', body: error.message })
+    await loadMembers()
+  }
+
+  async function leaveChannel() {
+    if (!confirm(`Leave #${channel?.name}? You can re-join anytime from Browse channels.`)) return
+    await leave()
+    setShowMembers(false)
+    toast({ kind: 'success', title: 'You left the channel' })
+  }
 
   const { messages, loading: msgLoading, hasMore, loadMore, send, edit, remove, toggleReaction, togglePin } =
     useMessages(channelId ? { channelId } : {})
@@ -106,7 +155,71 @@ export function ChannelPage() {
         </div>
       ) : null}
 
-      <Modal open={showMembers} onClose={() => setShowMembers(false)} title={`Members · ${members.length}`}>
+      <Modal
+        open={showMembers}
+        onClose={() => { setShowMembers(false); setShowAddPeople(false) }}
+        title={`Members · ${members.length}`}
+        footer={
+          <div className="flex items-center justify-between gap-2">
+            {iCanManageMembers ? (
+              <button
+                onClick={() => setShowAddPeople((v) => !v)}
+                className="flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-sm text-slate-200 hover:bg-white/10"
+              >
+                <Plus className="h-4 w-4" /> Add people
+              </button>
+            ) : (
+              <span />
+            )}
+            {isMember && (
+              <button
+                onClick={leaveChannel}
+                className="flex items-center gap-1.5 rounded-lg border border-red-500/30 px-3 py-1.5 text-sm text-red-300 hover:bg-red-500/10"
+              >
+                <LogOut className="h-4 w-4" /> Leave channel
+              </button>
+            )}
+          </div>
+        }
+      >
+        {showAddPeople && iCanManageMembers && (
+          <div className="mb-3 rounded-xl border border-white/10 bg-brand-950/50 p-2">
+            <div className="mb-2 flex items-center gap-2 rounded-lg border border-white/10 bg-brand-900 px-3">
+              <Search className="h-4 w-4 text-slate-400" />
+              <input
+                className="flex-1 bg-transparent py-2 text-sm focus:outline-none"
+                placeholder="Search staff to add…"
+                value={peopleQuery}
+                onChange={(e) => setPeopleQuery(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div className="max-h-52 space-y-1 overflow-y-auto">
+              {addable.map((p) => (
+                <div key={p.id} className="flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-white/5">
+                  <Avatar profile={p} size="xs" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm text-white">{displayName(p)}</p>
+                    <p className="truncate text-[11px] capitalize text-slate-400">{p.role}</p>
+                  </div>
+                  <button
+                    disabled={busyUser === p.id}
+                    onClick={() => addPerson(p.id)}
+                    className="btn-primary px-3 py-1 text-xs disabled:opacity-50"
+                  >
+                    Add
+                  </button>
+                </div>
+              ))}
+              {addable.length === 0 && (
+                <p className="px-2 py-3 text-center text-xs text-slate-500">
+                  {directoryLoaded ? 'Everyone matching is already in this channel.' : 'Loading staff…'}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="space-y-1">
           {members.map((m) => (
             <div key={m.user_id} className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-white/5">
@@ -118,6 +231,16 @@ export function ChannelPage() {
                 <p className="truncate text-[11px] capitalize text-slate-400">{m.profile?.role}</p>
               </div>
               {m.role === 'admin' && <span className="chip bg-gold-400/20 text-gold-200">Owner</span>}
+              {iCanManageMembers && m.user_id !== me && (
+                <button
+                  disabled={busyUser === m.user_id}
+                  onClick={() => removePerson(m.user_id)}
+                  title="Remove from channel"
+                  className="rounded-lg p-1.5 text-slate-400 hover:bg-red-500/10 hover:text-red-300 disabled:opacity-50"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
           ))}
         </div>

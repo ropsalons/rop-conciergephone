@@ -11,11 +11,13 @@ export interface Toast {
 interface UIState {
   mobileSidebarOpen: boolean
   searchOpen: boolean
+  helpOpen: boolean
   threadRootId: string | null
   toasts: Toast[]
   setMobileSidebar: (open: boolean) => void
   toggleMobileSidebar: () => void
   setSearchOpen: (open: boolean) => void
+  setHelpOpen: (open: boolean) => void
   openThread: (id: string | null) => void
   toast: (t: Omit<Toast, 'id'>) => void
   dismissToast: (id: string) => void
@@ -24,11 +26,13 @@ interface UIState {
 export const useUIStore = create<UIState>((set) => ({
   mobileSidebarOpen: false,
   searchOpen: false,
+  helpOpen: false,
   threadRootId: null,
   toasts: [],
   setMobileSidebar: (open) => set({ mobileSidebarOpen: open }),
   toggleMobileSidebar: () => set((s) => ({ mobileSidebarOpen: !s.mobileSidebarOpen })),
   setSearchOpen: (open) => set({ searchOpen: open }),
+  setHelpOpen: (open) => set({ helpOpen: open }),
   openThread: (id) => set({ threadRootId: id }),
   toast: (t) => {
     const id = uuid()

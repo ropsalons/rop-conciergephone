@@ -5,6 +5,7 @@ import { Sidebar } from './Sidebar'
 import { MobileNav } from './MobileNav'
 import { SearchModal } from '@/components/search/SearchModal'
 import { ThreadPanel } from '@/components/messages/ThreadPanel'
+import { HelpModal } from '@/components/help/HelpModal'
 import { cn } from '@/lib/utils'
 
 export function AppLayout() {
@@ -60,6 +61,7 @@ export function AppLayout() {
       )}
 
       <SearchModal />
+      <HelpModal />
     </div>
   )
 }
