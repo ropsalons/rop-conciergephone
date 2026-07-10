@@ -1,0 +1,27 @@
+name: Deploy to Netlify
+
+# Auto-publish rop-connect.netlify.app on every push to the working branch.
+# Requires one repository secret: NETLIFY_AUTH_TOKEN (a Netlify personal access token).
+# The site id is not secret, so it is inlined below.
+
+on:
+  push:
+    branches:
+      - claude/rop-connect-messaging-app-texv5n
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npm run build
+      - name: Publish to Netlify
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: e6d7215b-dc6d-4adb-9300-124d114f1849
+        run: npx --yes netlify-cli@17 deploy --prod --dir=dist --site="$NETLIFY_SITE_ID" --auth="$NETLIFY_AUTH_TOKEN"
