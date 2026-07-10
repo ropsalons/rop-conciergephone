@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.3.1'
+export const APP_VERSION = '1.3.2'
 
 export interface ChangelogEntry {
   version: string
@@ -13,6 +13,15 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.3.2',
+    date: '2026-07-10',
+    title: 'Daily card runs on its own',
+    changes: [
+      'The #daily-numbers card now posts automatically every morning from a self-contained scheduled job (Supabase cron + Boulevard) — no manual step and nothing dependent on a live Claude session.',
+      'Shows guests, appointments, first-visit guests, retail-per-guest (RPG) and rebooking, broken down by Bayfront / Village / Bonita.',
+    ],
+  },
   {
     version: '1.3.1',
     date: '2026-07-10',

@@ -208,7 +208,7 @@ export function HelpModal() {
                 <li><b>Plain updates</b> — any system can drop a message into a channel (e.g. “Nightly report ready”).</li>
                 <li><b>Rich stat cards</b> — send HTML and it renders as a nice visual card (numbers, tables, even charts) right in the channel.</li>
                 <li><b>Live boards</b> — send the same <b>key</b> each run and the card updates in place instead of piling up, so a channel can show “today so far”.</li>
-                <li><b>Already running:</b> the <b>#daily-numbers</b> channel auto-posts a morning card from live Snowflake data — guests, appointments, new clients and retail-per-guest by location, plus month-to-date.</li>
+                <li><b>Already running:</b> the <b>#daily-numbers</b> channel auto-posts a morning card (from Boulevard) — guests, appointments, first-visit guests, retail-per-guest and rebooking, by location.</li>
               </ul>
               <p className="text-xs text-slate-400">An owner/admin sets this up — ask for the integration API key and the one-page guide, or see the Admin. Rich cards are shown in a locked sandbox, so an outside report can never touch your data.</p>
             </Topic>
