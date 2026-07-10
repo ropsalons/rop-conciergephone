@@ -9,12 +9,13 @@
 // Independent of Claude/any dashboard. Deploy: supabase functions deploy daily-card --no-verify-jwt
 
 const BLVD_ENDPOINT = 'https://dashboard.boulevard.io/api/2020-01/admin'
-const BLVD_API_KEY = '74a8379c-3326-4244-a565-fe2c7f88cd26'
-const BLVD_SECRET = 'N1tBVJk/FwXsuFrRTT/dLNuN/GpmSpSH7n5Fq8e+5SE='
-const BLVD_BIZ = 'e17336a4-0c6c-4c29-b27b-337a3691b0da'
+// NOTE: real values live only in the deployed function (set at deploy time), never in the repo.
+const BLVD_API_KEY = Deno.env.get('BLVD_API_KEY') ?? 'REDACTED'
+const BLVD_SECRET = Deno.env.get('BLVD_SECRET') ?? 'REDACTED'
+const BLVD_BIZ = Deno.env.get('BLVD_BUSINESS_ID') ?? 'REDACTED'
 
 const INGEST_URL = 'https://qrigzwactbwbpuufehxo.supabase.co/functions/v1/ingest'
-const INGEST_KEY = 'rop_live_a0b52fde4fae9f2df559f9ce7e7c558556fb3216175bbe00'
+const INGEST_KEY = Deno.env.get('INGEST_KEY') ?? 'REDACTED'
 
 const CRON_SECRET = 'rop-daily-3f9ac21b'
 const TZ = 'America/New_York'
