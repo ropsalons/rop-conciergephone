@@ -12,10 +12,10 @@ import { MessageComposer } from '@/components/messages/MessageComposer'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { FullPageLoader, EmptyState } from '@/components/ui/Feedback'
 import { Avatar } from '@/components/ui/Avatar'
-import { Hash, Lock, Megaphone, Users, Pin, Plus, X, LogOut, Search } from '@/components/ui/Icons'
+import { Hash, Lock, Megaphone, Users, Pin, Plus, X, LogOut, Search, Star } from '@/components/ui/Icons'
 import { Modal } from '@/components/ui/Modal'
 import { PinnedMessagesModal } from '@/components/channels/PinnedMessagesModal'
-import { displayName } from '@/lib/utils'
+import { displayName, cn } from '@/lib/utils'
 import { canModerate as canModRole, canManage } from '@/lib/constants'
 
 export function ChannelPage() {
@@ -24,6 +24,8 @@ export function ChannelPage() {
   const me = useAuthStore((s) => s.user?.id)
   const myRole = useAuthStore((s) => s.profile?.role)
   const markChannelRead = useChatStore((s) => s.markChannelRead)
+  const toggleFavorite = useChatStore((s) => s.toggleFavorite)
+  const isFavorite = useChatStore((s) => s.channels.find((c) => c.id === channelId)?.is_favorite ?? false)
   const openThread = useUIStore((s) => s.openThread)
   const toast = useUIStore((s) => s.toast)
   const directory = useDirectoryStore((s) => s.profiles)
@@ -105,6 +107,15 @@ export function ChannelPage() {
         subtitle={channel.topic || channel.description || `${members.length} members`}
         actions={
           <>
+            {isMember && (
+              <button
+                onClick={() => toggleFavorite(channel.id, !isFavorite)}
+                className={cn('rounded-lg p-2 hover:bg-white/10', isFavorite ? 'text-gold-400' : 'text-slate-300')}
+                title={isFavorite ? 'Remove from favorites' : 'Favorite — pin to top of sidebar'}
+              >
+                <Star className="h-5 w-5" {...(isFavorite ? { fill: 'currentColor' } : {})} />
+              </button>
+            )}
             <button onClick={() => setShowPinned(true)} className="rounded-lg p-2 text-slate-300 hover:bg-white/10" title="Pinned">
               <Pin className="h-5 w-5" />
               {pinnedCount > 0 && <span className="ml-0.5 text-xs">{pinnedCount}</span>}

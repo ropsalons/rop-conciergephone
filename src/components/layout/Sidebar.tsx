@@ -30,7 +30,7 @@ const idle = 'text-slate-300 hover:bg-white/5 hover:text-white'
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { profile, signOut } = useAuthStore()
   const me = profile?.id
-  const { channels, conversations, unreadByChannel, unreadByConversation, notificationsCount } =
+  const { channels, conversations, unreadByChannel, unreadByConversation, notificationsCount, toggleFavorite } =
     useChatStore()
   const setSearchOpen = useUIStore((s) => s.setSearchOpen)
   const setHelpOpen = useUIStore((s) => s.setHelpOpen)
@@ -113,17 +113,30 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           <div className="space-y-0.5">
             {channels.map((c) => {
               const unread = unreadByChannel[c.id] ?? 0
+              const fav = !!c.is_favorite
               return (
-                <NavLink
-                  key={c.id}
-                  to={`/channel/${c.id}`}
-                  onClick={go}
-                  className={({ isActive }) => cn(NAV_LINK, 'py-1.5', isActive ? active : idle)}
-                >
-                  <ChannelIcon type={c.type} className="h-4 w-4 shrink-0 opacity-70" />
-                  <span className={cn('flex-1 truncate', !!unread && 'font-semibold text-white')}>{c.name}</span>
-                  <UnreadBadge count={c.is_muted ? 0 : unread} />
-                </NavLink>
+                <div key={c.id} className="group relative flex items-center">
+                  <NavLink
+                    to={`/channel/${c.id}`}
+                    onClick={go}
+                    className={({ isActive }) => cn(NAV_LINK, 'flex-1 py-1.5 pr-8', isActive ? active : idle)}
+                  >
+                    <ChannelIcon type={c.type} className="h-4 w-4 shrink-0 opacity-70" />
+                    <span className={cn('flex-1 truncate', !!unread && 'font-semibold text-white')}>{c.name}</span>
+                    <UnreadBadge count={c.is_muted ? 0 : unread} />
+                  </NavLink>
+                  <button
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); void toggleFavorite(c.id, !fav) }}
+                    title={fav ? 'Remove from favorites' : 'Favorite — pin to top'}
+                    aria-label={fav ? 'Remove from favorites' : 'Add to favorites'}
+                    className={cn(
+                      'absolute right-1.5 rounded p-1 transition',
+                      fav ? 'text-gold-400 hover:text-gold-300' : 'text-slate-500 opacity-0 hover:text-gold-300 focus:opacity-100 group-hover:opacity-100',
+                    )}
+                  >
+                    <Star className="h-3.5 w-3.5" {...(fav ? { fill: 'currentColor' } : {})} />
+                  </button>
+                </div>
               )
             })}
             {channels.length === 0 && <p className="px-3 py-1 text-xs text-slate-500">No channels yet.</p>}

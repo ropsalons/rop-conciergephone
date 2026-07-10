@@ -178,10 +178,30 @@ curl -X POST "https://<project>.supabase.co/functions/v1/ingest" \
   -d '{"to_email":"jordan@ropsalons.com","text":"Your 2pm cancelled","author_name":"Front Desk"}'
 ```
 
-Fields: `text` (required), one of `channel`/`channel_slug`/`channel_id` **or** `to_email`,
-optional `author_name`, `source`, and `metadata` (object). Messages are authored by the inactive
-**Integrations** account and display the provided `author_name`. Returns
-`{ ok: true, message_id, channel_id | conversation_id }`.
+Post a **rich HTML stat card** (renders as a visual card — KPIs, tables, inline SVG charts — in a
+locked sandbox iframe so it can never touch app data):
+
+```bash
+curl -X POST "https://<project>.supabase.co/functions/v1/ingest" \
+  -H "x-api-key: rop_live_xxx" -H "Content-Type: application/json" \
+  -d '{"channel":"daily-numbers","author_name":"Boulevard","title":"Yesterday",
+       "html":"<h2>Sales $12,480</h2><table><tr><th>Loc</th><th>$</th></tr><tr><td>Bayfront</td><td>5,120</td></tr></table>"}'
+```
+
+Send the **same `external_key`** each run to update the card in place (a live "today so far"
+board) instead of posting a new message:
+
+```bash
+curl -X POST "https://<project>.supabase.co/functions/v1/ingest" \
+  -H "x-api-key: rop_live_xxx" -H "Content-Type: application/json" \
+  -d '{"channel":"daily-numbers","external_key":"bayfront-daily","title":"Bayfront — live","html":"<h2>…</h2>"}'
+```
+
+Fields: `text` **or** `html` (one required); one of `channel`/`channel_slug`/`channel_id` **or**
+`to_email`; optional `title` (card heading), `external_key` (update-in-place key), `author_name`,
+`source`, and `metadata` (object). Messages are authored by the inactive **Integrations** account
+and display the provided `author_name`. Returns
+`{ ok: true, message_id, updated, channel_id | conversation_id }`.
 
 The function source is `supabase/functions/ingest/index.ts`; deploy with
 `supabase functions deploy ingest --no-verify-jwt` (it does its own API-key auth).

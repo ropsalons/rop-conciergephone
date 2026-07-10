@@ -22,6 +22,15 @@ interface ChatState {
   markChannelRead: (channelId: string) => Promise<void>
   markConversationRead: (conversationId: string) => Promise<void>
   bumpConversation: (conversationId: string) => void
+  toggleFavorite: (channelId: string, value: boolean) => Promise<void>
+}
+
+// Favorites float to the top; within each group channels are alphabetical by name.
+function sortChannels(list: ChannelWithMeta[]): ChannelWithMeta[] {
+  return [...list].sort((a, b) => {
+    if (!!a.is_favorite !== !!b.is_favorite) return a.is_favorite ? -1 : 1
+    return (a.name ?? '').localeCompare(b.name ?? '')
+  })
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -40,11 +49,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
     // Channels I belong to.
     const { data: memberRows } = await supabase
       .from('channel_members')
-      .select('is_muted, channels(*)')
+      .select('is_muted, is_favorite, channels(*)')
       .eq('user_id', me)
-    const channels: ChannelWithMeta[] = (memberRows ?? [])
-      .map((r: any) => ({ ...(r.channels as ChannelWithMeta), is_muted: r.is_muted, is_member: true }))
-      .filter((c: ChannelWithMeta) => c && c.id && !c.is_archived)
+    const channels: ChannelWithMeta[] = sortChannels(
+      (memberRows ?? [])
+        .map((r: any) => ({
+          ...(r.channels as ChannelWithMeta),
+          is_muted: r.is_muted,
+          is_favorite: r.is_favorite,
+          is_member: true,
+        }))
+        .filter((c: ChannelWithMeta) => c && c.id && !c.is_archived),
+    )
 
     // Conversations I belong to.
     const { data: convRows } = await supabase
@@ -114,5 +130,29 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const rest = s.conversations.filter((c) => c.id !== conversationId)
       return { conversations: [{ ...conv, last_message_at: new Date().toISOString() }, ...rest] }
     })
+  },
+
+  toggleFavorite: async (channelId, value) => {
+    const me = useAuthStore.getState().user?.id
+    if (!me) return
+    // Optimistic: update + re-sort the sidebar immediately.
+    set((s) => ({
+      channels: sortChannels(
+        s.channels.map((c) => (c.id === channelId ? { ...c, is_favorite: value } : c)),
+      ),
+    }))
+    const { error } = await supabase
+      .from('channel_members')
+      .update({ is_favorite: value })
+      .eq('channel_id', channelId)
+      .eq('user_id', me)
+    if (error) {
+      // Revert on failure.
+      set((s) => ({
+        channels: sortChannels(
+          s.channels.map((c) => (c.id === channelId ? { ...c, is_favorite: !value } : c)),
+        ),
+      }))
+    }
   },
 }))

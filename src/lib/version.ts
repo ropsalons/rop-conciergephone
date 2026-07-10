@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.1.0'
+export const APP_VERSION = '1.2.0'
 
 export interface ChangelogEntry {
   version: string
@@ -13,6 +13,18 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.2.0',
+    date: '2026-07-10',
+    title: 'Favorites + automated report cards',
+    changes: [
+      'Favorite (star) a channel to pin it to the top of your sidebar — your favorites are private to you. Star it from the sidebar (hover) or the ⭐ in the channel header.',
+      'Channels are now sorted favorites-first, then alphabetically.',
+      'The integration API can now post rich HTML “stat cards” (numbers, tables, charts) that render as a nice visual card in the channel — from a dashboard, Boulevard, a cron job, or an AI assistant.',
+      'New “live board” mode: send the same external_key each run and the card updates in place instead of posting a new one.',
+      'HTML cards render in a locked sandbox, so an outside report can never read or change your data.',
+    ],
+  },
   {
     version: '1.1.0',
     date: '2026-07-10',

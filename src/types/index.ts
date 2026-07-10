@@ -21,6 +21,7 @@ export interface ChannelWithMeta extends ChannelRow {
   unread?: number
   is_muted?: boolean
   is_member?: boolean
+  is_favorite?: boolean
 }
 
 export interface ConversationWithMeta extends DirectConversationRow {

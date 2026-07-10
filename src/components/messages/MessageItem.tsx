@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useDirectoryStore } from '@/stores/directoryStore'
 import { Avatar } from '@/components/ui/Avatar'
 import { RichText } from './RichText'
+import { RichCard } from './RichCard'
 import { FileChip } from '@/components/files/FileChip'
 import { messageTime, displayName, cn } from '@/lib/utils'
 import { QUICK_EMOJIS, canManage } from '@/lib/constants'
@@ -115,6 +116,11 @@ export function MessageItem({ message, grouped, showThread = true, onReact, onRe
                 <X className="h-3.5 w-3.5" /> Cancel
               </button>
             </div>
+          </div>
+        ) : meta?.format === 'html' && typeof meta.html === 'string' ? (
+          <div className={cn(isTemp && 'opacity-60')}>
+            <RichCard html={meta.html} title={typeof meta.card_title === 'string' ? meta.card_title : undefined} />
+            {message.is_edited && <span className="ml-1 text-[10px] text-slate-500">(updated)</span>}
           </div>
         ) : (
           <div className={cn('text-sm leading-relaxed text-slate-200', isTemp && 'opacity-60')}>

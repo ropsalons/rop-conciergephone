@@ -5,7 +5,7 @@ import { APP_VERSION, CHANGELOG } from '@/lib/version'
 import { APP_NAME, COMPANY_NAME } from '@/lib/constants'
 import {
   Home, Search, Bell, Users, Hash, Lock, Megaphone, MessageSquare, Plus,
-  Star, LifeBuoy, GraduationCap, Calendar, ClipboardList, AlertTriangle, Shield, Pin,
+  Star, LifeBuoy, GraduationCap, Calendar, ClipboardList, AlertTriangle, Shield, Pin, Sparkles,
 } from '@/components/ui/Icons'
 
 // One collapsible topic in the Help guide.
@@ -127,6 +127,11 @@ export function HelpModal() {
                 <>In the sidebar, next to <b>Channels</b>, tap the <Plus className="inline h-3.5 w-3.5" /> button.</>,
                 <>Give it a name, pick the type (public, private, etc.) and create it.</>,
               ]} />
+              <p className="font-semibold text-white">Favorite a channel (keep it at the top):</p>
+              <Steps items={[
+                <>In the sidebar, hover a channel and tap the <Star className="inline h-3.5 w-3.5" /> star — or open the channel and tap the <Star className="inline h-3.5 w-3.5" /> in the top bar.</>,
+                <>Favorites are pinned to the top of your sidebar (and are private to you). Tap the star again to un-favorite. Everything else is sorted alphabetically.</>,
+              ]} />
               <p className="text-xs text-slate-400"><Lock className="inline h-3 w-3" /> = private/admin channel · <Megaphone className="inline h-3 w-3" /> = announcement channel (only leadership can post) · <Hash className="inline h-3 w-3" /> = normal channel.</p>
             </Topic>
 
@@ -194,6 +199,16 @@ export function HelpModal() {
                 <li><b>Roles</b> set what you can do: everyone can chat &amp; DM; managers moderate channels &amp; run huddles; leadership posts announcements &amp; urgent alerts; owner/admin can do everything.</li>
                 <li><b>Old Slack history</b> appears in the channels labelled with each message&apos;s original author and an <b>“archived”</b> tag — it was imported from the company&apos;s previous Slack.</li>
               </ul>
+            </Topic>
+
+            <Topic icon={<Sparkles className="h-4 w-4" />} title="Automated reports & posting from other systems">
+              <p>Channels can receive posts automatically from outside {APP_NAME} — a dashboard, Boulevard, a nightly job, or an AI assistant (Manus / Claude / ChatGPT) — using a secure API key.</p>
+              <ul className="ml-4 list-disc space-y-1 marker:text-slate-500">
+                <li><b>Plain updates</b> — any system can drop a message into a channel (e.g. “Nightly report ready”).</li>
+                <li><b>Rich stat cards</b> — send HTML and it renders as a nice visual card (numbers, tables, even charts) right in the channel.</li>
+                <li><b>Live boards</b> — send the same <b>key</b> each run and the card updates in place instead of piling up, so a channel can show “today so far”.</li>
+              </ul>
+              <p className="text-xs text-slate-400">An owner/admin sets this up — ask for the integration API key and the one-page guide, or see the Admin. Rich cards are shown in a locked sandbox, so an outside report can never touch your data.</p>
             </Topic>
 
             <Topic icon={<Home className="h-4 w-4" />} title="Install it on your phone">

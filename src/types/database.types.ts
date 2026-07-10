@@ -90,6 +90,7 @@ export type ChannelMemberRow = {
   user_id: string
   role: 'member' | 'admin'
   is_muted: boolean
+  is_favorite: boolean
   last_read_at: string
   joined_at: string
 }

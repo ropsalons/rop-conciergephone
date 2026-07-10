@@ -1,16 +1,29 @@
 // ROP Connect — inbound integration endpoint (Slack "incoming webhook" style).
 //
-// Any external system (dashboards, phone/booking systems, other APIs) can POST a message
-// into a channel or a direct message, authenticated with a revocable API key.
+// Any external system (dashboards, Boulevard, cron jobs, Manus / Claude / ChatGPT, email
+// forwarders, other APIs) can POST a message into a channel or a direct message, authenticated
+// with a revocable API key.
 //
 //   POST https://<project>.supabase.co/functions/v1/ingest
 //   Headers: { "x-api-key": "rop_live_…", "Content-Type": "application/json" }
-//   Body (post to a channel):
-//     { "channel": "announcements-rop", "text": "Hello team", "author_name": "Booking Bot" }
-//   Body (direct message a person by email):
+//
+//   Plain text to a channel:
+//     { "channel": "announcements-rop", "text": "Nightly report ready", "author_name": "Reports Bot" }
+//
+//   Rich HTML card (stats / dashboard) to a channel — rendered in a sandboxed frame:
+//     { "channel": "daily-numbers", "author_name": "Boulevard",
+//       "title": "Yesterday at Bayfront",
+//       "html": "<h2>Sales $4,210</h2><table>…</table>" }
+//
+//   Auto-updating card — send the SAME external_key each run to overwrite the last card
+//   instead of posting a new one (great for a live \"today so far\" board):
+//     { "channel": "daily-numbers", "external_key": "bayfront-daily",
+//       "title": "Bayfront — live", "html": "<h2>…</h2>" }
+//
+//   Direct message a person by email:
 //     { "to_email": "jordan@ropsalons.com", "text": "Your 2pm cancelled", "author_name": "Front Desk" }
 //
-// Returns: { ok: true, message_id, channel_id? , conversation_id? }
+// Returns: { ok: true, message_id, updated?, channel_id? | conversation_id? }
 //
 // The endpoint uses the service role (bypassing RLS) but only after validating the API key
 // against public.integration_tokens (sha-256 hashed). Messages are authored by the inactive
@@ -36,6 +49,18 @@ function json(body: unknown, status = 200) {
 async function sha256hex(s: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s))
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+// Strip <script>/<style> from the human-readable fallback text only. The HTML itself is
+// preserved in metadata and rendered in a sandboxed (opaque-origin) iframe on the client.
+function htmlToText(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 280)
 }
 
 Deno.serve(async (req) => {
@@ -68,14 +93,61 @@ Deno.serve(async (req) => {
   } catch {
     return json({ ok: false, error: 'Body must be JSON' }, 400)
   }
-  const text: string = (body.text ?? body.message ?? '').toString().trim()
-  if (!text) return json({ ok: false, error: 'text is required' }, 400)
 
-  const metadata = {
+  const html: string | undefined =
+    typeof body.html === 'string' && body.html.trim() ? body.html : undefined
+  const title: string | undefined =
+    typeof body.title === 'string' && body.title.trim() ? body.title.trim() : undefined
+  const externalKey: string | undefined =
+    typeof body.external_key === 'string' && body.external_key.trim() ? body.external_key.trim() : undefined
+
+  // Body text: use provided text, else derive a short preview from the HTML/title.
+  let text: string = (body.text ?? body.message ?? '').toString().trim()
+  if (!text && html) text = title ?? htmlToText(html) ?? 'Report'
+  if (!text && title) text = title
+  if (!text) return json({ ok: false, error: 'Provide "text" or "html"' }, 400)
+
+  const metadata: Record<string, unknown> = {
     via_api: true,
     source: body.source ?? token.name,
     author_name: body.author_name ?? body.source ?? token.name,
+    ...(html ? { format: 'html', html, card_title: title } : {}),
+    ...(externalKey ? { external_key: externalKey } : {}),
     ...(body.metadata && typeof body.metadata === 'object' ? body.metadata : {}),
+  }
+
+  // Upsert-in-place helper: when external_key is set, overwrite the last card that used it
+  // (in the same channel / conversation) instead of posting a new message.
+  async function upsertMessage(target: { channel_id?: string; conversation_id?: string }) {
+    if (externalKey) {
+      let q = admin
+        .from('messages')
+        .select('id')
+        .eq('user_id', BOT_ID)
+        .eq('is_deleted', false)
+        .filter('metadata->>external_key', 'eq', externalKey)
+        .order('created_at', { ascending: false })
+        .limit(1)
+      q = target.channel_id ? q.eq('channel_id', target.channel_id) : q.eq('conversation_id', target.conversation_id!)
+      const { data: existing } = await q.maybeSingle()
+      if (existing) {
+        const { data: upd, error } = await admin
+          .from('messages')
+          .update({ body: text, metadata, is_edited: true, edited_at: new Date().toISOString() })
+          .eq('id', existing.id)
+          .select('id')
+          .single()
+        if (error) throw error
+        return { id: upd.id, updated: true }
+      }
+    }
+    const { data: msg, error } = await admin
+      .from('messages')
+      .insert({ ...target, user_id: BOT_ID, body: text, metadata })
+      .select('id')
+      .single()
+    if (error) throw error
+    return { id: msg.id, updated: false }
   }
 
   try {
@@ -113,14 +185,9 @@ Deno.serve(async (req) => {
             { conversation_id: convId, user_id: user.id },
           ])
       }
-      const { data: msg, error: mErr } = await admin
-        .from('messages')
-        .insert({ conversation_id: convId, user_id: BOT_ID, body: text, metadata })
-        .select('id')
-        .single()
-      if (mErr) throw mErr
+      const res = await upsertMessage({ conversation_id: convId })
       await admin.from('integration_tokens').update({ last_used_at: new Date().toISOString() }).eq('id', token.id)
-      return json({ ok: true, message_id: msg.id, conversation_id: convId })
+      return json({ ok: true, message_id: res.id, updated: res.updated, conversation_id: convId })
     }
 
     // --- Post to a channel (by slug, name, or id) -----------------------------
@@ -137,14 +204,9 @@ Deno.serve(async (req) => {
     }
     if (!channelId) return json({ ok: false, error: 'Provide "channel" (slug) or "to_email"' }, 400)
 
-    const { data: msg, error: mErr } = await admin
-      .from('messages')
-      .insert({ channel_id: channelId, user_id: BOT_ID, body: text, metadata })
-      .select('id')
-      .single()
-    if (mErr) throw mErr
+    const res = await upsertMessage({ channel_id: channelId })
     await admin.from('integration_tokens').update({ last_used_at: new Date().toISOString() }).eq('id', token.id)
-    return json({ ok: true, message_id: msg.id, channel_id: channelId })
+    return json({ ok: true, message_id: res.id, updated: res.updated, channel_id: channelId })
   } catch (e) {
     return json({ ok: false, error: String((e as Error).message ?? e) }, 500)
   }
