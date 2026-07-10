@@ -118,6 +118,10 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             <Bell className="h-4 w-4" /> <span className="flex-1">Notifications</span>
             <UnreadBadge count={notificationsCount} />
           </NavLink>
+          <NavLink to="/dms" onClick={go} className={({ isActive }) => cn(NAV_LINK, isActive ? active : idle)}>
+            <MessageSquare className="h-4 w-4" /> <span className="flex-1">Messages</span>
+            <UnreadBadge count={Object.values(unreadByConversation).reduce((a, b) => a + b, 0)} />
+          </NavLink>
           <NavLink to="/people" onClick={go} className={({ isActive }) => cn(NAV_LINK, isActive ? active : idle)}>
             <Users className="h-4 w-4" /> People
           </NavLink>

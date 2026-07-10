@@ -124,22 +124,29 @@ export function DirectoryPage() {
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => setSelected(p)}
-                className="card flex items-center gap-3 p-3 text-left hover:bg-white/5"
-              >
-                <Avatar profile={p} size="md" showPresence />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-white">{displayName(p)}</p>
-                  <p className="truncate text-xs text-slate-400">{p.title || ROLE_LABELS[p.role] || p.role}</p>
-                  <p className="truncate text-[11px] text-slate-500">
-                    {[p.location_id ? locationName[p.location_id] : null, p.department_id ? departmentName[p.department_id] : null]
-                      .filter(Boolean)
-                      .join(' · ') || '—'}
-                  </p>
-                </div>
-              </button>
+              <div key={p.id} className="card flex items-center gap-3 p-3">
+                <button onClick={() => setSelected(p)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+                  <Avatar profile={p} size="md" showPresence />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-white">{displayName(p)}</p>
+                    <p className="truncate text-xs text-slate-400">{p.title || ROLE_LABELS[p.role] || p.role}</p>
+                    <p className="truncate text-[11px] text-slate-500">
+                      {[p.location_id ? locationName[p.location_id] : null, p.department_id ? departmentName[p.department_id] : null]
+                        .filter(Boolean)
+                        .join(' · ') || '—'}
+                    </p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => void message(p)}
+                  disabled={busy}
+                  title={`Message ${displayName(p)}`}
+                  aria-label={`Message ${displayName(p)}`}
+                  className="btn-primary shrink-0 gap-1 px-2.5 py-1.5 text-xs"
+                >
+                  <MessageSquare className="h-4 w-4" /> Message
+                </button>
+              </div>
             ))}
           </div>
         )}

@@ -164,8 +164,14 @@ export function HelpModal() {
             </Topic>
 
             <Topic icon={<MessageSquare className="h-4 w-4" />} title="Direct & group messages (DMs)">
+              <p className="font-semibold text-white">Easiest way — message someone from People:</p>
               <Steps items={[
-                <>In the sidebar, next to <b>Direct Messages</b>, tap the <Plus className="inline h-3.5 w-3.5" /> button.</>,
+                <>Open <b>People</b> (<Users className="inline h-3.5 w-3.5" />) in the sidebar.</>,
+                <>Find the person and tap the blue <K><MessageSquare className="inline h-3 w-3" /> Message</K> button on their card — it opens a private chat instantly.</>,
+              ]} />
+              <p className="font-semibold text-white">Or start from Messages:</p>
+              <Steps items={[
+                <>Tap <b>Messages</b> (<MessageSquare className="inline h-3.5 w-3.5" />) in the sidebar → <K>New Message</K> (top-right).</>,
                 <>Pick one person for a private chat, or several for a group DM.</>,
                 <>Type at the bottom and send. DMs are private to their members.</>,
               ]} />
@@ -225,6 +231,7 @@ export function HelpModal() {
                 <li><b>Already running — daily numbers:</b> the <b>#daily-numbers</b> channel auto-posts a morning <b>ROP Scorecard</b> (from Snowflake) — guests, new clients, request %, RPG, prebook % and LUX %, company-wide and per stylist, each with Yesterday / Week-to-date / Month-to-date / Year-to-date tabs.</li>
                 <li><b>Already running — live bookings:</b> the <b>#dc-coordinators</b> channel gets a message within ~10 minutes of every appointment booked in Boulevard (online or in-salon) — guest, new vs. repeat, stylist, service, who booked it and the appointment time.</li>
                 <li><b>Already running — company calendar:</b> the <b>#rop-calendar</b> channel shows an auto-updating card of the next 14 days from the Robert of Philadelphia calendar (meetings, trainings, academies, events), grouped by day. It refreshes itself every few hours.</li>
+                <li><b>Already running — who booked:</b> the <b>#bookings-by-booker</b> channel posts an hourly card of how many appointments each staff login booked today (and online/guest self-bookings). Data lags real time by ~1&ndash;2 hours.</li>
               </ul>
               <p className="text-xs text-slate-400">An owner/admin sets this up — ask for the integration API key and the one-page guide, or see the Admin. Rich cards are shown in a locked sandbox, so an outside report can never touch your data.</p>
             </Topic>
