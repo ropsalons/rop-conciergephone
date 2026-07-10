@@ -2,11 +2,12 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.5.0'
+export const APP_VERSION = '1.6.0'
 
 export interface ChangelogEntry {
   version: string
   date: string // ISO date (YYYY-MM-DD)
+  time?: string // local time it shipped, e.g. "12:05 PM ET"
   title: string
   changes: string[]
 }
@@ -14,8 +15,19 @@ export interface ChangelogEntry {
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.6.0',
+    date: '2026-07-10',
+    time: '12:05 PM ET',
+    title: 'Update times + full-calendar link',
+    changes: [
+      'The “What’s new” list now shows the time of day each update shipped, not just the date.',
+      'Added a pinned “full calendar” link in #rop-calendar so you can jump to the complete Google Calendar and browse any month — beyond the 14-day card.',
+    ],
+  },
+  {
     version: '1.5.0',
     date: '2026-07-10',
+    time: '11:41 AM ET',
     title: 'Company calendar in a channel',
     changes: [
       'New #rop-calendar channel shows an always-current “Upcoming ROP Events” card — the next 14 days from the Robert of Philadelphia company calendar (meetings, trainings, academies, content days), grouped by day with times and locations.',
@@ -25,6 +37,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     version: '1.4.0',
     date: '2026-07-10',
+    time: '11:12 AM ET',
     title: 'Sort & hide channels · live booking feed · fuller scorecard',
     changes: [
       'Sidebar channel controls: tap the ⇅ sort button to switch between A–Z, Recent activity, and Unread-first. Your choice is remembered on this device.',

@@ -242,12 +242,13 @@ export function HelpModal() {
                     v{entry.version}
                   </span>
                   <span className="text-sm font-semibold text-white">{entry.title}</span>
-                  <span className="ml-auto text-xs text-slate-400">
+                  <span className="ml-auto text-right text-xs text-slate-400">
                     {new Date(entry.date + 'T00:00:00').toLocaleDateString(undefined, {
                       year: 'numeric',
                       month: 'short',
                       day: 'numeric',
                     })}
+                    {entry.time && <span className="ml-1 text-slate-500">· {entry.time}</span>}
                   </span>
                 </div>
                 <ul className="ml-4 list-disc space-y-1 text-sm leading-relaxed text-slate-300 marker:text-slate-500">
