@@ -184,7 +184,7 @@ export function HelpModal() {
             <Topic icon={<Shield className="h-4 w-4" />} title="Admin area (owners & admins)">
               <p>Open the <b>Admin Panel</b> <Shield className="inline h-3.5 w-3.5" /> at the bottom of the sidebar (visible to admins/owners only). Tabs:</p>
               <ul className="ml-4 list-disc space-y-1 marker:text-slate-500">
-                <li><b>Users</b> — change someone&apos;s role, deactivate/reactivate accounts.</li>
+                <li><b>Users</b> — change a member&apos;s role, location, department, or deactivate/reactivate them. Tap <b>Edit details</b> on a person to change their full name, display name (nickname), title or phone.</li>
                 <li><b>Channels</b> — create channels and archive old ones.</li>
                 <li><b>Acknowledgements</b> — see who has/hasn&apos;t acknowledged urgent alerts &amp; announcements.</li>
                 <li><b>Audit Log</b> — record of admin actions.</li>
@@ -196,6 +196,7 @@ export function HelpModal() {
             <Topic icon={<Users className="h-4 w-4" />} title="Accounts, roles & the imported history">
               <ul className="ml-4 list-disc space-y-1 marker:text-slate-500">
                 <li><b>Sign in</b> with your work email. New staff first-time password is provided by an admin — change it in <b>Profile</b>.</li>
+                <li><b>Edit your own name/photo</b> — tap your name (bottom-left) → <b>Profile</b> → set your <b>Display name</b> (e.g. “Rob” instead of “Robert”), title, phone, bio and photo, then <b>Save</b>.</li>
                 <li><b>Roles</b> set what you can do: everyone can chat &amp; DM; managers moderate channels &amp; run huddles; leadership posts announcements &amp; urgent alerts; owner/admin can do everything.</li>
                 <li><b>Old Slack history</b> appears in the channels labelled with each message&apos;s original author and an <b>“archived”</b> tag — it was imported from the company&apos;s previous Slack.</li>
               </ul>

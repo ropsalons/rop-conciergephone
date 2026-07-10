@@ -120,6 +120,34 @@ function UsersTab({ logAudit }: { logAudit: LogAudit }) {
   const toast = useUIStore((s) => s.toast)
   const [search, setSearch] = useState('')
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [editing, setEditing] = useState<Profile | null>(null)
+  const [form, setForm] = useState({ full_name: '', display_name: '', title: '', phone: '' })
+
+  function openEdit(p: Profile) {
+    setForm({
+      full_name: p.full_name ?? '',
+      display_name: p.display_name ?? '',
+      title: p.title ?? '',
+      phone: p.phone ?? '',
+    })
+    setEditing(p)
+  }
+
+  async function saveEdit() {
+    if (!editing) return
+    await patchUser(
+      editing,
+      {
+        full_name: form.full_name.trim() || editing.full_name,
+        display_name: form.display_name.trim() || null,
+        title: form.title.trim() || null,
+        phone: form.phone.trim() || null,
+      },
+      'edit_profile',
+      { fields: ['full_name', 'display_name', 'title', 'phone'] },
+    )
+    setEditing(null)
+  }
 
   const roleOptions = roles.length
     ? roles.map((r) => ({ value: r.key, label: r.label }))
@@ -271,7 +299,14 @@ function UsersTab({ logAudit }: { logAudit: LogAudit }) {
                 </label>
               </div>
 
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => openEdit(p)}
+                  disabled={busyId === p.id}
+                  className="btn-ghost px-3 py-1.5 text-sm"
+                >
+                  Edit details
+                </button>
                 <button
                   onClick={() => toggleActive(p)}
                   disabled={busyId === p.id}
@@ -284,6 +319,48 @@ function UsersTab({ logAudit }: { logAudit: LogAudit }) {
           ))}
         </div>
       )}
+
+      <Modal
+        open={!!editing}
+        onClose={() => setEditing(null)}
+        title={editing ? `Edit ${displayName(editing)}` : 'Edit member'}
+        footer={
+          <div className="flex justify-end gap-2">
+            <button className="btn-ghost px-3 py-1.5 text-sm" onClick={() => setEditing(null)}>
+              Cancel
+            </button>
+            <button
+              className="btn-primary px-3 py-1.5 text-sm"
+              disabled={busyId === editing?.id}
+              onClick={saveEdit}
+            >
+              Save changes
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-3">
+          <label className="block">
+            <span className="label">Full name</span>
+            <input className="input" value={form.full_name} onChange={(e) => setForm((f) => ({ ...f, full_name: e.target.value }))} />
+          </label>
+          <label className="block">
+            <span className="label">Display name (nickname shown everywhere)</span>
+            <input className="input" placeholder="e.g. Rob" value={form.display_name} onChange={(e) => setForm((f) => ({ ...f, display_name: e.target.value }))} />
+          </label>
+          <label className="block">
+            <span className="label">Title</span>
+            <input className="input" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />
+          </label>
+          <label className="block">
+            <span className="label">Phone</span>
+            <input className="input" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
+          </label>
+          <p className="text-xs text-slate-400">
+            Role, location, department and active status are changed on the card behind this dialog.
+          </p>
+        </div>
+      </Modal>
     </div>
   )
 }
