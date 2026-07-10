@@ -1,4 +1,4 @@
-// ROP Connect — automatic rich "ROP Scorecard" (company + per-stylist), sourced from Snowflake.
+// ROP Connect — automatic rich "ROP Scorecard" (company total, by salon, by stylist), from Snowflake.
 // Quality metrics (Prebook %, LUX %, New-Request %) come from ANALYTICS.MARTS.STYLIST_QUALITY_DAILY
 // (daily grain: LUX = 'LUXURY UPGRADES' category, prebook = IS_PREBOOKED, new-request = new & requested).
 // Guests / New / RPG come from STYLIST_DAILY. Every metric is available for Yesterday / WTD / MTD / YTD.
@@ -39,83 +39,72 @@ const n = (v: any) => (v == null || v === '' ? 0 : Number(v))
 const fmt = (v: any) => n(v).toLocaleString('en-US')
 const pct = (v: any) => (v == null || v === '' ? '&mdash;' : `${n(v)}%`)
 
-// Reference day = most recent completed day (< today). Windows are relative to it.
 const REF = `with r as (select max(DATE_LOC) d from ANALYTICS.MARTS.STYLIST_DAILY where DATE_LOC < current_date)`
 const IN_YEAR = `DATE_LOC>=date_trunc('year',(select d from r)) and DATE_LOC<=(select d from r)`
-// helper window predicates
 const Y = `DATE_LOC=(select d from r)`
 const W = `DATE_LOC>=date_trunc('week',(select d from r))`
 const M = `DATE_LOC>=date_trunc('month',(select d from r))`
+// Aliased column blocks per window (prefix p, predicate P) — explicit names so the outer select can interleave them.
+const gcols = (p: string, P: string) => `sum(iff(${P},CLIENTS,0)) ${p}_g, sum(iff(${P},NEW_CLIENTS,0)) ${p}_n, round(sum(iff(${P},RETAIL_REVENUE,0))/nullif(sum(iff(${P},CLIENTS,0)),0)) ${p}_rpg`
+const gYtd = (p: string) => `sum(CLIENTS) ${p}_g, sum(NEW_CLIENTS) ${p}_n, round(sum(RETAIL_REVENUE)/nullif(sum(CLIENTS),0)) ${p}_rpg`
+const qcols = (p: string, P: string) => `round(100.0*sum(iff(${P},PREBOOKED_APPTS,0))/nullif(sum(iff(${P},APPTS,0)),0)) ${p}_pb, round(100.0*sum(iff(${P},LUX_APPTS,0))/nullif(sum(iff(${P},APPTS,0)),0)) ${p}_lux, round(100.0*sum(iff(${P},NEW_REQUESTED_APPTS,0))/nullif(sum(iff(${P},APPTS,0)),0)) ${p}_nr`
+const qYtd = (p: string) => `round(100.0*sum(PREBOOKED_APPTS)/nullif(sum(APPTS),0)) ${p}_pb, round(100.0*sum(LUX_APPTS)/nullif(sum(APPTS),0)) ${p}_lux, round(100.0*sum(NEW_REQUESTED_APPTS)/nullif(sum(APPTS),0)) ${p}_nr`
+const acols = (p: string, P: string) => `sum(iff(${P},APPTS,0)) ${p}_a, sum(iff(${P},NEW_APPTS,0)) ${p}_n`
+const aYtd = (p: string) => `sum(APPTS) ${p}_a, sum(NEW_APPTS) ${p}_n`
+const rpg = (p: string, P: string) => `round(sum(iff(${P},RETAIL_REVENUE,0))/nullif(sum(iff(${P},CLIENTS,0)),0)) ${p}_rpg`
+const rpgYtd = (p: string) => `round(sum(RETAIL_REVENUE)/nullif(sum(CLIENTS),0)) ${p}_rpg`
+// interleaved outer-select column list for guests/quality tables (prefix set y,w,m,ytd)
+const GQ = ['y', 'w', 'm', 'ytd'].map((p) => `sd.${p}_g,sd.${p}_n,sd.${p}_rpg,q.${p}_pb,q.${p}_lux,q.${p}_nr`).join(', ')
+const AQ = ['y', 'w', 'm', 'ytd'].map((p) => `q.${p}_a,q.${p}_n,coalesce(sd.${p}_rpg,0),q.${p}_pb,q.${p}_lux,q.${p}_nr`).join(', ')
 
-// Company: Guests/New/RPG from STYLIST_DAILY; Prebook%/LUX%/NewReq% from STYLIST_QUALITY_DAILY.
 const COMPANY_SQL = `${REF},
-sd as (select
-  to_char((select d from r),'Dy Mon DD') ref_label,
-  sum(iff(${Y},CLIENTS,0)) y_g, sum(iff(${Y},NEW_CLIENTS,0)) y_n, round(sum(iff(${Y},RETAIL_REVENUE,0))/nullif(sum(iff(${Y},CLIENTS,0)),0)) y_rpg,
-  sum(iff(${W},CLIENTS,0)) w_g, sum(iff(${W},NEW_CLIENTS,0)) w_n, round(sum(iff(${W},RETAIL_REVENUE,0))/nullif(sum(iff(${W},CLIENTS,0)),0)) w_rpg,
-  sum(iff(${M},CLIENTS,0)) m_g, sum(iff(${M},NEW_CLIENTS,0)) m_n, round(sum(iff(${M},RETAIL_REVENUE,0))/nullif(sum(iff(${M},CLIENTS,0)),0)) m_rpg,
-  sum(CLIENTS) ytd_g, sum(NEW_CLIENTS) ytd_n, round(sum(RETAIL_REVENUE)/nullif(sum(CLIENTS),0)) ytd_rpg
- from ANALYTICS.MARTS.STYLIST_DAILY where ${IN_YEAR}),
-q as (select
-  round(100.0*sum(iff(${Y},PREBOOKED_APPTS,0))/nullif(sum(iff(${Y},APPTS,0)),0)) y_pb, round(100.0*sum(iff(${Y},LUX_APPTS,0))/nullif(sum(iff(${Y},APPTS,0)),0)) y_lux, round(100.0*sum(iff(${Y},NEW_REQUESTED_APPTS,0))/nullif(sum(iff(${Y},APPTS,0)),0)) y_nr,
-  round(100.0*sum(iff(${W},PREBOOKED_APPTS,0))/nullif(sum(iff(${W},APPTS,0)),0)) w_pb, round(100.0*sum(iff(${W},LUX_APPTS,0))/nullif(sum(iff(${W},APPTS,0)),0)) w_lux, round(100.0*sum(iff(${W},NEW_REQUESTED_APPTS,0))/nullif(sum(iff(${W},APPTS,0)),0)) w_nr,
-  round(100.0*sum(iff(${M},PREBOOKED_APPTS,0))/nullif(sum(iff(${M},APPTS,0)),0)) m_pb, round(100.0*sum(iff(${M},LUX_APPTS,0))/nullif(sum(iff(${M},APPTS,0)),0)) m_lux, round(100.0*sum(iff(${M},NEW_REQUESTED_APPTS,0))/nullif(sum(iff(${M},APPTS,0)),0)) m_nr,
-  round(100.0*sum(PREBOOKED_APPTS)/nullif(sum(APPTS),0)) ytd_pb, round(100.0*sum(LUX_APPTS)/nullif(sum(APPTS),0)) ytd_lux, round(100.0*sum(NEW_REQUESTED_APPTS)/nullif(sum(APPTS),0)) ytd_nr
- from ANALYTICS.MARTS.STYLIST_QUALITY_DAILY where ${IN_YEAR})
-select sd.ref_label,
- sd.y_g,sd.y_n,sd.y_rpg,q.y_pb,q.y_lux,q.y_nr,
- sd.w_g,sd.w_n,sd.w_rpg,q.w_pb,q.w_lux,q.w_nr,
- sd.m_g,sd.m_n,sd.m_rpg,q.m_pb,q.m_lux,q.m_nr,
- sd.ytd_g,sd.ytd_n,sd.ytd_rpg,q.ytd_pb,q.ytd_lux,q.ytd_nr
-from sd, q`
+sd as (select to_char((select d from r),'Dy Mon DD') ref_label, ${gcols('y', Y)}, ${gcols('w', W)}, ${gcols('m', M)}, ${gYtd('ytd')} from ANALYTICS.MARTS.STYLIST_DAILY where ${IN_YEAR}),
+q as (select ${qcols('y', Y)}, ${qcols('w', W)}, ${qcols('m', M)}, ${qYtd('ytd')} from ANALYTICS.MARTS.STYLIST_QUALITY_DAILY where ${IN_YEAR})
+select sd.ref_label, ${GQ} from sd, q`
 
-// Per stylist, all four windows: [name, then 4×(appts,new,rpg,prebook%,lux%,newreq%)].
+// By salon: [salon, then 4×(guests,new,rpg,prebook%,lux%,newreq%)].
+const SALON_SQL = `${REF},
+q as (select LOCATION_NAME, ${qcols('y', Y)}, ${qcols('w', W)}, ${qcols('m', M)}, ${qYtd('ytd')} from ANALYTICS.MARTS.STYLIST_QUALITY_DAILY where ${IN_YEAR} group by LOCATION_NAME),
+sd as (select LOCATION_NAME, ${gcols('y', Y)}, ${gcols('w', W)}, ${gcols('m', M)}, ${gYtd('ytd')} from ANALYTICS.MARTS.STYLIST_DAILY where ${IN_YEAR} group by LOCATION_NAME)
+select case sd.LOCATION_NAME when 'Naples Bayfront' then 'Bayfront' when 'Naples Village' then 'Village' when 'Bonita Promenade' then 'Bonita' else sd.LOCATION_NAME end, ${GQ}
+from sd join q on q.LOCATION_NAME=sd.LOCATION_NAME order by sd.m_g desc`
+
+// By stylist: [name, then 4×(appts,new,rpg,prebook%,lux%,newreq%)].
 const STYLIST_SQL = `${REF},
-q as (select STAFF_NAME,
-  sum(iff(${Y},APPTS,0)) y_a, sum(iff(${Y},NEW_APPTS,0)) y_n, round(100.0*sum(iff(${Y},PREBOOKED_APPTS,0))/nullif(sum(iff(${Y},APPTS,0)),0)) y_pb, round(100.0*sum(iff(${Y},LUX_APPTS,0))/nullif(sum(iff(${Y},APPTS,0)),0)) y_lux, round(100.0*sum(iff(${Y},NEW_REQUESTED_APPTS,0))/nullif(sum(iff(${Y},APPTS,0)),0)) y_nr,
-  sum(iff(${W},APPTS,0)) w_a, sum(iff(${W},NEW_APPTS,0)) w_n, round(100.0*sum(iff(${W},PREBOOKED_APPTS,0))/nullif(sum(iff(${W},APPTS,0)),0)) w_pb, round(100.0*sum(iff(${W},LUX_APPTS,0))/nullif(sum(iff(${W},APPTS,0)),0)) w_lux, round(100.0*sum(iff(${W},NEW_REQUESTED_APPTS,0))/nullif(sum(iff(${W},APPTS,0)),0)) w_nr,
-  sum(iff(${M},APPTS,0)) m_a, sum(iff(${M},NEW_APPTS,0)) m_n, round(100.0*sum(iff(${M},PREBOOKED_APPTS,0))/nullif(sum(iff(${M},APPTS,0)),0)) m_pb, round(100.0*sum(iff(${M},LUX_APPTS,0))/nullif(sum(iff(${M},APPTS,0)),0)) m_lux, round(100.0*sum(iff(${M},NEW_REQUESTED_APPTS,0))/nullif(sum(iff(${M},APPTS,0)),0)) m_nr,
-  sum(APPTS) ytd_a, sum(NEW_APPTS) ytd_n, round(100.0*sum(PREBOOKED_APPTS)/nullif(sum(APPTS),0)) ytd_pb, round(100.0*sum(LUX_APPTS)/nullif(sum(APPTS),0)) ytd_lux, round(100.0*sum(NEW_REQUESTED_APPTS)/nullif(sum(APPTS),0)) ytd_nr
+q as (select STAFF_NAME, ${acols('y', Y)}, ${qcols('y', Y)}, ${acols('w', W)}, ${qcols('w', W)}, ${acols('m', M)}, ${qcols('m', M)}, ${aYtd('ytd')}, ${qYtd('ytd')}
  from ANALYTICS.MARTS.STYLIST_QUALITY_DAILY where ${IN_YEAR} and coalesce(STAFF_NAME,'')<>'' group by STAFF_NAME),
-sd as (select STAFF_NAME,
-  round(sum(iff(${Y},RETAIL_REVENUE,0))/nullif(sum(iff(${Y},CLIENTS,0)),0)) y_rpg,
-  round(sum(iff(${W},RETAIL_REVENUE,0))/nullif(sum(iff(${W},CLIENTS,0)),0)) w_rpg,
-  round(sum(iff(${M},RETAIL_REVENUE,0))/nullif(sum(iff(${M},CLIENTS,0)),0)) m_rpg,
-  round(sum(RETAIL_REVENUE)/nullif(sum(CLIENTS),0)) ytd_rpg
+sd as (select STAFF_NAME, ${rpg('y', Y)}, ${rpg('w', W)}, ${rpg('m', M)}, ${rpgYtd('ytd')}
  from ANALYTICS.MARTS.STYLIST_DAILY where ${IN_YEAR} and coalesce(STAFF_NAME,'')<>'' group by STAFF_NAME)
-select q.STAFF_NAME,
- q.y_a,q.y_n,coalesce(sd.y_rpg,0),q.y_pb,q.y_lux,q.y_nr,
- q.w_a,q.w_n,coalesce(sd.w_rpg,0),q.w_pb,q.w_lux,q.w_nr,
- q.m_a,q.m_n,coalesce(sd.m_rpg,0),q.m_pb,q.m_lux,q.m_nr,
- q.ytd_a,q.ytd_n,coalesce(sd.ytd_rpg,0),q.ytd_pb,q.ytd_lux,q.ytd_nr
+select q.STAFF_NAME, ${AQ}
 from q left join sd on sd.STAFF_NAME=q.STAFF_NAME
 where q.ytd_a>0 order by q.m_a desc, q.ytd_a desc`
 
 const REBOOK_SQL = `${REF} select round(100.0*sum(NEXT_VISIT_PREBOOKED)/nullif(sum(VISITS),0)) from ANALYTICS.MARTS.REBOOKING where MONTH>=date_trunc('year',(select d from r))`
 
-function stylistWidget(rows: string[][]): string {
-  const data = JSON.stringify(rows)
-  return `<div id="rop-st">
-<div style="color:#fff;font-size:12px;font-weight:700;margin:14px 0 6px">By stylist</div>
-<div id="rop-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"></div>
+// Interactive widget: one Yesterday/WTD/MTD/YTD tab bar drives BOTH the by-salon and by-stylist tables.
+function scorecardWidget(salons: string[][], stylists: string[][]): string {
+  return `<div id="rop-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin:14px 0 8px"></div>
+<div style="color:#fff;font-size:12px;font-weight:700;margin:6px 0 4px">By salon</div>
+<div style="overflow-x:auto"><table id="rop-sal" style="min-width:520px"></table></div>
+<div style="color:#fff;font-size:12px;font-weight:700;margin:14px 0 4px">By stylist</div>
 <div style="overflow-x:auto"><table id="rop-tbl" style="min-width:520px"></table></div>
-</div>
 <script>(function(){
-  var S=${data};
+  var SAL=${JSON.stringify(salons)}, STY=${JSON.stringify(stylists)};
   var W=[{k:'Yesterday',o:1},{k:'Week&#8209;to&#8209;date',o:7},{k:'Month&#8209;to&#8209;date',o:13},{k:'Year&#8209;to&#8209;date',o:19}];
   var cur=2;
   function num(v){return v==null||v===''?0:Number(v)}
   function fmt(v){return num(v).toLocaleString('en-US')}
   function P(v){return v==null||v===''?'<span style="opacity:.5">&mdash;</span>':num(v)+'%'}
   function esc(s){return String(s).replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c]})}
+  function rowHtml(r,o){return '<tr><td>'+esc(r[0])+'</td><td>'+fmt(r[o])+'</td><td>'+fmt(r[o+1])+'</td><td>$'+fmt(r[o+2])+'</td><td>'+P(r[o+3])+'</td><td>'+P(r[o+4])+'</td><td>'+P(r[o+5])+'</td></tr>'}
   function render(){
     var o=W[cur].o;
-    var rows=S.map(function(r){return{name:r[0],a:num(r[o]),n:r[o+1],rpg:r[o+2],pb:r[o+3],lux:r[o+4],nr:r[o+5]}})
-      .filter(function(x){return x.a>0}).sort(function(a,b){return b.a-a.a});
-    var body=rows.map(function(x){return '<tr><td>'+esc(x.name)+'</td><td>'+fmt(x.a)+'</td><td>'+fmt(x.n)+'</td><td>$'+fmt(x.rpg)+'</td><td>'+P(x.pb)+'</td><td>'+P(x.lux)+'</td><td>'+P(x.nr)+'</td></tr>'}).join('');
-    document.getElementById('rop-tbl').innerHTML='<tr><th>Stylist</th><th>Appts</th><th>New</th><th>RPG</th><th>Prebook%</th><th>LUX%</th><th>New&nbsp;Req%</th></tr>'+body;
-    var tabs=W.map(function(x,i){var on=i===cur;return '<button data-i="'+i+'" style="cursor:pointer;border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:4px 11px;font-size:12px;font-weight:600;'+(on?'background:#2563eb;color:#fff':'background:rgba(255,255,255,.06);color:#cbd5e1')+'">'+x.k+'</button>'}).join('');
-    document.getElementById('rop-tabs').innerHTML=tabs;
+    var salHead='<tr><th>Salon</th><th>Guests</th><th>New</th><th>RPG</th><th>Prebook%</th><th>LUX%</th><th>New&nbsp;Req%</th></tr>';
+    document.getElementById('rop-sal').innerHTML=salHead+SAL.map(function(r){return rowHtml(r,o)}).join('');
+    var stHead='<tr><th>Stylist</th><th>Appts</th><th>New</th><th>RPG</th><th>Prebook%</th><th>LUX%</th><th>New&nbsp;Req%</th></tr>';
+    var rows=STY.filter(function(r){return num(r[o])>0}).sort(function(a,b){return num(b[o])-num(a[o])});
+    document.getElementById('rop-tbl').innerHTML=stHead+rows.map(function(r){return rowHtml(r,o)}).join('');
+    document.getElementById('rop-tabs').innerHTML=W.map(function(x,i){var on=i===cur;return '<button data-i="'+i+'" style="cursor:pointer;border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:4px 11px;font-size:12px;font-weight:600;'+(on?'background:#2563eb;color:#fff':'background:rgba(255,255,255,.06);color:#cbd5e1')+'">'+x.k+'</button>'}).join('');
     Array.prototype.forEach.call(document.querySelectorAll('#rop-tabs button'),function(b){b.onclick=function(){cur=+b.getAttribute('data-i');render()}});
   }
   render();
@@ -124,23 +113,23 @@ function stylistWidget(rows: string[][]): string {
 
 async function buildAndPost() {
   const [c] = await sf(COMPANY_SQL)
+  const salons = await sf(SALON_SQL)
   const stylists = await sf(STYLIST_SQL)
   let rebookYtd = ''
   try { const [[rb]] = await sf(REBOOK_SQL); rebookYtd = rb } catch (_) { /* optional */ }
 
   const refLabel = c[0]
-  // company rows: [window, guests, new, rpg, prebook%, lux%, newreq%] at offsets 1,7,13,19
   const win = (o: number, label: string) =>
     `<tr><td>${label}</td><td>${fmt(c[o])}</td><td>${fmt(c[o + 1])}</td><td>$${fmt(c[o + 2])}</td><td>${pct(c[o + 3])}</td><td>${pct(c[o + 4])}</td><td>${pct(c[o + 5])}</td></tr>`
   const companyRows = win(1, 'Yesterday') + win(7, 'Week&#8209;to&#8209;date') + win(13, 'Month&#8209;to&#8209;date') + win(19, 'Year&#8209;to&#8209;date')
 
   const html =
-    `<div style="color:#9fb3c8;font-size:12px;margin-bottom:8px">Company &middot; through ${refLabel} &middot; source: Snowflake ANALYTICS.MARTS</div>` +
+    `<div style="color:#9fb3c8;font-size:12px;margin-bottom:8px">Company total &middot; through ${refLabel} &middot; source: Snowflake ANALYTICS.MARTS</div>` +
     `<div style="overflow-x:auto"><table style="min-width:520px"><tr><th>Window</th><th>Guests</th><th>New</th><th>RPG</th><th>Prebook%</th><th>LUX%</th><th>New&nbsp;Req%</th></tr>${companyRows}</table></div>` +
-    stylistWidget(stylists) +
+    scorecardWidget(salons, stylists) +
     `<div style="color:#9fb3c8;font-size:12px;margin-top:10px;line-height:1.6">` +
     (rebookYtd ? `<b style="color:#fff">Rebooking YTD:</b> ${pct(rebookYtd)}<br>` : '') +
-    `<span style="opacity:.75">New&nbsp;Req% = guests who were new <i>and</i> requested that stylist. LUX% = share of appointments with a Luxury Upgrade. Targets: prebook 70%, LUX 33%, RPG $8.</span></div>`
+    `<span style="opacity:.75">Company total, then a By-salon and By-stylist breakdown — tap a window to switch all three. New&nbsp;Req% = guests who were new <i>and</i> requested that stylist. LUX% = share with a Luxury Upgrade. Targets: prebook 70%, LUX 33%, RPG $8.</span></div>`
 
   const r = await fetch(INGEST_URL, {
     method: 'POST',
@@ -148,7 +137,7 @@ async function buildAndPost() {
     body: JSON.stringify({ channel: 'daily-numbers', author_name: 'Snowflake', title: `ROP Scorecard — through ${refLabel}`, external_key: 'rop-scorecard', html }),
   })
   const body = await r.json().catch(() => ({}))
-  return { ok: !!body.ok, refLabel, stylists: stylists.length, updated: body.updated }
+  return { ok: !!body.ok, refLabel, salons: salons.length, stylists: stylists.length, updated: body.updated }
 }
 
 Deno.serve(async (req) => {
