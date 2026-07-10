@@ -1,8 +1,13 @@
 name: Deploy to Netlify
 
-# Auto-publish rop-connect.netlify.app on every push to the working branch.
-# Requires one repository secret: NETLIFY_AUTH_TOKEN (a Netlify personal access token).
-# The site id is not secret, so it is inlined below.
+# Publishes rop-connect.netlify.app on every push to the working branch.
+#
+# IMPORTANT: this deploys the COMMITTED dist/ as-is — it does NOT rebuild.
+# The build is produced locally (where the VITE_SUPABASE_* env vars live) and committed
+# with each change. Rebuilding in CI without those env vars would ship an app that can't
+# reach Supabase ("configuration needed"), so we intentionally skip the build step.
+#
+# Requires one repository secret: NETLIFY_AUTH_TOKEN. Site id is not secret (inlined).
 
 on:
   push:
@@ -15,12 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - run: npm ci
-      - run: npm run build
-      - name: Publish to Netlify
+      - name: Publish committed dist to Netlify
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: e6d7215b-dc6d-4adb-9300-124d114f1849
