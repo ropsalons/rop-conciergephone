@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.6.1'
+export const APP_VERSION = '1.6.2'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.6.2',
+    date: '2026-07-10',
+    time: '7:20 PM ET',
+    title: 'Scorecard: prebook %, LUX %, new-request % on every window',
+    changes: [
+      'The ROP Scorecard now shows Prebook % and LUX % for Yesterday and Week-to-date too (not just monthly), computed from the daily Snowflake detail — LUX uses the official “Luxury Upgrades” definition.',
+      'Replaced Request % with New-Request % (guests who were new and requested that stylist), shown at the end.',
+    ],
+  },
   {
     version: '1.6.1',
     date: '2026-07-10',
