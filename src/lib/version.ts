@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.6.0'
+export const APP_VERSION = '1.6.1'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.6.1',
+    date: '2026-07-10',
+    time: '1:05 PM ET',
+    title: 'Announcements + missing history backfilled',
+    changes: [
+      'Imported ~12,500 more messages from a full Slack export — the channels that came in empty before are now filled, including #announcements-rop (2,679 messages), #desk-closing, #desk-promenade, #products-rop, #education-all-levels, #caught-being-awesome, #share-vids-pics, #our-next-chapter and more. Total history is now ~30,700 messages.',
+      'Re-imports are de-duplicated, so nothing already loaded was doubled.',
+    ],
+  },
   {
     version: '1.6.0',
     date: '2026-07-10',
