@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.3.0'
+export const APP_VERSION = '1.3.1'
 
 export interface ChangelogEntry {
   version: string
@@ -13,6 +13,15 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.3.1',
+    date: '2026-07-10',
+    title: 'Automatic Daily Numbers card',
+    changes: [
+      'The #daily-numbers channel now posts an automatic morning stat card from live Snowflake data: guests, appointments, new clients and retail-per-guest (RPG) for the latest day, broken down by Bayfront / Village / Bonita, plus month-to-date and rebooking trend.',
+      'Numbers come straight from the ANALYTICS.MARTS views (the same source of truth as the performance dashboards).',
+    ],
+  },
   {
     version: '1.3.0',
     date: '2026-07-10',
