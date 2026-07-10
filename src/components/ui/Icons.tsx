@@ -116,3 +116,12 @@ export const LifeBuoy = (p: P) => (
 export const ClipboardList = (p: P) => (
   <svg {...base(p)}><rect x="8" y="2" width="8" height="4" rx="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><path d="M12 11h4" /><path d="M12 16h4" /><path d="M8 11h.01" /><path d="M8 16h.01" /></svg>
 )
+export const Eye = (p: P) => (
+  <svg {...base(p)}><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" /></svg>
+)
+export const EyeOff = (p: P) => (
+  <svg {...base(p)}><path d="M9.9 4.2A9.1 9.1 0 0 1 12 4c6.5 0 10 7 10 7a13 13 0 0 1-2.4 3.1" /><path d="M6.1 6.1A13 13 0 0 0 2 11s3.5 7 10 7a9 9 0 0 0 4-.9" /><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" /><line x1="2" y1="2" x2="22" y2="22" /></svg>
+)
+export const ArrowUpDown = (p: P) => (
+  <svg {...base(p)}><path d="m7 15 3 3 3-3" /><path d="M10 6v12" /><path d="m17 9-3-3-3 3" /><path d="M14 18V6" /></svg>
+)

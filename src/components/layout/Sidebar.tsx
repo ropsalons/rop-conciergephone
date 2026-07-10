@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import { useChatStore } from '@/stores/chatStore'
@@ -8,6 +8,7 @@ import { UnreadBadge } from '@/components/ui/Badge'
 import {
   Hash, Lock, Megaphone, Home, MessageSquare, Users, Search, Bell, Plus,
   Star, LifeBuoy, GraduationCap, Calendar, ClipboardList, AlertTriangle, Shield, Settings,
+  Eye, EyeOff, ArrowUpDown,
 } from '@/components/ui/Icons'
 import { conversationName, otherMembers } from '@/lib/dm'
 import { cn } from '@/lib/utils'
@@ -34,12 +35,52 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     useChatStore()
   const setSearchOpen = useUIStore((s) => s.setSearchOpen)
   const setHelpOpen = useUIStore((s) => s.setHelpOpen)
+  const channelSort = useUIStore((s) => s.channelSort)
+  const setChannelSort = useUIStore((s) => s.setChannelSort)
+  const hideInactive = useUIStore((s) => s.hideInactive)
+  const setHideInactive = useUIStore((s) => s.setHideInactive)
   const navigate = useNavigate()
   const [showCreate, setShowCreate] = useState(false)
   const [showBrowse, setShowBrowse] = useState(false)
   const [showNewDM, setShowNewDM] = useState(false)
 
   const go = () => onNavigate?.()
+
+  // A channel is "active" if it has any messages, any unread, or is favorited (so favorites
+  // and channels you're currently catching up on are never hidden).
+  const isActiveChannel = (c: (typeof channels)[number]) =>
+    !!c.is_favorite || (unreadByChannel[c.id] ?? 0) > 0 || (c.message_count ?? 0) > 0
+
+  // Display list: optional hide-quiet filter, then sort. Favorites always float to the top;
+  // `channelSort` orders within each group (A–Z, most-recent activity, or most-unread first).
+  const visibleChannels = useMemo(() => {
+    const list = hideInactive ? channels.filter(isActiveChannel) : channels.slice()
+    list.sort((a, b) => {
+      if (!!a.is_favorite !== !!b.is_favorite) return a.is_favorite ? -1 : 1
+      if (channelSort === 'unread') {
+        const ua = unreadByChannel[a.id] ?? 0
+        const ub = unreadByChannel[b.id] ?? 0
+        if (ua !== ub) return ub - ua
+        return (b.last_message_at ?? '').localeCompare(a.last_message_at ?? '')
+      }
+      if (channelSort === 'activity') {
+        const cmp = (b.last_message_at ?? '').localeCompare(a.last_message_at ?? '')
+        if (cmp !== 0) return cmp
+      }
+      return (a.name ?? '').localeCompare(b.name ?? '')
+    })
+    return list
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channels, hideInactive, channelSort, unreadByChannel])
+
+  const hiddenCount = channels.length - visibleChannels.length
+  const SORT_LABEL: Record<typeof channelSort, string> = {
+    name: 'A–Z',
+    activity: 'Recent activity',
+    unread: 'Unread first',
+  }
+  const nextSort = () =>
+    setChannelSort(channelSort === 'name' ? 'activity' : channelSort === 'activity' ? 'unread' : 'name')
 
   const salonLinks = [
     { to: '/announcements', label: 'Announcements', icon: Megaphone },
@@ -101,7 +142,23 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         <div>
           <div className="flex items-center justify-between px-3 pb-1">
             <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Channels</p>
-            <div className="flex gap-1">
+            <div className="flex items-center gap-1.5">
+              <button
+                title={`Sort: ${SORT_LABEL[channelSort]} — tap to change`}
+                onClick={nextSort}
+                className="flex items-center gap-1 text-slate-400 hover:text-white"
+              >
+                <ArrowUpDown className="h-3.5 w-3.5" />
+                <span className="text-[10px] font-semibold uppercase tracking-wide">{SORT_LABEL[channelSort]}</span>
+              </button>
+              <button
+                title={hideInactive ? 'Showing active channels only — tap to show all' : 'Hide quiet/empty channels'}
+                aria-pressed={hideInactive}
+                onClick={() => setHideInactive(!hideInactive)}
+                className={cn('hover:text-white', hideInactive ? 'text-gold-400' : 'text-slate-400')}
+              >
+                {hideInactive ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+              </button>
               <button title="Browse channels" onClick={() => setShowBrowse(true)} className="text-slate-400 hover:text-white">
                 <Search className="h-3.5 w-3.5" />
               </button>
@@ -111,7 +168,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             </div>
           </div>
           <div className="space-y-0.5">
-            {channels.map((c) => {
+            {visibleChannels.map((c) => {
               const unread = unreadByChannel[c.id] ?? 0
               const fav = !!c.is_favorite
               return (
@@ -140,6 +197,17 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
               )
             })}
             {channels.length === 0 && <p className="px-3 py-1 text-xs text-slate-500">No channels yet.</p>}
+            {channels.length > 0 && visibleChannels.length === 0 && (
+              <p className="px-3 py-1 text-xs text-slate-500">All channels are quiet right now.</p>
+            )}
+            {hideInactive && hiddenCount > 0 && (
+              <button
+                onClick={() => setHideInactive(false)}
+                className="w-full px-3 py-1 text-left text-[11px] text-slate-500 hover:text-slate-300"
+              >
+                + Show {hiddenCount} quiet channel{hiddenCount === 1 ? '' : 's'}
+              </button>
+            )}
           </div>
         </div>
 

@@ -62,6 +62,28 @@ export const useChatStore = create<ChatState>((set, get) => ({
         .filter((c: ChannelWithMeta) => c && c.id && !c.is_archived),
     )
 
+    // Last-message time + message count per channel (drives "sort by activity" and
+    // "hide quiet channels"). Best-effort: if it fails, channels still render.
+    try {
+      // `channel_activity` is a newer RPC not yet in the generated types — call it untyped.
+      const { data: activity } = await (supabase.rpc as any)('channel_activity')
+      if (Array.isArray(activity)) {
+        const byId: Record<string, { last_message_at: string | null; message_count: number }> = {}
+        for (const row of activity as any[]) {
+          byId[row.channel_id] = {
+            last_message_at: row.last_message_at ?? null,
+            message_count: Number(row.message_count ?? 0),
+          }
+        }
+        for (const c of channels) {
+          c.last_message_at = byId[c.id]?.last_message_at ?? null
+          c.message_count = byId[c.id]?.message_count ?? 0
+        }
+      }
+    } catch {
+      /* activity is optional metadata; ignore */
+    }
+
     // Conversations I belong to.
     const { data: convRows } = await supabase
       .from('direct_conversation_members')

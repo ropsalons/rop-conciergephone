@@ -6,6 +6,7 @@ import { APP_NAME, COMPANY_NAME } from '@/lib/constants'
 import {
   Home, Search, Bell, Users, Hash, Lock, Megaphone, MessageSquare, Plus,
   Star, LifeBuoy, GraduationCap, Calendar, ClipboardList, AlertTriangle, Shield, Pin, Sparkles,
+  Eye, EyeOff, ArrowUpDown,
 } from '@/components/ui/Icons'
 
 // One collapsible topic in the Help guide.
@@ -130,8 +131,21 @@ export function HelpModal() {
               <p className="font-semibold text-white">Favorite a channel (keep it at the top):</p>
               <Steps items={[
                 <>In the sidebar, hover a channel and tap the <Star className="inline h-3.5 w-3.5" /> star — or open the channel and tap the <Star className="inline h-3.5 w-3.5" /> in the top bar.</>,
-                <>Favorites are pinned to the top of your sidebar (and are private to you). Tap the star again to un-favorite. Everything else is sorted alphabetically.</>,
+                <>Favorites are pinned to the top of your sidebar (and are private to you). Tap the star again to un-favorite.</>,
               ]} />
+              <p className="font-semibold text-white">Sort your channels (<ArrowUpDown className="inline h-3.5 w-3.5" />):</p>
+              <p>Tap the <ArrowUpDown className="inline h-3.5 w-3.5" /> button next to <b>Channels</b> to cycle the order. Favorites always stay on top; this changes everything below them:</p>
+              <ul className="list-disc space-y-1 pl-5">
+                <li><b>A–Z</b> — alphabetical (the default).</li>
+                <li><b>Recent activity</b> — the channels with the newest messages float up.</li>
+                <li><b>Unread first</b> — channels you haven&apos;t caught up on come first, so you can clear them top-down.</li>
+              </ul>
+              <p className="font-semibold text-white">Hide quiet / empty channels (<Eye className="inline h-3.5 w-3.5" />):</p>
+              <Steps items={[
+                <>Tap the <Eye className="inline h-3.5 w-3.5" /> eye button next to <b>Channels</b>. It turns to <EyeOff className="inline h-3.5 w-3.5" /> and hides any channel that has no messages, no unread, and isn&apos;t favorited.</>,
+                <>A <K>+ Show N quiet channels</K> link appears at the bottom of the list — tap it (or the <EyeOff className="inline h-3.5 w-3.5" /> button) to bring them all back.</>,
+              ]} />
+              <p className="text-xs text-slate-400">Your sort and hide choices are remembered on this device (they don&apos;t change what anyone else sees).</p>
               <p className="text-xs text-slate-400"><Lock className="inline h-3 w-3" /> = private/admin channel · <Megaphone className="inline h-3 w-3" /> = announcement channel (only leadership can post) · <Hash className="inline h-3 w-3" /> = normal channel.</p>
             </Topic>
 
@@ -208,7 +222,8 @@ export function HelpModal() {
                 <li><b>Plain updates</b> — any system can drop a message into a channel (e.g. “Nightly report ready”).</li>
                 <li><b>Rich stat cards</b> — send HTML and it renders as a nice visual card (numbers, tables, even charts) right in the channel.</li>
                 <li><b>Live boards</b> — send the same <b>key</b> each run and the card updates in place instead of piling up, so a channel can show “today so far”.</li>
-                <li><b>Already running:</b> the <b>#daily-numbers</b> channel auto-posts a morning card (from Boulevard) — guests, appointments, first-visit guests, retail-per-guest and rebooking, by location.</li>
+                <li><b>Already running — daily numbers:</b> the <b>#daily-numbers</b> channel auto-posts a morning <b>ROP Scorecard</b> (from Snowflake) — guests, new clients, request %, RPG, prebook % and LUX %, company-wide and per stylist, each with Yesterday / Week-to-date / Month-to-date / Year-to-date tabs.</li>
+                <li><b>Already running — live bookings:</b> the <b>#dc-coordinators</b> channel gets a message within ~10 minutes of every appointment booked in Boulevard (online or in-salon) — guest, new vs. repeat, stylist, service, who booked it and the appointment time.</li>
               </ul>
               <p className="text-xs text-slate-400">An owner/admin sets this up — ask for the integration API key and the one-page guide, or see the Admin. Rich cards are shown in a locked sandbox, so an outside report can never touch your data.</p>
             </Topic>
