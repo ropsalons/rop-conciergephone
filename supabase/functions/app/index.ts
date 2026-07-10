@@ -11,9 +11,9 @@
 
 const OWNER = 'ropsalons'
 const REPO = 'rop-conciergephone'
-const SHA = '389e933e5b3315f96195ef64f8a54624dbe30b1a'
+const SHA = 'cc962bc00780d80199ead40232127617af2275cc'
 const CSS_HREF = '/functions/v1/app/assets/index-DnJfiSyh.css'
-const JS_SRC = '/functions/v1/app/assets/index-CLC9Hi3Z.js'
+const JS_SRC = '/functions/v1/app/assets/index-nDQigSIt.js'
 const raw = (p: string) => `https://raw.githubusercontent.com/${OWNER}/${REPO}/${SHA}/dist/${p}`
 
 const INDEX_XHTML = `<!DOCTYPE html>
