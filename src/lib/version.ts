@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.4.0'
+export const APP_VERSION = '1.5.0'
 
 export interface ChangelogEntry {
   version: string
@@ -13,6 +13,15 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.5.0',
+    date: '2026-07-10',
+    title: 'Company calendar in a channel',
+    changes: [
+      'New #rop-calendar channel shows an always-current “Upcoming ROP Events” card — the next 14 days from the Robert of Philadelphia company calendar (meetings, trainings, academies, content days), grouped by day with times and locations.',
+      'It refreshes on its own every few hours, so newly added or moved events show up automatically — no manual updating.',
+    ],
+  },
   {
     version: '1.4.0',
     date: '2026-07-10',

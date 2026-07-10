@@ -224,6 +224,7 @@ export function HelpModal() {
                 <li><b>Live boards</b> — send the same <b>key</b> each run and the card updates in place instead of piling up, so a channel can show “today so far”.</li>
                 <li><b>Already running — daily numbers:</b> the <b>#daily-numbers</b> channel auto-posts a morning <b>ROP Scorecard</b> (from Snowflake) — guests, new clients, request %, RPG, prebook % and LUX %, company-wide and per stylist, each with Yesterday / Week-to-date / Month-to-date / Year-to-date tabs.</li>
                 <li><b>Already running — live bookings:</b> the <b>#dc-coordinators</b> channel gets a message within ~10 minutes of every appointment booked in Boulevard (online or in-salon) — guest, new vs. repeat, stylist, service, who booked it and the appointment time.</li>
+                <li><b>Already running — company calendar:</b> the <b>#rop-calendar</b> channel shows an auto-updating card of the next 14 days from the Robert of Philadelphia calendar (meetings, trainings, academies, events), grouped by day. It refreshes itself every few hours.</li>
               </ul>
               <p className="text-xs text-slate-400">An owner/admin sets this up — ask for the integration API key and the one-page guide, or see the Admin. Rich cards are shown in a locked sandbox, so an outside report can never touch your data.</p>
             </Topic>
