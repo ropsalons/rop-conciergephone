@@ -135,6 +135,7 @@ function widget(salons: string[][], stylists: string[][]): string {
   function P(v){return v==null||v===''?dash():num(v)+'%'}
   function kpi(v,kind){if(v==null||v==='')return dash();var x=num(v);var t=kind==='lux'?[33,20]:kind==='rpg'?[8,5]:[70,50];var c=x>=t[0]?'#4ade80':x>=t[1]?'#fbbf24':'#f87171';return '<span style="color:'+c+';font-weight:700">'+(kind==='rpg'?'$'+fmt(x):x+'%')+'</span>'}
   function esc(s){return String(s).replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c]})}
+  function short(nm){var p=String(nm).trim().split(' ');return p.length>1?p[0]+' '+p[1].charAt(0)+'.':p[0]}
   function homer(r,o){return num(r[o+4])>=70&&num(r[o+3])>=8&&num(r[o+5])>=33}
   var TROPHY=' <span class="trophy" title="Home run — prebook, RPG and LUX all on target">🏆</span>';
   function row(r,o){var h=homer(r,o);return '<tr'+(h?' class="hr"':'')+'><td>'+esc(r[0])+(h?TROPHY:'')+'</td><td>'+fmt(r[o])+'</td><td>'+fmt(r[o+1])+'</td><td>'+kpi(r[o+2],'pb')+'</td><td>'+kpi(r[o+3],'rpg')+'</td><td>'+kpi(r[o+4],'pb')+'</td><td>'+kpi(r[o+5],'lux')+'</td><td>'+P(r[o+6])+'</td></tr>'}
@@ -143,7 +144,7 @@ function widget(salons: string[][], stylists: string[][]): string {
     var o=W[cur].o;
     document.getElementById('rop-sal').innerHTML=HEAD('Salon','Guests')+'<tbody>'+SAL.map(function(r){return row(r,o)}).join('')+'</tbody>';
     var rows=STY.filter(function(r){return num(r[o])>0}).sort(function(a,b){return num(b[o])-num(a[o])});
-    document.getElementById('rop-tbl').innerHTML=HEAD('Stylist','Appts')+'<tbody>'+rows.map(function(r){return row(r,o)}).join('')+'</tbody>';
+    document.getElementById('rop-tbl').innerHTML=HEAD('Stylist','Appts')+'<tbody>'+rows.map(function(r){var rr=r.slice();rr[0]=short(rr[0]);return row(rr,o)}).join('')+'</tbody>';
     document.getElementById('rop-tabs').innerHTML=W.map(function(x,i){return '<button class="'+(i===cur?'on':'')+'" data-i="'+i+'">'+x.k+'</button>'}).join('');
     Array.prototype.forEach.call(document.querySelectorAll('#rop-tabs button'),function(b){b.onclick=function(){cur=+b.getAttribute('data-i');render()}});
   }

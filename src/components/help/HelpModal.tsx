@@ -205,7 +205,7 @@ export function HelpModal() {
               <p>Open the <b>Admin Panel</b> <Shield className="inline h-3.5 w-3.5" /> at the bottom of the sidebar (visible to admins/owners only). Tabs:</p>
               <ul className="ml-4 list-disc space-y-1 marker:text-slate-500">
                 <li><b>Users</b> — change a member&apos;s role, location, department, or deactivate/reactivate them. Tap <b>Edit details</b> on a person to change their full name, display name (nickname), title or phone.</li>
-                <li><b>Channels</b> — create channels and archive old ones.</li>
+                <li><b>Channels</b> — create channels, and tap the <b>✏️ Edit</b> button on any channel to <b>rename</b> it or change its <b>type</b> (public / private / announcement / location / department), <b>topic</b>, description, default-join, or <b>archived</b> status. Archive old ones or delete them here too.</li>
                 <li><b>Acknowledgements</b> — see who has/hasn&apos;t acknowledged urgent alerts &amp; announcements.</li>
                 <li><b>Audit Log</b> — record of admin actions.</li>
                 <li><b>Storage &amp; Export</b> — storage usage and export messages to CSV.</li>

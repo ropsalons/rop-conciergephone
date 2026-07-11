@@ -146,27 +146,27 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         <div>
           <div className="flex items-center justify-between px-3 pb-1">
             <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Channels</p>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-0.5">
               <button
                 title={`Sort: ${SORT_LABEL[channelSort]} — tap to change`}
                 onClick={nextSort}
-                className="flex items-center gap-1 text-slate-400 hover:text-white"
+                className="flex items-center gap-1 rounded p-1.5 text-slate-400 hover:bg-white/5 hover:text-white"
               >
-                <ArrowUpDown className="h-3.5 w-3.5" />
+                <ArrowUpDown className="h-4 w-4" />
                 <span className="text-[10px] font-semibold uppercase tracking-wide">{SORT_LABEL[channelSort]}</span>
               </button>
               <button
                 title={hideInactive ? 'Showing active channels only — tap to show all' : 'Hide quiet/empty channels'}
                 aria-pressed={hideInactive}
                 onClick={() => setHideInactive(!hideInactive)}
-                className={cn('hover:text-white', hideInactive ? 'text-gold-400' : 'text-slate-400')}
+                className={cn('rounded p-1.5 hover:bg-white/5 hover:text-white', hideInactive ? 'text-gold-400' : 'text-slate-400')}
               >
-                {hideInactive ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                {hideInactive ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
-              <button title="Browse channels" onClick={() => setShowBrowse(true)} className="text-slate-400 hover:text-white">
-                <Search className="h-3.5 w-3.5" />
+              <button title="Browse channels" onClick={() => setShowBrowse(true)} className="rounded p-1.5 text-slate-400 hover:bg-white/5 hover:text-white">
+                <Search className="h-4 w-4" />
               </button>
-              <button title="Create channel" onClick={() => setShowCreate(true)} className="text-slate-400 hover:text-white">
+              <button title="Create channel" onClick={() => setShowCreate(true)} className="rounded p-1.5 text-slate-400 hover:bg-white/5 hover:text-white">
                 <Plus className="h-4 w-4" />
               </button>
             </div>
@@ -191,11 +191,13 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                     title={fav ? 'Remove from favorites' : 'Favorite — pin to top'}
                     aria-label={fav ? 'Remove from favorites' : 'Add to favorites'}
                     className={cn(
-                      'absolute right-1.5 rounded p-1 transition',
-                      fav ? 'text-gold-400 hover:text-gold-300' : 'text-slate-500 opacity-0 hover:text-gold-300 focus:opacity-100 group-hover:opacity-100',
+                      'absolute right-1 rounded p-1.5 transition',
+                      fav
+                        ? 'text-gold-400 hover:text-gold-300'
+                        : 'text-slate-500 opacity-60 hover:text-gold-300 focus:opacity-100 lg:opacity-0 lg:group-hover:opacity-100',
                     )}
                   >
-                    <Star className="h-3.5 w-3.5" {...(fav ? { fill: 'currentColor' } : {})} />
+                    <Star className="h-4 w-4" {...(fav ? { fill: 'currentColor' } : {})} />
                   </button>
                 </div>
               )

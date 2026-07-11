@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.7.2'
+export const APP_VERSION = '1.8.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,18 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.8.0',
+    date: '2026-07-10',
+    time: '11:20 PM ET',
+    title: 'Edit channels · mobile polish · nightly backup',
+    changes: [
+      'Admins can now rename a channel and change its details: Admin → Channels → the ✏️ Edit button lets you change the name, type, topic, description, default-join, and archived status.',
+      'Mobile: message actions (react / reply / pin / edit / delete) are now reachable by tapping the ⋯ on a message — no more hover-only. The favorite ⭐ is now visible and tappable on phones, tap targets are bigger, and pinch-to-zoom is allowed again.',
+      'The ROP Scorecard now shows stylists by first name + last initial so the by-stylist table fits phone screens.',
+      'Added an automatic nightly backup of the app’s data (channels, messages, people, settings) saved into our own database and kept for 14 days, so a bad change can be rolled back.',
+    ],
+  },
   {
     version: '1.7.2',
     date: '2026-07-10',

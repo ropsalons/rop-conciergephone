@@ -8,7 +8,7 @@ import { RichCard } from './RichCard'
 import { FileChip } from '@/components/files/FileChip'
 import { messageTime, displayName, cn } from '@/lib/utils'
 import { QUICK_EMOJIS, canManage } from '@/lib/constants'
-import { Smile, Reply, Pin, Edit, Trash, Check, X } from '@/components/ui/Icons'
+import { Smile, Reply, Pin, Edit, Trash, Check, X, MoreHorizontal } from '@/components/ui/Icons'
 
 interface Props {
   message: MessageWithAuthor
@@ -26,6 +26,7 @@ export function MessageItem({ message, grouped, showThread = true, onReact, onRe
   const myRole = useAuthStore((s) => s.profile?.role)
   const profilesById = useDirectoryStore((s) => s.profilesById)
   const [showEmoji, setShowEmoji] = useState(false)
+  const [showActions, setShowActions] = useState(false)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(message.body)
 
@@ -188,9 +189,26 @@ export function MessageItem({ message, grouped, showThread = true, onReact, onRe
         )}
       </div>
 
-      {/* Hover actions */}
+      {/* Tap-to-reveal handle for touch devices (desktop uses hover) */}
       {!editing && !isTemp && (
-        <div className="absolute -top-3 right-3 hidden items-center gap-0.5 rounded-lg border border-white/10 bg-brand-800 px-1 py-0.5 shadow-lg group-hover:flex">
+        <button
+          onClick={() => setShowActions((v) => !v)}
+          className="absolute -top-2 right-2 rounded-lg border border-white/10 bg-brand-800 p-1.5 text-slate-300 shadow-lg lg:hidden"
+          title="Message actions"
+          aria-label="Message actions"
+        >
+          <MoreHorizontal className="h-4 w-4" />
+        </button>
+      )}
+
+      {/* Actions — hover on desktop, tap the ⋯ on touch */}
+      {!editing && !isTemp && (
+        <div
+          className={cn(
+            'absolute -top-3 right-3 items-center gap-0.5 rounded-lg border border-white/10 bg-brand-800 px-1 py-0.5 shadow-lg group-hover:flex',
+            showActions ? 'flex' : 'hidden',
+          )}
+        >
           <div className="relative">
             <button onClick={() => setShowEmoji((v) => !v)} className="rounded p-1.5 text-slate-300 hover:bg-white/10" title="React">
               <Smile className="h-4 w-4" />

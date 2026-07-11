@@ -8,7 +8,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Modal } from '@/components/ui/Modal'
 import { Tag } from '@/components/ui/Badge'
 import { EmptyState, FullPageLoader, Spinner } from '@/components/ui/Feedback'
-import { Shield, Plus, Trash, Archive, Search, Hash, Users, ClipboardList } from '@/components/ui/Icons'
+import { Shield, Plus, Trash, Archive, Search, Hash, Users, ClipboardList, Edit } from '@/components/ui/Icons'
 import { isAdmin, ROLE_LABELS } from '@/lib/constants'
 import { cn, displayName, formatBytes, timeAgo } from '@/lib/utils'
 import type {
@@ -386,6 +386,7 @@ function ChannelsTab({ me, logAudit }: { me: string; logAudit: LogAudit }) {
   const [counts, setCounts] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
+  const [editing, setEditing] = useState<ChannelRow | null>(null)
 
   const fetchChannels = useCallback(async () => {
     const [chRes, memRes] = await Promise.all([
@@ -464,6 +465,13 @@ function ChannelsTab({ me, logAudit }: { me: string; logAudit: LogAudit }) {
               </div>
               {c.is_archived && <Tag tone="amber">Archived</Tag>}
               <button
+                onClick={() => setEditing(c)}
+                title="Edit name, topic, type…"
+                className="rounded-lg p-2 text-slate-300 hover:bg-white/10"
+              >
+                <Edit className="h-4 w-4" />
+              </button>
+              <button
                 onClick={() => toggleArchive(c)}
                 title={c.is_archived ? 'Unarchive' : 'Archive'}
                 className="rounded-lg p-2 text-slate-300 hover:bg-white/10"
@@ -495,7 +503,161 @@ function ChannelsTab({ me, logAudit }: { me: string; logAudit: LogAudit }) {
           }}
         />
       )}
+
+      {editing && (
+        <EditChannelModal
+          channel={editing}
+          locations={locations}
+          departments={departments}
+          onClose={() => setEditing(null)}
+          onSaved={async (c) => {
+            await logAudit('update_channel', 'channel', c.id, { name: c.name, type: c.type })
+            setEditing(null)
+            void fetchChannels()
+          }}
+        />
+      )}
     </div>
+  )
+}
+
+function EditChannelModal({
+  channel,
+  locations,
+  departments,
+  onClose,
+  onSaved,
+}: {
+  channel: ChannelRow
+  locations: { id: string; name: string }[]
+  departments: { id: string; name: string }[]
+  onClose: () => void
+  onSaved: (c: ChannelRow) => void | Promise<void>
+}) {
+  const toast = useUIStore((s) => s.toast)
+  const [name, setName] = useState(channel.name)
+  const [type, setType] = useState<ChannelType>(channel.type as ChannelType)
+  const [locationId, setLocationId] = useState(channel.location_id ?? '')
+  const [departmentId, setDepartmentId] = useState(channel.department_id ?? '')
+  const [topic, setTopic] = useState(channel.topic ?? '')
+  const [description, setDescription] = useState(channel.description ?? '')
+  const [isDefault, setIsDefault] = useState(!!channel.is_default)
+  const [isArchived, setIsArchived] = useState(!!channel.is_archived)
+  const [saving, setSaving] = useState(false)
+
+  async function save() {
+    const trimmed = name.trim()
+    if (!trimmed) return toast({ kind: 'error', title: 'Name required' })
+    if (type === 'location' && !locationId) return toast({ kind: 'error', title: 'Pick a location' })
+    if (type === 'department' && !departmentId) return toast({ kind: 'error', title: 'Pick a department' })
+    const slug =
+      trimmed.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || channel.slug
+
+    setSaving(true)
+    const { data, error } = await supabase
+      .from('channels')
+      .update({
+        name: trimmed,
+        slug,
+        type,
+        topic: topic.trim() || null,
+        description: description.trim() || null,
+        location_id: type === 'location' ? locationId : null,
+        department_id: type === 'department' ? departmentId : null,
+        is_default: isDefault,
+        is_archived: isArchived,
+      })
+      .eq('id', channel.id)
+      .select('*')
+      .single()
+    setSaving(false)
+    if (error || !data) return toast({ kind: 'error', title: 'Save failed', body: error?.message })
+    toast({ kind: 'success', title: 'Channel updated', body: `#${trimmed}` })
+    void onSaved(data as ChannelRow)
+  }
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={`Edit #${channel.name}`}
+      footer={
+        <>
+          <button onClick={onClose} className="btn-ghost px-3 py-1.5 text-sm">
+            Cancel
+          </button>
+          <button onClick={save} disabled={saving} className="btn-primary flex items-center gap-2 px-3 py-1.5 text-sm">
+            {saving && <Spinner className="h-4 w-4" />}
+            Save changes
+          </button>
+        </>
+      }
+    >
+      <div className="space-y-3">
+        <label className="block">
+          <span className="label">Name</span>
+          <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+        </label>
+
+        <label className="block">
+          <span className="label">Type</span>
+          <select className="input" value={type} onChange={(e) => setType(e.target.value as ChannelType)}>
+            {CHANNEL_TYPES.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {type === 'location' && (
+          <label className="block">
+            <span className="label">Location</span>
+            <select className="input" value={locationId} onChange={(e) => setLocationId(e.target.value)}>
+              <option value="">Select location…</option>
+              {locations.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        {type === 'department' && (
+          <label className="block">
+            <span className="label">Department</span>
+            <select className="input" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
+              <option value="">Select department…</option>
+              {departments.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        <label className="block">
+          <span className="label">Topic</span>
+          <input className="input" value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="Short topic shown under the name" />
+        </label>
+
+        <label className="block">
+          <span className="label">Description</span>
+          <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" />
+        </label>
+
+        <label className="flex items-center gap-2 text-sm text-slate-300">
+          <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} />
+          Default channel (auto-join for everyone)
+        </label>
+        <label className="flex items-center gap-2 text-sm text-slate-300">
+          <input type="checkbox" checked={isArchived} onChange={(e) => setIsArchived(e.target.checked)} />
+          Archived (read-only, hidden from active lists)
+        </label>
+      </div>
+    </Modal>
   )
 }
 
