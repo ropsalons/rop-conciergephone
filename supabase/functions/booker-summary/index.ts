@@ -1,8 +1,8 @@
 // ROP Connect — hourly "bookings by booker" summary into #bookings-by-booker.
-// Reads ANALYTICS.MARTS.BOOKINGS_CREATED (a view over STG_COMPLETED_APPOINTMENTS exposing
-// CREATED_BY_NAME = the staff login who booked it) and posts/updates a card grouping today's
-// bookings by who booked them. Snowflake data lags real-time ~1-2h, so this is the "who booked"
-// companion to the instant #dc-coordinators feed. Scheduled hourly (pg_cron). No Claude.
+// Reads ANALYTICS.MARTS.BOOKINGS_CREATED (a view over the full BLVD_SHARE appointments table,
+// exposing CREATED_BY_NAME = the staff login who booked it) and posts/updates a card grouping
+// EVERY appointment created today by who made the booking. Snowflake data lags real-time ~1-2h,
+// so this is the "who booked" companion to the instant #dc-coordinators feed. Hourly (pg_cron).
 // Deployed copy holds live secrets; the repo copy keeps them redacted (Deno.env fallback).
 
 const SF_URL = 'https://QXKKQNU-JNB21158.snowflakecomputing.com/api/v2/statements'
@@ -51,22 +51,27 @@ const STYLE = `<style>
 .rc .foot{color:#9fb3c8;font-size:12px;margin-top:12px;line-height:1.65}
 </style>`
 
-// Today's bookings (salon-local), grouped by booker. Staff show their name; online/guest show the type.
+// Every appointment CREATED today (salon-local), regardless of the appointment's date — i.e. all
+// booking activity today. Staff bookings show the staff name; client self-bookings are grouped as
+// one "Online / self-booked" row. sysdate() is UTC-naive so the ET "today" boundary is correct.
 const SQL = `select
-  coalesce(nullif(trim(CREATED_BY_NAME),''), initcap(CREATED_BY_TYPE), 'Unknown') booker,
-  initcap(CREATED_BY_TYPE) typ,
+  case when lower(CREATED_BY_TYPE)='staff'
+       then coalesce(nullif(trim(CREATED_BY_NAME),''),'Staff')
+       else 'Online / self-booked' end booker,
+  case when lower(CREATED_BY_TYPE)='staff' then 'Staff' else 'Online' end typ,
   count(*) n,
   sum(iff(IS_NEW_CLIENT,1,0)) newg
 from ANALYTICS.MARTS.BOOKINGS_CREATED
-where convert_timezone('UTC','${TZ}', CREATED_AT)::date = convert_timezone('UTC','${TZ}', current_timestamp())::date
+where convert_timezone('UTC','${TZ}', CREATED_AT)::date = convert_timezone('UTC','${TZ}', sysdate())::date
   and coalesce(IS_CANCELLED,false) = false
-group by 1,2 order by n desc, booker`
+group by 1,2 order by iff(typ='Staff',0,1), n desc, booker`
 
 function card(rows: string[][]): string {
   const now = new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date())
   const total = rows.reduce((a, r) => a + Number(r[2] || 0), 0)
   const newTotal = rows.reduce((a, r) => a + Number(r[3] || 0), 0)
-  const bookers = rows.length
+  const staff = rows.reduce((a, r) => a + (String(r[1]) === 'Staff' ? Number(r[2] || 0) : 0), 0)
+  const online = total - staff
   if (!rows.length)
     return (
       STYLE +
@@ -78,14 +83,15 @@ function card(rows: string[][]): string {
   return (
     STYLE +
     `<div class="rc">` +
-    `<div class="hd">Bookings made today (full day, salon-local) &middot; as of ${now} ET &middot; source: Snowflake</div>` +
+    `<div class="hd">All bookings made today (full day, salon-local) &middot; as of ${now} ET &middot; source: Snowflake</div>` +
     `<div class="tiles">` +
     `<div class="tt"><div class="l">Bookings today</div><div class="v">${fmt(total)}</div></div>` +
+    `<div class="tt"><div class="l">Staff&#8209;booked</div><div class="v">${fmt(staff)}</div></div>` +
+    `<div class="tt"><div class="l">Self&#8209;booked</div><div class="v">${fmt(online)}</div></div>` +
     `<div class="tt"><div class="l">New guests</div><div class="v">${fmt(newTotal)}</div></div>` +
-    `<div class="tt"><div class="l">Bookers</div><div class="v">${fmt(bookers)}</div></div>` +
     `</div>` +
     `<div class="wrap"><table><thead><tr><th>Booked by</th><th>Type</th><th>Bookings</th><th>New</th></tr></thead><tbody>${body}</tbody></table></div>` +
-    `<div class="foot">"Booked by" is the staff login that made the booking (or Online / Client for guest self-booking). Covers the whole day so far; data lags real time by ~1&ndash;2 hours.</div>` +
+    `<div class="foot">Every appointment <b style="color:#fff">created today</b> (any appointment date), by who made the booking — staff shown by name, client self-bookings grouped as "Online". Excludes cancellations; data lags real time by ~1&ndash;2 hours.</div>` +
     `</div>`
   )
 }
