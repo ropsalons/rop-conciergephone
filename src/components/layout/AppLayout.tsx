@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import { useAppBootstrap } from '@/hooks/useAppBootstrap'
 import { useUIStore } from '@/stores/uiStore'
 import { Sidebar } from './Sidebar'
@@ -13,6 +13,8 @@ export function AppLayout() {
   useAppBootstrap()
   const { mobileSidebarOpen, setMobileSidebar, threadRootId } = useUIStore()
   const swipeX = useRef<number | null>(null)
+  const { pathname } = useLocation()
+  const inConversation = /^\/(channel|dm)\//.test(pathname)
 
   return (
     <div className="flex h-[100dvh] overflow-hidden bg-brand-950">
@@ -60,7 +62,7 @@ export function AppLayout() {
 
       {/* Main */}
       <main className="flex min-w-0 flex-1 flex-col">
-        <div className="min-h-0 flex-1 overflow-hidden pb-14 lg:pb-0">
+        <div className={cn('min-h-0 flex-1 overflow-hidden lg:pb-0', inConversation ? '' : 'pb-14')}>
           <Outlet />
         </div>
         <MobileNav />

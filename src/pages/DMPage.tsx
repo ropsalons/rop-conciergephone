@@ -53,6 +53,7 @@ export function DMPage() {
   return (
     <div className="flex h-full flex-col">
       <PageHeader
+        backTo="/dms"
         icon={lead ? <Avatar profile={lead} size="sm" showPresence={!conv.is_group} /> : undefined}
         title={conversationName(conv, me)}
         subtitle={

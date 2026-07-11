@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.8.1'
+export const APP_VERSION = '1.9.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,18 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.9.0',
+    date: '2026-07-11',
+    time: '8:10 AM ET',
+    title: 'Slack-style mobile experience',
+    changes: [
+      'New Channels tab in the bottom bar — a full-screen list of your channels with unread badges, favorites on top, a quick filter, and browse/create. (Search moved into Menu.)',
+      'Opening a channel or DM is now full-screen: the bottom bar tucks away and a back arrow (top-left) returns you to the list — just like the Slack app.',
+      'Long-press any message (or tap the ⋯) to open an action sheet — react, reply, pin, edit, or delete — instead of hunting for tiny buttons.',
+      'Swipe from the left edge to open the menu, swipe it away to close.',
+    ],
+  },
   {
     version: '1.8.1',
     date: '2026-07-11',

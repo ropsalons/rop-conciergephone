@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
 import type { MessageWithAuthor } from '@/types'
 import { useAuthStore } from '@/stores/authStore'
 import { useDirectoryStore } from '@/stores/directoryStore'
@@ -26,9 +26,24 @@ export function MessageItem({ message, grouped, showThread = true, onReact, onRe
   const myRole = useAuthStore((s) => s.profile?.role)
   const profilesById = useDirectoryStore((s) => s.profilesById)
   const [showEmoji, setShowEmoji] = useState(false)
-  const [showActions, setShowActions] = useState(false)
+  const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(message.body)
+  const longPress = useRef<number | null>(null)
+
+  function startLongPress() {
+    cancelLongPress()
+    longPress.current = window.setTimeout(() => {
+      setSheetOpen(true)
+      longPress.current = null
+    }, 450)
+  }
+  function cancelLongPress() {
+    if (longPress.current) {
+      clearTimeout(longPress.current)
+      longPress.current = null
+    }
+  }
 
   const mentionNames = useMemo(() => {
     const set = new Set<string>()
@@ -72,7 +87,12 @@ export function MessageItem({ message, grouped, showThread = true, onReact, onRe
   }
 
   return (
-    <div className={cn('group relative flex gap-3 px-3 hover:bg-white/[0.03] sm:px-4', grouped ? 'py-0.5' : 'mt-3 py-0.5')}>
+    <div
+      className={cn('group relative flex gap-3 px-3 hover:bg-white/[0.03] sm:px-4', grouped ? 'py-0.5' : 'mt-3 py-0.5')}
+      onTouchStart={() => { if (!editing && !isTemp) startLongPress() }}
+      onTouchEnd={cancelLongPress}
+      onTouchMove={cancelLongPress}
+    >
       <div className="w-10 shrink-0">
         {!grouped ? (
           <Avatar profile={displayAuthor} size="md" showPresence={!archivedAuthor} />
@@ -189,10 +209,10 @@ export function MessageItem({ message, grouped, showThread = true, onReact, onRe
         )}
       </div>
 
-      {/* Tap-to-reveal handle for touch devices (desktop uses hover) */}
+      {/* Touch: ⋯ opens the action sheet (long-press does too). Hidden on desktop. */}
       {!editing && !isTemp && (
         <button
-          onClick={() => setShowActions((v) => !v)}
+          onClick={() => setSheetOpen(true)}
           className="absolute -top-2 right-2 rounded-lg border border-white/10 bg-brand-800 p-1.5 text-slate-300 shadow-lg lg:hidden"
           title="Message actions"
           aria-label="Message actions"
@@ -201,14 +221,9 @@ export function MessageItem({ message, grouped, showThread = true, onReact, onRe
         </button>
       )}
 
-      {/* Actions — hover on desktop, tap the ⋯ on touch */}
+      {/* Desktop hover actions */}
       {!editing && !isTemp && (
-        <div
-          className={cn(
-            'absolute -top-3 right-3 items-center gap-0.5 rounded-lg border border-white/10 bg-brand-800 px-1 py-0.5 shadow-lg group-hover:flex',
-            showActions ? 'flex' : 'hidden',
-          )}
-        >
+        <div className="absolute -top-3 right-3 hidden items-center gap-0.5 rounded-lg border border-white/10 bg-brand-800 px-1 py-0.5 shadow-lg group-hover:flex">
           <div className="relative">
             <button onClick={() => setShowEmoji((v) => !v)} className="rounded p-1.5 text-slate-300 hover:bg-white/10" title="React">
               <Smile className="h-4 w-4" />
@@ -245,6 +260,61 @@ export function MessageItem({ message, grouped, showThread = true, onReact, onRe
           )}
         </div>
       )}
+
+      {/* Mobile action sheet (long-press a message, or tap ⋯) */}
+      {sheetOpen && !editing && !isTemp && (
+        <div className="fixed inset-0 z-50 lg:hidden" onClick={() => setSheetOpen(false)}>
+          <div className="absolute inset-0 bg-black/50" />
+          <div
+            className="absolute inset-x-0 bottom-0 rounded-t-2xl border-t border-white/10 bg-brand-900 p-3 shadow-2xl"
+            style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/20" />
+            <div className="mb-2 flex justify-center gap-2">
+              {QUICK_EMOJIS.map((e) => (
+                <button
+                  key={e}
+                  onClick={() => { onReact(e); setSheetOpen(false) }}
+                  className="rounded-xl bg-white/5 px-3 py-2 text-xl active:bg-white/15"
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+            <div className="divide-y divide-white/5">
+              {showThread && onReply && (
+                <SheetItem icon={<Reply className="h-5 w-5" />} label="Reply in thread" onClick={() => { onReply(); setSheetOpen(false) }} />
+              )}
+              {onTogglePin && canManage(myRole) && (
+                <SheetItem
+                  icon={<Pin className={cn('h-5 w-5', message.is_pinned && 'text-gold-400')} />}
+                  label={message.is_pinned ? 'Unpin message' : 'Pin message'}
+                  onClick={() => { onTogglePin(!message.is_pinned); setSheetOpen(false) }}
+                />
+              )}
+              {isMine && (
+                <SheetItem icon={<Edit className="h-5 w-5" />} label="Edit message" onClick={() => { setEditing(true); setSheetOpen(false) }} />
+              )}
+              {canModerate && (
+                <SheetItem icon={<Trash className="h-5 w-5" />} label="Delete message" danger onClick={() => { setSheetOpen(false); onDelete() }} />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  )
+}
+
+function SheetItem({ icon, label, onClick, danger }: { icon: ReactNode; label: string; onClick: () => void; danger?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn('flex w-full items-center gap-3 px-2 py-3.5 text-left text-[15px] active:bg-white/5', danger ? 'text-red-400' : 'text-slate-100')}
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
   )
 }

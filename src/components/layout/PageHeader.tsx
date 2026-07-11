@@ -1,26 +1,37 @@
 import type { ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useUIStore } from '@/stores/uiStore'
-import { Menu, LifeBuoy } from '@/components/ui/Icons'
+import { Menu, LifeBuoy, ChevronLeft } from '@/components/ui/Icons'
 
-// Standard top bar. Includes the hamburger that opens the mobile drawer.
+// Standard top bar. Shows the hamburger (mobile drawer) — or, when `backTo` is set,
+// a back chevron for full-screen conversation views (Slack-style).
 export function PageHeader({
   title,
   subtitle,
   icon,
   actions,
+  backTo,
 }: {
   title: ReactNode
   subtitle?: ReactNode
   icon?: ReactNode
   actions?: ReactNode
+  backTo?: string
 }) {
   const toggle = useUIStore((s) => s.toggleMobileSidebar)
   const openHelp = useUIStore((s) => s.setHelpOpen)
+  const navigate = useNavigate()
   return (
     <header className="flex items-center gap-2 border-b border-white/10 bg-brand-900/60 px-3 py-3 backdrop-blur safe-top sm:px-4">
-      <button onClick={toggle} className="rounded-lg p-2 text-slate-300 hover:bg-white/10 lg:hidden">
-        <Menu className="h-5 w-5" />
-      </button>
+      {backTo ? (
+        <button onClick={() => navigate(backTo)} aria-label="Back" className="-ml-1 rounded-lg p-2 text-slate-300 hover:bg-white/10 lg:hidden">
+          <ChevronLeft className="h-5 w-5" />
+        </button>
+      ) : (
+        <button onClick={toggle} aria-label="Menu" className="rounded-lg p-2 text-slate-300 hover:bg-white/10 lg:hidden">
+          <Menu className="h-5 w-5" />
+        </button>
+      )}
       {icon && <div className="text-slate-400">{icon}</div>}
       <div className="min-w-0 flex-1">
         <h1 className="truncate text-base font-bold text-white">{title}</h1>

@@ -8,6 +8,7 @@ import { AuthPage } from '@/pages/AuthPage'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { ChannelPage } from '@/pages/ChannelPage'
+import { ChannelsHomePage } from '@/pages/ChannelsHomePage'
 import { DMPage } from '@/pages/DMPage'
 import { DMListPage } from '@/pages/DMListPage'
 import { DirectoryPage } from '@/pages/DirectoryPage'
@@ -62,6 +63,7 @@ export default function App() {
         <Route path="/login" element={<Navigate to="/" replace />} />
         <Route path="/" element={<AppLayout />}>
           <Route index element={<DashboardPage />} />
+          <Route path="channels" element={<ChannelsHomePage />} />
           <Route path="channel/:channelId" element={<ChannelPage />} />
           <Route path="dms" element={<DMListPage />} />
           <Route path="dm/:conversationId" element={<DMPage />} />
