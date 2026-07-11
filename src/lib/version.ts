@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.7.1'
+export const APP_VERSION = '1.7.2'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.7.2',
+    date: '2026-07-10',
+    time: '10:45 PM ET',
+    title: 'Live “Today” on the Scorecard + fuller booking counts',
+    changes: [
+      'The ROP Scorecard now has a live Today view — company, by salon, and by stylist — that fills in through the day (refreshes hourly) and is complete after close. It sits alongside Yesterday / WTD / MTD / YTD, and Today is the default tab. Quick “today” tiles (guests, new, RPG, prebook %, LUX %) sit up top.',
+      'Fresh look: a gradient header and cleaner tables so the numbers are easier to read.',
+      '#bookings-by-booker now counts every appointment booked today (including bookings made today for future dates) — it was previously only counting same-day completed appointments, so it under-reported. Staff show by name; online self-bookings are grouped.',
+    ],
+  },
   {
     version: '1.7.1',
     date: '2026-07-10',
