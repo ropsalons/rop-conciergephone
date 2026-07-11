@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.6.4'
+export const APP_VERSION = '1.6.5'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.6.5',
+    date: '2026-07-11',
+    time: '9:20 AM ET',
+    title: 'New-guest prebook % + a cleaner look',
+    changes: [
+      'The ROP Scorecard now shows New PB% — the share of each stylist’s (and salon’s) new guests who pre-booked their next visit — alongside the existing new-guest counts, on every window (Yesterday / WTD / MTD / YTD).',
+      'Both report cards got a visual refresh: rounded tables with a blue header, zebra striping, summary tiles and color-coded targets (green/amber/red) so the numbers are easier to scan. The #bookings-by-booker card now matches and clearly covers the whole day.',
+    ],
+  },
   {
     version: '1.6.4',
     date: '2026-07-10',

@@ -31,6 +31,26 @@ async function sf(sql: string): Promise<string[][]> {
 const esc = (s: string) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' } as any)[c])
 const fmt = (v: any) => (v == null || v === '' ? 0 : Number(v)).toLocaleString('en-US')
 
+// Shared look with the ROP Scorecard card (.rc-scoped so it can't leak out of the sandboxed iframe).
+const STYLE = `<style>
+.rc{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#e5e7eb}
+.rc .hd{color:#9fb3c8;font-size:12px;margin-bottom:10px}
+.rc .tiles{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.rc .tt{display:inline-block;min-width:104px;flex:1;background:linear-gradient(180deg,rgba(37,99,235,.14),rgba(37,99,235,.05));border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:10px 12px}
+.rc .tt .l{font-size:10px;color:#9fb3c8;text-transform:uppercase;letter-spacing:.05em}
+.rc .tt .v{font-size:22px;font-weight:800;color:#fff;margin-top:2px}
+.rc .wrap{overflow-x:auto;border-radius:12px;border:1px solid rgba(255,255,255,.09)}
+.rc table{border-collapse:separate;border-spacing:0;width:100%;min-width:420px;font-size:13px;background:rgba(255,255,255,.015)}
+.rc th{background:rgba(37,99,235,.16);color:#c7d2fe;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;text-align:right;padding:9px 12px;border:0;white-space:nowrap}
+.rc th:first-child{text-align:left}
+.rc td{padding:8px 12px;border:0;border-top:1px solid rgba(255,255,255,.06);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.rc td:first-child{text-align:left;color:#fff;font-weight:600}
+.rc td.typ{text-align:left;color:#9fb3c8;font-weight:500}
+.rc td.new{color:#4ade80;font-weight:700}
+.rc tbody tr:nth-child(even){background:rgba(255,255,255,.025)}
+.rc .foot{color:#9fb3c8;font-size:12px;margin-top:12px;line-height:1.65}
+</style>`
+
 // Today's bookings (salon-local), grouped by booker. Staff show their name; online/guest show the type.
 const SQL = `select
   coalesce(nullif(trim(CREATED_BY_NAME),''), initcap(CREATED_BY_TYPE), 'Unknown') booker,
@@ -46,19 +66,27 @@ function card(rows: string[][]): string {
   const now = new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date())
   const total = rows.reduce((a, r) => a + Number(r[2] || 0), 0)
   const newTotal = rows.reduce((a, r) => a + Number(r[3] || 0), 0)
+  const bookers = rows.length
   if (!rows.length)
-    return `<div style="color:#9fb3c8;font-size:12px">No bookings recorded yet today (as of ${now} ET). Source: Snowflake &middot; updates hourly.</div>`
+    return (
+      STYLE +
+      `<div class="rc"><div class="hd">No bookings recorded yet today (as of ${now} ET) &middot; source: Snowflake &middot; updates hourly.</div></div>`
+    )
   const body = rows
-    .map((r) => `<tr><td>${esc(r[0])}</td><td style="opacity:.7">${esc(r[1])}</td><td>${fmt(r[2])}</td><td>${fmt(r[3])}</td></tr>`)
+    .map((r) => `<tr><td>${esc(r[0])}</td><td class="typ">${esc(r[1])}</td><td>${fmt(r[2])}</td><td class="new">${fmt(r[3])}</td></tr>`)
     .join('')
   return (
-    `<div style="color:#9fb3c8;font-size:12px;margin-bottom:8px">Bookings made today &middot; as of ${now} ET &middot; source: Snowflake</div>` +
-    `<div style="display:flex;gap:8px;margin-bottom:10px">` +
-    `<div style="flex:1;background:#0f2a44;border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:10px"><div style="font-size:11px;color:#9fb3c8;text-transform:uppercase">Bookings today</div><div style="font-size:24px;font-weight:800;color:#fff">${fmt(total)}</div></div>` +
-    `<div style="flex:1;background:#0f2a44;border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:10px"><div style="font-size:11px;color:#9fb3c8;text-transform:uppercase">New guests</div><div style="font-size:24px;font-weight:800;color:#fff">${fmt(newTotal)}</div></div>` +
+    STYLE +
+    `<div class="rc">` +
+    `<div class="hd">Bookings made today (full day, salon-local) &middot; as of ${now} ET &middot; source: Snowflake</div>` +
+    `<div class="tiles">` +
+    `<div class="tt"><div class="l">Bookings today</div><div class="v">${fmt(total)}</div></div>` +
+    `<div class="tt"><div class="l">New guests</div><div class="v">${fmt(newTotal)}</div></div>` +
+    `<div class="tt"><div class="l">Bookers</div><div class="v">${fmt(bookers)}</div></div>` +
     `</div>` +
-    `<table><tr><th>Booked by</th><th>Type</th><th>Bookings</th><th>New</th></tr>${body}</table>` +
-    `<div style="color:#9fb3c8;font-size:12px;margin-top:8px;opacity:.75">"Booked by" is the staff login that made the booking (or Online / Client for guest self-booking). Data lags real time by ~1&ndash;2 hours.</div>`
+    `<div class="wrap"><table><thead><tr><th>Booked by</th><th>Type</th><th>Bookings</th><th>New</th></tr></thead><tbody>${body}</tbody></table></div>` +
+    `<div class="foot">"Booked by" is the staff login that made the booking (or Online / Client for guest self-booking). Covers the whole day so far; data lags real time by ~1&ndash;2 hours.</div>` +
+    `</div>`
   )
 }
 
