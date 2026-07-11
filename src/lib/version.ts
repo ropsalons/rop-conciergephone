@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.8.0'
+export const APP_VERSION = '1.8.1'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.8.1',
+    date: '2026-07-11',
+    time: '7:35 AM ET',
+    title: 'Email staff from the dashboard + more mobile polish',
+    changes: [
+      'New Admin → Send Email tool: compose a message and send it by email to all active staff, a whole location, hand-picked people, or custom addresses — sent from notifications@rop2020.com (recipients are BCC’d, replies come to you).',
+      'More mobile: swipe from the left edge to open the channel drawer (and swipe it away to close), a clearer highlighted tab in the bottom bar, and bigger touch targets throughout.',
+    ],
+  },
   {
     version: '1.8.0',
     date: '2026-07-10',

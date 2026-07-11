@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
 import { useDirectoryStore } from '@/stores/directoryStore'
@@ -31,6 +31,7 @@ type LogAudit = (
 const TABS = [
   { key: 'users', label: 'Users' },
   { key: 'channels', label: 'Channels' },
+  { key: 'email', label: 'Send Email' },
   { key: 'acks', label: 'Acknowledgements' },
   { key: 'audit', label: 'Audit Log' },
   { key: 'storage', label: 'Storage & Export' },
@@ -99,12 +100,199 @@ export function AdminPage() {
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
         {tab === 'users' && <UsersTab logAudit={logAudit} />}
         {tab === 'channels' && <ChannelsTab me={me ?? ''} logAudit={logAudit} />}
+        {tab === 'email' && <EmailTab logAudit={logAudit} />}
         {tab === 'acks' && <AcksTab />}
         {tab === 'audit' && <AuditTab />}
         {tab === 'storage' && <StorageTab />}
       </div>
     </div>
   )
+}
+
+/* ------------------------------------------------------------------ */
+/* Send Email (broadcast to staff / anyone via Resend)                 */
+/* ------------------------------------------------------------------ */
+
+type RecipMode = 'all' | 'location' | 'people' | 'custom'
+
+function EmailTab({ logAudit }: { logAudit: LogAudit }) {
+  const profiles = useDirectoryStore((s) => s.profiles)
+  const locations = useDirectoryStore((s) => s.locations)
+  const myEmail = useAuthStore((s) => s.profile?.email)
+  const toast = useUIStore((s) => s.toast)
+
+  const [mode, setMode] = useState<RecipMode>('all')
+  const [locationId, setLocationId] = useState('')
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [custom, setCustom] = useState('')
+  const [subject, setSubject] = useState('')
+  const [message, setMessage] = useState('')
+  const [sending, setSending] = useState(false)
+  const [search, setSearch] = useState('')
+
+  const withEmail = useMemo(() => profiles.filter((p) => p.is_active && p.email), [profiles])
+
+  const recipients = useMemo<string[]>(() => {
+    if (mode === 'all') return withEmail.map((p) => p.email as string)
+    if (mode === 'location') return withEmail.filter((p) => p.location_id === locationId).map((p) => p.email as string)
+    if (mode === 'people') return withEmail.filter((p) => picked.has(p.id)).map((p) => p.email as string)
+    return custom
+      .split(/[\s,;]+/)
+      .map((s) => s.trim())
+      .filter((s) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s))
+  }, [mode, withEmail, locationId, picked, custom])
+
+  const filteredPeople = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return withEmail
+      .filter((p) => !q || `${p.full_name} ${p.display_name ?? ''} ${p.email}`.toLowerCase().includes(q))
+      .slice(0, 100)
+  }, [withEmail, search])
+
+  async function send() {
+    const to = [...new Set(recipients)]
+    if (!subject.trim()) return toast({ kind: 'error', title: 'Subject required' })
+    if (!message.trim()) return toast({ kind: 'error', title: 'Message required' })
+    if (!to.length) return toast({ kind: 'error', title: 'No recipients' })
+    if (!window.confirm(`Send this email to ${to.length} recipient${to.length === 1 ? '' : 's'}?`)) return
+
+    const html =
+      `<div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#0f172a;max-width:600px;margin:auto">` +
+      `<div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:18px 20px;border-radius:14px 14px 0 0"><b style="font-size:16px">Robert of Philadelphia</b></div>` +
+      `<div style="border:1px solid #e2e8f0;border-top:0;border-radius:0 0 14px 14px;padding:20px">` +
+      `<h2 style="margin:0 0 10px;font-size:18px">${escapeHtml(subject)}</h2>` +
+      `<div style="font-size:14px;line-height:1.6;white-space:pre-wrap">${escapeHtml(message)}</div>` +
+      `</div></div>`
+
+    setSending(true)
+    const { data, error } = await supabase.functions.invoke('send-email', {
+      body: { bcc: to, subject: subject.trim(), html, text: message, replyTo: myEmail || undefined },
+    })
+    setSending(false)
+    if (error || !(data as any)?.ok) {
+      toast({ kind: 'error', title: 'Send failed', body: (data as any)?.error || error?.message })
+      return
+    }
+    await logAudit('send_email', 'email', null, { subject: subject.trim(), recipients: to.length, mode })
+    toast({ kind: 'success', title: 'Email sent', body: `Delivered to ${to.length} recipient${to.length === 1 ? '' : 's'}.` })
+    setSubject('')
+    setMessage('')
+  }
+
+  return (
+    <div className="mx-auto max-w-2xl space-y-4">
+      <div className="card space-y-3 p-4">
+        <h2 className="text-sm font-semibold text-white">Send an email</h2>
+        <p className="text-xs text-slate-400">
+          Sends from <b>notifications@rop2020.com</b> via Resend. Recipients are hidden from each other (BCC). Replies go to your email.
+        </p>
+
+        <div>
+          <span className="label">Recipients</span>
+          <div className="mt-1 flex flex-wrap gap-2">
+            {(
+              [
+                ['all', 'All active staff'],
+                ['location', 'By location'],
+                ['people', 'Choose people'],
+                ['custom', 'Custom addresses'],
+              ] as [RecipMode, string][]
+            ).map(([k, label]) => (
+              <button
+                key={k}
+                onClick={() => setMode(k)}
+                className={cn(
+                  'rounded-full border px-3 py-1 text-xs font-semibold',
+                  mode === k ? 'border-brand-400 bg-brand-400/20 text-brand-100' : 'border-white/15 text-slate-300 hover:bg-white/5',
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {mode === 'location' && (
+          <select className="input" value={locationId} onChange={(e) => setLocationId(e.target.value)}>
+            <option value="">Select location…</option>
+            {locations.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
+          </select>
+        )}
+
+        {mode === 'people' && (
+          <div className="rounded-xl border border-white/10 bg-brand-950/40 p-2">
+            <div className="mb-2 flex items-center gap-2 rounded-lg border border-white/10 bg-brand-900 px-3">
+              <Search className="h-4 w-4 text-slate-400" />
+              <input
+                className="flex-1 bg-transparent py-2 text-sm focus:outline-none"
+                placeholder="Search staff…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <div className="max-h-56 space-y-0.5 overflow-y-auto">
+              {filteredPeople.map((p) => {
+                const on = picked.has(p.id)
+                return (
+                  <label key={p.id} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-white/5">
+                    <input
+                      type="checkbox"
+                      checked={on}
+                      onChange={() =>
+                        setPicked((prev) => {
+                          const next = new Set(prev)
+                          on ? next.delete(p.id) : next.add(p.id)
+                          return next
+                        })
+                      }
+                    />
+                    <span className="min-w-0 flex-1 truncate text-sm text-white">{displayName(p)}</span>
+                    <span className="truncate text-[11px] text-slate-500">{p.email}</span>
+                  </label>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {mode === 'custom' && (
+          <textarea
+            className="input"
+            rows={3}
+            value={custom}
+            onChange={(e) => setCustom(e.target.value)}
+            placeholder="Enter email addresses separated by commas or new lines"
+          />
+        )}
+
+        <label className="block">
+          <span className="label">Subject</span>
+          <input className="input" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject line" />
+        </label>
+
+        <label className="block">
+          <span className="label">Message</span>
+          <textarea className="input" rows={8} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Write your message…" />
+        </label>
+
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-slate-400">{recipients.length} recipient{recipients.length === 1 ? '' : 's'}</span>
+          <button onClick={send} disabled={sending} className="btn-primary flex items-center gap-2 px-4 py-1.5 text-sm">
+            {sending && <Spinner className="h-4 w-4" />}
+            Send email
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string))
 }
 
 /* ------------------------------------------------------------------ */

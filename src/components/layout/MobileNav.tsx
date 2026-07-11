@@ -10,8 +10,8 @@ export function MobileNav() {
   const { conversations, unreadByConversation, notificationsCount } = useChatStore()
   const dmUnread = conversations.reduce((n, c) => n + (c.is_muted ? 0 : unreadByConversation[c.id] ?? 0), 0)
 
-  const item = 'relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium'
-  const on = 'text-gold-400'
+  const item = 'relative flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium active:bg-white/5'
+  const on = 'text-gold-400 shadow-[inset_0_2px_0_0_#facc15]'
   const off = 'text-slate-400'
 
   return (
