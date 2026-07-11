@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.7.0'
+export const APP_VERSION = '1.7.1'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,15 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.7.1',
+    date: '2026-07-11',
+    time: '11:10 AM ET',
+    title: 'Step-by-step: turning on phone notifications',
+    changes: [
+      'The Help guide now has numbered, phone-specific steps for turning on notifications — one set for iPhone (install to Home Screen first) and one for Android/Pixel — plus what to do if they’re blocked or silent.',
+    ],
+  },
   {
     version: '1.7.0',
     date: '2026-07-11',
