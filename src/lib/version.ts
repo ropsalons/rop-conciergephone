@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.6.6'
+export const APP_VERSION = '1.7.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.7.0',
+    date: '2026-07-11',
+    time: '10:30 AM ET',
+    title: 'Phone notifications 🔔',
+    changes: [
+      'You can now get a push notification on your phone when something needs you — even with the app closed. Open Profile → Notifications and tap “Turn on notifications for this device.” On iPhone, add ROP Connect to your Home Screen first, then open it from there.',
+      'By default you’ll be pushed for direct messages, @mentions, and announcements. Tapping a notification opens right to that message.',
+      'Mute any channel you don’t want buzzing you: open the channel and tap the bell in the top bar. Muted channels never send phone notifications. You can also fine-tune types (DMs / mentions / announcements / urgent) in Profile → Notifications.',
+    ],
+  },
   {
     version: '1.6.6',
     date: '2026-07-11',

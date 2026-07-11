@@ -30,15 +30,17 @@ export function useAppBootstrap() {
           const n = payload.new as NotificationRow
           chat.refreshUnread()
           const allow = prefs
+          // When mobile push is on, the service worker shows the OS notification — don't double up.
+          const osNotify = !!allow?.browser_push && !allow?.mobile_push
           if (n.type === 'urgent') {
             toast({ kind: 'urgent', title: n.title, body: n.body ?? undefined })
-            maybeBrowserNotify(n, allow?.urgent && allow?.browser_push)
+            maybeBrowserNotify(n, (allow?.urgent ?? true) && osNotify)
           } else if (n.type === 'mention' && allow?.mentions !== false) {
             toast({ kind: 'info', title: n.title, body: n.body ?? undefined })
-            maybeBrowserNotify(n, allow?.browser_push)
+            maybeBrowserNotify(n, osNotify)
           } else if (n.type === 'dm' && allow?.dm !== false) {
             toast({ kind: 'info', title: n.title, body: n.body ?? undefined })
-            maybeBrowserNotify(n, allow?.browser_push)
+            maybeBrowserNotify(n, osNotify)
           } else if (n.type === 'announcement' && allow?.announcements !== false) {
             toast({ kind: 'info', title: n.title, body: n.body ?? undefined })
           }

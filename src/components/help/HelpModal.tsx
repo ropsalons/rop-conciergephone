@@ -239,6 +239,14 @@ export function HelpModal() {
             <Topic icon={<Home className="h-4 w-4" />} title="Install it on your phone">
               <p>On <b>iPhone</b>: open the site in Safari → Share → <b>Add to Home Screen</b>. On <b>Android</b>: Chrome menu → <b>Install app</b>. On desktop Chrome/Edge: the install icon in the address bar.</p>
             </Topic>
+
+            <Topic icon={<Bell className="h-4 w-4" />} title="Phone notifications & muting channels">
+              <p>Get a push on your phone when something needs you — even when the app is closed.</p>
+              <p className="mt-2"><b>Turn it on:</b> go to <b>Profile → Notifications</b> and tap <b>“Turn on notifications for this device.”</b> Do this once on each phone/device you use. On <b>iPhone</b> you must first add ROP Connect to your Home Screen (see above) and open it from there — Apple only allows notifications for the installed app, not a Safari tab.</p>
+              <p className="mt-2"><b>What you&apos;ll get by default:</b> direct messages, <b>@mentions</b>, and announcements. Tapping a notification opens straight to that message.</p>
+              <p className="mt-2"><b>Mute a channel:</b> open the channel and tap the <b>bell</b> in the top bar. A muted channel never sends phone notifications (the bell shows a line through it). Tap again to unmute.</p>
+              <p className="mt-2"><b>Fine-tune:</b> in <b>Profile → Notifications</b> you can switch DMs, mentions, announcements and urgent alerts on or off individually.</p>
+            </Topic>
           </>
         ) : (
           <div className="space-y-4">

@@ -27,6 +27,7 @@ export type NotificationPrefs = {
   urgent: boolean
   channels: boolean
   browser_push: boolean
+  mobile_push: boolean // master switch for background push to this user's devices
   sound: boolean
 }
 

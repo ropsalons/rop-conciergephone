@@ -12,7 +12,7 @@ import { MessageComposer } from '@/components/messages/MessageComposer'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { FullPageLoader, EmptyState } from '@/components/ui/Feedback'
 import { Avatar } from '@/components/ui/Avatar'
-import { Hash, Lock, Megaphone, Users, Pin, Plus, X, LogOut, Search, Star } from '@/components/ui/Icons'
+import { Hash, Lock, Megaphone, Users, Pin, Plus, X, LogOut, Search, Star, Bell, BellOff } from '@/components/ui/Icons'
 import { Modal } from '@/components/ui/Modal'
 import { PinnedMessagesModal } from '@/components/channels/PinnedMessagesModal'
 import { displayName, cn } from '@/lib/utils'
@@ -20,7 +20,7 @@ import { canModerate as canModRole, canManage } from '@/lib/constants'
 
 export function ChannelPage() {
   const { channelId } = useParams()
-  const { channel, members, isMember, loading, join, leave, loadMembers } = useChannel(channelId)
+  const { channel, members, isMember, loading, join, leave, loadMembers, toggleMute } = useChannel(channelId)
   const me = useAuthStore((s) => s.user?.id)
   const myRole = useAuthStore((s) => s.profile?.role)
   const markChannelRead = useChatStore((s) => s.markChannelRead)
@@ -36,6 +36,20 @@ export function ChannelPage() {
   const [showAddPeople, setShowAddPeople] = useState(false)
   const [peopleQuery, setPeopleQuery] = useState('')
   const [busyUser, setBusyUser] = useState<string | null>(null)
+  const [muted, setMuted] = useState(false)
+
+  const myMembership = members.find((m) => m.user_id === me)
+  useEffect(() => {
+    setMuted(!!myMembership?.is_muted)
+  }, [myMembership?.is_muted])
+
+  async function onToggleMute() {
+    const next = !muted
+    setMuted(next)
+    await toggleMute(next)
+    await loadMembers()
+    toast({ kind: 'success', title: next ? `Muted #${channel?.name}` : `Unmuted #${channel?.name}`, body: next ? 'No phone notifications from this channel.' : 'Notifications on for this channel.' })
+  }
 
   const iCanManageMembers = canManage(myRole)
 
@@ -114,6 +128,15 @@ export function ChannelPage() {
                 title={isFavorite ? 'Remove from favorites' : 'Favorite — pin to top of sidebar'}
               >
                 <Star className="h-5 w-5" {...(isFavorite ? { fill: 'currentColor' } : {})} />
+              </button>
+            )}
+            {isMember && (
+              <button
+                onClick={onToggleMute}
+                className={cn('rounded-lg p-2 hover:bg-white/10', muted ? 'text-amber-300' : 'text-slate-300')}
+                title={muted ? 'Muted — tap to turn notifications back on' : 'Mute — no phone notifications from this channel'}
+              >
+                {muted ? <BellOff className="h-5 w-5" /> : <Bell className="h-5 w-5" />}
               </button>
             )}
             <button onClick={() => setShowPinned(true)} className="rounded-lg p-2 text-slate-300 hover:bg-white/10" title="Pinned">

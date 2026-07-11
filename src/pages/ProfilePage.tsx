@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuthStore } from '@/stores/authStore'
 import { useDirectoryStore } from '@/stores/directoryStore'
 import { useUIStore } from '@/stores/uiStore'
@@ -9,6 +9,7 @@ import { Spinner } from '@/components/ui/Feedback'
 import { Bell, LogOut } from '@/components/ui/Icons'
 import { ROLE_LABELS } from '@/lib/constants'
 import { cn, uuid } from '@/lib/utils'
+import { disablePush, enablePush, getPushStatus, type PushStatus } from '@/lib/push'
 import type { NotificationPrefs, Presence, Profile } from '@/types'
 
 const PREF_LABELS: Record<keyof NotificationPrefs, string> = {
@@ -18,8 +19,12 @@ const PREF_LABELS: Record<keyof NotificationPrefs, string> = {
   urgent: 'Urgent alerts',
   channels: 'Channel activity',
   browser_push: 'Browser push',
+  mobile_push: 'Mobile push',
   sound: 'Sound',
 }
+
+// Which per-type toggles to show under the enable button (the rest are managed elsewhere).
+const TYPE_TOGGLES: (keyof NotificationPrefs)[] = ['dm', 'mentions', 'announcements', 'urgent', 'sound']
 
 const DEFAULT_PREFS: NotificationPrefs = {
   dm: true,
@@ -28,6 +33,7 @@ const DEFAULT_PREFS: NotificationPrefs = {
   urgent: true,
   channels: false,
   browser_push: false,
+  mobile_push: false,
   sound: true,
 }
 
@@ -43,9 +49,12 @@ export function ProfilePage() {
   const fileRef = useRef<HTMLInputElement>(null)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
-  const [notifPerm, setNotifPerm] = useState<NotificationPermission | 'unsupported'>(
-    typeof Notification !== 'undefined' ? Notification.permission : 'unsupported',
-  )
+  const [pushStatus, setPushStatus] = useState<PushStatus>('default')
+  const [pushBusy, setPushBusy] = useState(false)
+
+  useEffect(() => {
+    void getPushStatus().then(setPushStatus)
+  }, [])
 
   const [form, setForm] = useState(() => ({
     display_name: profile?.display_name ?? '',
@@ -127,15 +136,32 @@ export function ProfilePage() {
     void patch({ notification_prefs: { ...prefs, [key]: value } })
   }
 
-  async function enableBrowserNotifications() {
-    if (typeof Notification === 'undefined') return
-    if (Notification.permission === 'granted') {
-      setNotifPerm('granted')
-      return
+  async function enableDevicePush() {
+    if (!user) return
+    setPushBusy(true)
+    try {
+      const res = await enablePush(user.id)
+      if (!res.ok) {
+        toast({ kind: 'error', title: 'Could not enable notifications', body: res.error })
+        setPushStatus(await getPushStatus())
+        return
+      }
+      await patch({ notification_prefs: { ...prefs, mobile_push: true, browser_push: true } }, 'Notifications on for this device')
+      setPushStatus('subscribed')
+    } finally {
+      setPushBusy(false)
     }
-    const result = await Notification.requestPermission()
-    setNotifPerm(result)
-    if (result === 'granted') togglePref('browser_push', true)
+  }
+
+  async function disableDevicePush() {
+    setPushBusy(true)
+    try {
+      await disablePush()
+      await patch({ notification_prefs: { ...prefs, mobile_push: false } }, 'Notifications off for this device')
+      setPushStatus('off')
+    } finally {
+      setPushBusy(false)
+    }
   }
 
   return (
@@ -254,18 +280,37 @@ export function ProfilePage() {
           {/* Notifications */}
           <section className="card space-y-3 p-4">
             <h2 className="text-sm font-semibold text-white">Notifications</h2>
-            <button className="btn-ghost px-3 py-1.5 text-sm" onClick={enableBrowserNotifications} disabled={notifPerm === 'granted' || notifPerm === 'unsupported'}>
-              <Bell className="h-4 w-4" />
-              {notifPerm === 'granted'
-                ? 'Browser notifications enabled'
-                : notifPerm === 'denied'
-                  ? 'Notifications blocked in browser'
-                  : notifPerm === 'unsupported'
+
+            {pushStatus === 'subscribed' ? (
+              <button className="btn-ghost px-3 py-1.5 text-sm" onClick={disableDevicePush} disabled={pushBusy}>
+                {pushBusy ? <Spinner className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
+                Notifications on for this device — tap to turn off
+              </button>
+            ) : (
+              <button
+                className="btn-primary px-3 py-1.5 text-sm"
+                onClick={enableDevicePush}
+                disabled={pushBusy || pushStatus === 'unsupported' || pushStatus === 'denied'}
+              >
+                {pushBusy ? <Spinner className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
+                {pushStatus === 'denied'
+                  ? 'Notifications blocked in browser settings'
+                  : pushStatus === 'unsupported'
                     ? 'Not supported on this device'
-                    : 'Enable browser notifications'}
-            </button>
-            <div className="divide-y divide-white/5">
-              {(Object.keys(PREF_LABELS) as (keyof NotificationPrefs)[]).map((key) => (
+                    : 'Turn on notifications for this device'}
+              </button>
+            )}
+
+            <p className="text-xs text-slate-500">
+              {pushStatus === 'unsupported'
+                ? 'On iPhone, add ROP Connect to your Home Screen first (Share → Add to Home Screen), then open it from there to enable notifications.'
+                : pushStatus === 'denied'
+                  ? 'You blocked notifications for this site. Re-enable them in your browser/phone settings, then come back here.'
+                  : 'Get a push on your phone for direct messages, @mentions and announcements — even when the app is closed. Turn it on once per device. Mute any individual channel from that channel’s menu.'}
+            </p>
+
+            <div className="divide-y divide-white/5 pt-1">
+              {TYPE_TOGGLES.map((key) => (
                 <Toggle
                   key={key}
                   label={PREF_LABELS[key]}
