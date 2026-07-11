@@ -37,6 +37,9 @@ function kpi(v: any, kind: 'pb' | 'lux' | 'rpg'): string {
   const c = x >= t[0] ? '#4ade80' : x >= t[1] ? '#fbbf24' : '#f87171'
   return `<span style="color:${c};font-weight:700">${kind === 'rpg' ? '$' + fmt(x) : x + '%'}</span>`
 }
+// "Home run" = prebook %, RPG and LUX % all on target (green) at once — the whole row goes green.
+const homer = (pb: any, rpg: any, lux: any) => n(pb) >= 70 && n(rpg) >= 8 && n(lux) >= 33
+const TROPHY = ' <span class="trophy" title="Home run — prebook, RPG and LUX all on target">🏆</span>'
 
 const REF = `with r as (select max(DATE_LOC) d from ANALYTICS.MARTS.STYLIST_DAILY where DATE_LOC < current_date)`
 const IN_YEAR = `DATE_LOC>=date_trunc('year',(select d from r)) and DATE_LOC<=(select d from r)`
@@ -90,6 +93,9 @@ const STYLE = `<style>
 .rc td{padding:8px 12px;border:0;border-top:1px solid rgba(255,255,255,.06);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .rc td:first-child{text-align:left;color:#fff;font-weight:600}
 .rc tbody tr:nth-child(even){background:rgba(255,255,255,.025)}
+.rc tbody tr.hr td{background:linear-gradient(90deg,rgba(74,222,128,.24),rgba(74,222,128,.08));border-top-color:rgba(74,222,128,.4)}
+.rc tbody tr.hr td:first-child{color:#bbf7d0}
+.rc .trophy{filter:drop-shadow(0 0 3px rgba(74,222,128,.6))}
 .rc .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:16px 0 6px}
 .rc .tabs button{cursor:pointer;border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:5px 13px;font-size:12px;font-weight:700;background:rgba(255,255,255,.06);color:#cbd5e1}
 .rc .tabs button.on{background:#2563eb;color:#fff;border-color:#2563eb;box-shadow:0 2px 8px rgba(37,99,235,.4)}
@@ -117,7 +123,9 @@ function widget(salons: string[][], stylists: string[][]): string {
   function P(v){return v==null||v===''?dash():num(v)+'%'}
   function kpi(v,kind){if(v==null||v==='')return dash();var x=num(v);var t=kind==='lux'?[33,20]:kind==='rpg'?[8,5]:[70,50];var c=x>=t[0]?'#4ade80':x>=t[1]?'#fbbf24':'#f87171';return '<span style="color:'+c+';font-weight:700">'+(kind==='rpg'?'$'+fmt(x):x+'%')+'</span>'}
   function esc(s){return String(s).replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c]})}
-  function row(r,o){return '<tr><td>'+esc(r[0])+'</td><td>'+fmt(r[o])+'</td><td>'+fmt(r[o+1])+'</td><td>'+kpi(r[o+2],'pb')+'</td><td>'+kpi(r[o+3],'rpg')+'</td><td>'+kpi(r[o+4],'pb')+'</td><td>'+kpi(r[o+5],'lux')+'</td><td>'+P(r[o+6])+'</td></tr>'}
+  function homer(r,o){return num(r[o+4])>=70&&num(r[o+3])>=8&&num(r[o+5])>=33}
+  var TROPHY=' <span class="trophy" title="Home run — prebook, RPG and LUX all on target">🏆</span>';
+  function row(r,o){var h=homer(r,o);return '<tr'+(h?' class="hr"':'')+'><td>'+esc(r[0])+(h?TROPHY:'')+'</td><td>'+fmt(r[o])+'</td><td>'+fmt(r[o+1])+'</td><td>'+kpi(r[o+2],'pb')+'</td><td>'+kpi(r[o+3],'rpg')+'</td><td>'+kpi(r[o+4],'pb')+'</td><td>'+kpi(r[o+5],'lux')+'</td><td>'+P(r[o+6])+'</td></tr>'}
   var HEAD=function(a,b){return '<thead><tr><th>'+a+'</th><th>'+b+'</th><th>New</th><th>New&nbsp;PB%</th><th>RPG</th><th>Prebook%</th><th>LUX%</th><th>New&nbsp;Req%</th></tr></thead>'}
   function render(){
     var o=W[cur].o;
@@ -139,8 +147,10 @@ async function buildAndPost() {
   try { const [[rb]] = await sf(REBOOK_SQL); rebookYtd = rb } catch (_) { /* optional */ }
 
   const refLabel = c[0]
-  const win = (o: number, label: string) =>
-    `<tr><td>${label}</td><td>${fmt(c[o])}</td><td>${fmt(c[o + 1])}</td><td>${kpi(c[o + 2], 'pb')}</td><td>${kpi(c[o + 3], 'rpg')}</td><td>${kpi(c[o + 4], 'pb')}</td><td>${kpi(c[o + 5], 'lux')}</td><td>${pct(c[o + 6])}</td></tr>`
+  const win = (o: number, label: string) => {
+    const hr = homer(c[o + 4], c[o + 3], c[o + 5])
+    return `<tr${hr ? ' class="hr"' : ''}><td>${label}${hr ? TROPHY : ''}</td><td>${fmt(c[o])}</td><td>${fmt(c[o + 1])}</td><td>${kpi(c[o + 2], 'pb')}</td><td>${kpi(c[o + 3], 'rpg')}</td><td>${kpi(c[o + 4], 'pb')}</td><td>${kpi(c[o + 5], 'lux')}</td><td>${pct(c[o + 6])}</td></tr>`
+  }
   const companyRows = win(1, 'Yesterday') + win(8, 'Week&#8209;to&#8209;date') + win(15, 'Month&#8209;to&#8209;date') + win(22, 'Year&#8209;to&#8209;date')
 
   const html =
@@ -151,7 +161,7 @@ async function buildAndPost() {
     widget(salons, stylists) +
     `<div class="foot">` +
     (rebookYtd ? `<b style="color:#fff">Rebooking YTD:</b> ${pct(rebookYtd)} &middot; ` : '') +
-    `Tap a window (Yesterday / WTD / MTD / YTD) to switch every table. <b style="color:#fff">New&nbsp;PB%</b> = of new guests, how many pre‑booked their next visit. <b style="color:#fff">New&nbsp;Req%</b> = guests who were new <i>and</i> requested that stylist. Colors: <span style="color:#4ade80">on target</span> / <span style="color:#fbbf24">close</span> / <span style="color:#f87171">below</span>. Targets: prebook 70%, LUX 33%, RPG $8.</div>` +
+    `Tap a window (Yesterday / WTD / MTD / YTD) to switch every table. <b style="color:#fff">New&nbsp;PB%</b> = of new guests, how many pre‑booked their next visit. <b style="color:#fff">New&nbsp;Req%</b> = guests who were new <i>and</i> requested that stylist. Colors: <span style="color:#4ade80">on target</span> / <span style="color:#fbbf24">close</span> / <span style="color:#f87171">below</span>. Targets: prebook 70%, LUX 33%, RPG $8. <b style="color:#bbf7d0">🏆 Home run</b> = a green row where prebook, RPG <i>and</i> LUX are all on target at once.</div>` +
     `</div>`
 
   const r = await fetch(INGEST_URL, {
