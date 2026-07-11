@@ -16,8 +16,8 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     version: '1.7.1',
-    date: '2026-07-11',
-    time: '11:10 AM ET',
+    date: '2026-07-10',
+    time: '9:40 PM ET',
     title: 'Step-by-step: turning on phone notifications',
     changes: [
       'The Help guide now has numbered, phone-specific steps for turning on notifications — one set for iPhone (install to Home Screen first) and one for Android/Pixel — plus what to do if they’re blocked or silent.',
@@ -25,8 +25,8 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     version: '1.7.0',
-    date: '2026-07-11',
-    time: '10:30 AM ET',
+    date: '2026-07-10',
+    time: '9:27 PM ET',
     title: 'Phone notifications 🔔',
     changes: [
       'You can now get a push notification on your phone when something needs you — even with the app closed. Open Profile → Notifications and tap “Turn on notifications for this device.” On iPhone, add ROP Connect to your Home Screen first, then open it from there.',
@@ -36,8 +36,8 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     version: '1.6.6',
-    date: '2026-07-11',
-    time: '9:45 AM ET',
+    date: '2026-07-10',
+    time: '8:59 PM ET',
     title: 'Scorecard: home-run rows 🏆',
     changes: [
       'When a stylist (or salon, or the company) hits all three targets at once — Prebook % ≥ 70, RPG ≥ $8 and LUX % ≥ 33 — that whole row now lights up green with a 🏆 to celebrate the home run. Works on every window (Yesterday / WTD / MTD / YTD).',
@@ -45,8 +45,8 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     version: '1.6.5',
-    date: '2026-07-11',
-    time: '9:20 AM ET',
+    date: '2026-07-10',
+    time: '8:19 PM ET',
     title: 'New-guest prebook % + a cleaner look',
     changes: [
       'The ROP Scorecard now shows New PB% — the share of each stylist’s (and salon’s) new guests who pre-booked their next visit — alongside the existing new-guest counts, on every window (Yesterday / WTD / MTD / YTD).',
