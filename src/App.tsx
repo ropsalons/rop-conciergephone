@@ -33,7 +33,7 @@ export default function App() {
   }, [init])
 
   if (!isSupabaseConfigured) return <MissingConfig />
-  if (!initialized) return <FullPageLoader label="Starting ROP Connect…" />
+  if (!initialized) return <FullPageLoader label="Starting ROP Chat…" />
 
   if (!session) {
     return (

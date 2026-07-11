@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.9.1'
+export const APP_VERSION = '1.10.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.10.0',
+    date: '2026-07-11',
+    time: '9:45 AM ET',
+    title: 'New name & look — ROP Chat + Directory upgrades',
+    changes: [
+      'Say hello to ROP Chat (shown as “ROP Chat (Slack)” for now so everyone connects it to Slack). New app icon and notification badge to match.',
+      'Directory: sort people by A–Z, Recently active, Newest hires, or Longest here — and each person now shows the year they started (“since 2019”).',
+    ],
+  },
   {
     version: '1.9.1',
     date: '2026-07-11',

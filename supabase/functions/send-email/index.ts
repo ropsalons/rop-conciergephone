@@ -9,7 +9,7 @@ const RESEND_KEY = Deno.env.get('RESEND_API_KEY') ?? 'REDACTED_SEE_DEPLOYED_FUNC
 const CRON_SECRET = 'rop-daily-3f9ac21b'
 const SUPA_URL = 'https://qrigzwactbwbpuufehxo.supabase.co'
 const ANON = Deno.env.get('SUPABASE_ANON_KEY') ?? 'REDACTED_SEE_DEPLOYED_FUNCTION'
-const DEFAULT_FROM = Deno.env.get('EMAIL_FROM') ?? 'ROP Connect <notifications@rop2020.com>'
+const DEFAULT_FROM = Deno.env.get('EMAIL_FROM') ?? 'ROP Chat <notifications@rop2020.com>'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',

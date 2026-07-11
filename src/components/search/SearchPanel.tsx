@@ -129,7 +129,7 @@ export function SearchPanel({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto py-2">
-        {!q.trim() && <p className="px-2 py-8 text-center text-sm text-slate-500">Type to search across ROP Connect.</p>}
+        {!q.trim() && <p className="px-2 py-8 text-center text-sm text-slate-500">Type to search across ROP Chat.</p>}
 
         {tab === 'messages' &&
           results.messages.map((m) => {

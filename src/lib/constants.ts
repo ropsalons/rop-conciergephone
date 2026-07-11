@@ -1,6 +1,6 @@
 // Static reference data + tokens shared across the app.
 
-export const APP_NAME = 'ROP Connect'
+export const APP_NAME = 'ROP Chat (Slack)'
 export const COMPANY_NAME = 'Robert of Philadelphia Salons'
 
 export const ROLE_LABELS: Record<string, string> = {

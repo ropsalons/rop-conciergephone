@@ -1,4 +1,4 @@
-/* ROP Connect — push handlers, imported into the generated Workbox service worker.
+/* ROP Chat — push handlers, imported into the generated Workbox service worker.
    Receives a Web Push, shows the OS notification, and opens the right screen on tap. */
 
 self.addEventListener('push', function (event) {
@@ -6,9 +6,9 @@ self.addEventListener('push', function (event) {
   try {
     data = event.data ? event.data.json() : {}
   } catch (e) {
-    data = { title: 'ROP Connect', body: event.data ? event.data.text() : '' }
+    data = { title: 'ROP Chat', body: event.data ? event.data.text() : '' }
   }
-  var title = data.title || 'ROP Connect'
+  var title = data.title || 'ROP Chat'
   var options = {
     body: data.body || '',
     icon: '/icons/icon-192.png',

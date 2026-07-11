@@ -248,7 +248,7 @@ export function HelpModal() {
                 <li>Open <b>rop-connect.netlify.app</b> in <b>Safari</b> (it must be Safari).</li>
                 <li>Tap the <b>Share</b> button (square with an up-arrow) at the bottom.</li>
                 <li>Scroll down, tap <b>Add to Home Screen</b>, then <b>Add</b>.</li>
-                <li>Open ROP Connect from the <b>new Home Screen icon</b> (not the Safari tab).</li>
+                <li>Open ROP Chat from the <b>new Home Screen icon</b> (not the Safari tab).</li>
                 <li>Go to <b>Profile → Notifications</b> and tap <b>“Turn on notifications for this device.”</b></li>
                 <li>Tap <b>Allow</b> on the iPhone prompt. Done.</li>
               </ol>
@@ -258,7 +258,7 @@ export function HelpModal() {
               <ol className="mt-1 list-decimal space-y-1 pl-5">
                 <li>Open <b>rop-connect.netlify.app</b> in <b>Chrome</b>.</li>
                 <li>Tap the <b>⋮</b> menu (top-right) → <b>Add to Home screen</b> / <b>Install app</b> → <b>Install</b>. (Recommended, so it opens like a real app.)</li>
-                <li>Open ROP Connect from its <b>Home Screen / app-drawer icon</b>.</li>
+                <li>Open ROP Chat from its <b>Home Screen / app-drawer icon</b>.</li>
                 <li>Go to <b>Profile → Notifications</b> and tap <b>“Turn on notifications for this device.”</b></li>
                 <li>Tap <b>Allow</b> when Android asks. Done.</li>
               </ol>
@@ -267,7 +267,7 @@ export function HelpModal() {
               <p className="mt-3"><b>What you&apos;ll get by default:</b> direct messages, <b>@mentions</b>, and announcements. Tapping a notification opens straight to that message.</p>
               <p className="mt-2"><b>Mute a channel:</b> open the channel and tap the <b>bell</b> in the top bar. A muted channel never sends phone notifications (the bell shows a line through it). Tap again to unmute.</p>
               <p className="mt-2"><b>Fine-tune:</b> in <b>Profile → Notifications</b> you can switch DMs, mentions, announcements and urgent alerts on or off individually.</p>
-              <p className="mt-2 text-xs text-slate-500">Blocked before? On iPhone: <b>Settings → Notifications → ROP Connect → Allow Notifications</b>. On Android: <b>Settings → Apps → ROP Connect → Notifications</b>. Then re-open the app and tap the button again.</p>
+              <p className="mt-2 text-xs text-slate-500">Blocked before? On iPhone: <b>Settings → Notifications → ROP Chat → Allow Notifications</b>. On Android: <b>Settings → Apps → ROP Chat → Notifications</b>. Then re-open the app and tap the button again.</p>
             </Topic>
           </>
         ) : (

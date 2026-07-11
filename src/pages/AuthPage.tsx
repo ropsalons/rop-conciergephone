@@ -47,7 +47,7 @@ export function AuthPage() {
       else {
         setNotice('Account created. If email confirmation is on, check your inbox — otherwise sign in below.')
         setMode('signin')
-        toast({ kind: 'success', title: 'Welcome to ROP Connect', body: 'Your account is ready.' })
+        toast({ kind: 'success', title: 'Welcome to ROP Chat', body: 'Your account is ready.' })
       }
     }
   }

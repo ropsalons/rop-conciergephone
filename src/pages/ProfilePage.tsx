@@ -303,7 +303,7 @@ export function ProfilePage() {
 
             <p className="text-xs text-slate-500">
               {pushStatus === 'unsupported'
-                ? 'On iPhone, add ROP Connect to your Home Screen first (Share → Add to Home Screen), then open it from there to enable notifications.'
+                ? 'On iPhone, add ROP Chat to your Home Screen first (Share → Add to Home Screen), then open it from there to enable notifications.'
                 : pushStatus === 'denied'
                   ? 'You blocked notifications for this site. Re-enable them in your browser/phone settings, then come back here.'
                   : 'Get a push on your phone for direct messages, @mentions and announcements — even when the app is closed. Turn it on once per device. Mute any individual channel from that channel’s menu.'}

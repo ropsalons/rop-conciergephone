@@ -25,8 +25,11 @@ export function DirectoryPage() {
   const [locationId, setLocationId] = useState('')
   const [departmentId, setDepartmentId] = useState('')
   const [role, setRole] = useState('')
+  const [sort, setSort] = useState<'name' | 'active' | 'newest' | 'tenure'>('name')
   const [selected, setSelected] = useState<Profile | null>(null)
   const [busy, setBusy] = useState(false)
+
+  const startYear = (p: Profile) => ((p as any).hire_date ? String((p as any).hire_date).slice(0, 4) : null)
 
   useEffect(() => {
     if (profiles.length === 0) void useDirectoryStore.getState().load()
@@ -61,6 +64,17 @@ export function DirectoryPage() {
       .filter((p) => (departmentId ? p.department_id === departmentId : true))
       .filter((p) => (role ? p.role === role : true))
   }, [profiles, q, locationId, departmentId, role])
+
+  const sorted = useMemo(() => {
+    const arr = [...filtered]
+    const lm = (p: any) => (p.last_seen_at ? Date.parse(p.last_seen_at) : 0)
+    const hy = (p: any) => (p.hire_date ? Date.parse(p.hire_date) : 0)
+    if (sort === 'active') arr.sort((a, b) => lm(b) - lm(a))
+    else if (sort === 'newest') arr.sort((a, b) => hy(b) - hy(a))
+    else if (sort === 'tenure') arr.sort((a, b) => (hy(a) || 8e15) - (hy(b) || 8e15))
+    else arr.sort((a, b) => displayName(a).localeCompare(displayName(b)))
+    return arr
+  }, [filtered, sort])
 
   async function message(p: Profile) {
     setBusy(true)
@@ -112,6 +126,12 @@ export function DirectoryPage() {
                 <option key={r} value={r}>{ROLE_LABELS[r] ?? r}</option>
               ))}
             </select>
+            <select className="input py-1.5 text-sm" value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} title="Sort">
+              <option value="name">Sort: A–Z</option>
+              <option value="active">Sort: Recently active</option>
+              <option value="newest">Sort: Newest hires</option>
+              <option value="tenure">Sort: Longest here</option>
+            </select>
           </div>
         </div>
 
@@ -123,12 +143,15 @@ export function DirectoryPage() {
           />
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {filtered.map((p) => (
+            {sorted.map((p) => (
               <div key={p.id} className="card flex items-center gap-3 p-3">
                 <button onClick={() => setSelected(p)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
                   <Avatar profile={p} size="md" showPresence />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-white">{displayName(p)}</p>
+                    <p className="truncate text-sm font-semibold text-white">
+                      {displayName(p)}
+                      {startYear(p) && <span className="ml-1.5 text-[11px] font-medium text-gold-300/90">· since {startYear(p)}</span>}
+                    </p>
                     <p className="truncate text-xs text-slate-400">{p.title || ROLE_LABELS[p.role] || p.role}</p>
                     <p className="truncate text-[11px] text-slate-500">
                       {[p.location_id ? locationName[p.location_id] : null, p.department_id ? departmentName[p.department_id] : null]
@@ -186,6 +209,7 @@ export function DirectoryPage() {
             <dl className="space-y-2 text-sm">
               <Field label="Location" value={selected.location_id ? locationName[selected.location_id] : null} />
               <Field label="Department" value={selected.department_id ? departmentName[selected.department_id] : null} />
+              <Field label="With ROP since" value={startYear(selected)} />
               <Field label="Phone" value={selected.phone} />
               {selected.custom_status && <Field label="Status" value={selected.custom_status} />}
             </dl>
