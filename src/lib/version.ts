@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.9.0'
+export const APP_VERSION = '1.9.1'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,15 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.9.1',
+    date: '2026-07-11',
+    time: '9:05 AM ET',
+    title: 'Simpler passcodes',
+    changes: [
+      'Your passcode is now the last 4 digits of your phone number (or rop2020 if we don’t have your number on file). The login screen accepts short passcodes.',
+    ],
+  },
   {
     version: '1.9.0',
     date: '2026-07-11',

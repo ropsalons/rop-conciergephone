@@ -92,8 +92,8 @@ export function AuthPage() {
           </div>
 
           <div>
-            <label className="label">Password</label>
-            <input type="password" required minLength={6} className="input" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+            <label className="label">Passcode</label>
+            <input type="password" required minLength={4} className="input" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="last 4 digits of your phone" />
           </div>
 
           {mode === 'signup' && (
