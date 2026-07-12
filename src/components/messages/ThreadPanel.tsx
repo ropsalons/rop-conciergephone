@@ -6,6 +6,7 @@ import { useMessages, type Target } from '@/hooks/useMessages'
 import { MessageItem } from './MessageItem'
 import { MessageComposer } from './MessageComposer'
 import { RichText } from './RichText'
+import { RichCard } from './RichCard'
 import { Avatar } from '@/components/ui/Avatar'
 import { FullPageLoader } from '@/components/ui/Feedback'
 import { X } from '@/components/ui/Icons'
@@ -99,9 +100,17 @@ function ThreadBody({
                 <span className="text-sm font-semibold text-white">{displayName(rootAuthor)}</span>
                 <span className="text-[11px] text-slate-500">{messageTime(root.created_at)}</span>
               </div>
-              <div className="text-sm text-slate-200">
-                <RichText text={root.body} mentionNames={mentionNames} />
-              </div>
+              {(() => {
+                const meta = (root.metadata ?? {}) as Record<string, any>
+                if (meta.format === 'html' && typeof meta.html === 'string') {
+                  return <RichCard html={meta.html} title={typeof meta.card_title === 'string' ? meta.card_title : undefined} />
+                }
+                return (
+                  <div className="text-sm text-slate-200">
+                    <RichText text={root.body} mentionNames={mentionNames} />
+                  </div>
+                )
+              })()}
             </div>
           </div>
         </div>

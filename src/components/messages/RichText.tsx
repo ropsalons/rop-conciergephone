@@ -75,12 +75,12 @@ export function RichText({
   mentionNames,
   className,
 }: {
-  text: string
+  text: string | null | undefined
   mentionNames?: Set<string>
   className?: string
 }) {
   const names = mentionNames ?? new Set<string>()
-  const lines = text.split('\n')
+  const lines = (text ?? '').split('\n')
   return (
     <span className={className}>
       {lines.map((line, i) => (
