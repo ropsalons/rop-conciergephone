@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.10.7'
+export const APP_VERSION = '1.10.8'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.10.8',
+    date: '2026-07-13',
+    time: '2:20 PM ET',
+    title: 'Home you can actually organize',
+    changes: [
+      'Mobile Home now has collapsible sections — tap “Direct Messages”, “Starred”, or “Channels” to expand/collapse. Direct Messages sits up top, and collapsing Channels gets you to your DMs instantly. Collapsed state is remembered.',
+      'Channels now sort by most-recent activity by default (not A–Z), so the conversations that are actually moving float to the top — everywhere in the app.',
+    ],
+  },
   {
     version: '1.10.7',
     date: '2026-07-13',

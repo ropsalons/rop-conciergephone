@@ -24,14 +24,13 @@ interface SidebarPrefs {
 function loadPrefs(): SidebarPrefs {
   try {
     const raw = JSON.parse(localStorage.getItem(PREF_KEY) || '{}')
-    const channelSort: ChannelSort =
-      raw.channelSort === 'activity' || raw.channelSort === 'unread' || raw.channelSort === 'manual'
-        ? raw.channelSort
-        : 'name'
+    // Default to most-recent activity (not A–Z) — far more useful with a big channel list.
+    const valid = ['name', 'activity', 'unread', 'manual']
+    const channelSort: ChannelSort = valid.includes(raw.channelSort) ? raw.channelSort : 'activity'
     const channelOrder = Array.isArray(raw.channelOrder) ? raw.channelOrder.filter((x: unknown) => typeof x === 'string') : []
     return { channelSort, hideInactive: !!raw.hideInactive, channelOrder }
   } catch {
-    return { channelSort: 'name', hideInactive: false, channelOrder: [] }
+    return { channelSort: 'activity', hideInactive: false, channelOrder: [] }
   }
 }
 function savePrefs(p: SidebarPrefs) {
