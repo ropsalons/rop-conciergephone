@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.10.1'
+export const APP_VERSION = '1.10.2'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,15 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.10.2',
+    date: '2026-07-13',
+    time: '10:26 AM ET',
+    title: 'Reliability: auto-recover stuck installs',
+    changes: [
+      'Fixed an issue where a phone that opened the app during a bad deploy could get stuck on a blank screen. Installs now automatically pull the latest working version instead of holding onto a broken cached copy.',
+    ],
+  },
   {
     version: '1.10.1',
     date: '2026-07-11',
