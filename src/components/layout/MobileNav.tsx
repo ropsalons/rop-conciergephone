@@ -1,10 +1,13 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import { useChatStore } from '@/stores/chatStore'
 import { useUIStore } from '@/stores/uiStore'
-import { Home, Hash, MessageSquare, Bell, Menu } from '@/components/ui/Icons'
+import { Home, MessageSquare, Bell, Search, MoreHorizontal } from '@/components/ui/Icons'
 import { UnreadBadge } from '@/components/ui/Badge'
 import { cn } from '@/lib/utils'
 
+// Mobile bottom bar, matched to the Slack app: Home · DMs · Activity · Search · More.
+// Channels live behind "More" (the slide-in menu), like Slack tucks its secondary nav there;
+// its badge carries channel unreads so they're never hidden.
 export function MobileNav() {
   const { pathname } = useLocation()
   const { toggleMobileSidebar } = useUIStore()
@@ -26,11 +29,6 @@ export function MobileNav() {
       <NavLink to="/" end className={({ isActive }) => cn(item, isActive ? on : off)}>
         <Home className="h-5 w-5" /> Home
       </NavLink>
-      <NavLink to="/channels" className={({ isActive }) => cn(item, isActive ? on : off)}>
-        <Hash className="h-5 w-5" />
-        {channelUnread > 0 && <UnreadBadge count={channelUnread} className="absolute right-4 top-1" />}
-        Channels
-      </NavLink>
       <NavLink to="/dms" className={({ isActive }) => cn(item, isActive ? on : off)}>
         <MessageSquare className="h-5 w-5" />
         {dmUnread > 0 && <UnreadBadge count={dmUnread} className="absolute right-5 top-1" />}
@@ -41,8 +39,13 @@ export function MobileNav() {
         {notificationsCount > 0 && <UnreadBadge count={notificationsCount} className="absolute right-4 top-1" />}
         Activity
       </NavLink>
+      <NavLink to="/search" className={({ isActive }) => cn(item, isActive ? on : off)}>
+        <Search className="h-5 w-5" /> Search
+      </NavLink>
       <button onClick={toggleMobileSidebar} className={cn(item, off)}>
-        <Menu className="h-5 w-5" /> Menu
+        <MoreHorizontal className="h-5 w-5" />
+        {channelUnread > 0 && <UnreadBadge count={channelUnread} className="absolute right-4 top-1" />}
+        More
       </button>
     </nav>
   )

@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.10.4'
+export const APP_VERSION = '1.10.5'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,15 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.10.5',
+    date: '2026-07-13',
+    time: '1:05 PM ET',
+    title: 'Slack-style mobile tab bar',
+    changes: [
+      'The mobile bottom bar now matches Slack: Home · DMs · Activity · Search · More. Channels live under “More” (with their unread count on the badge).',
+    ],
+  },
   {
     version: '1.10.4',
     date: '2026-07-13',
