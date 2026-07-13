@@ -1,5 +1,14 @@
 import { useMemo, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
+import {
+  DndContext, closestCenter, PointerSensor, TouchSensor, KeyboardSensor,
+  useSensor, useSensors, type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext, verticalListSortingStrategy, sortableKeyboardCoordinates,
+  useSortable, arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { useAuthStore } from '@/stores/authStore'
 import { useChatStore } from '@/stores/chatStore'
 import { useUIStore } from '@/stores/uiStore'
@@ -8,7 +17,7 @@ import { UnreadBadge } from '@/components/ui/Badge'
 import {
   Hash, Lock, Megaphone, Home, MessageSquare, Users, Search, Bell, Plus,
   Star, LifeBuoy, Shield, Settings,
-  Eye, EyeOff, ArrowUpDown,
+  Eye, EyeOff, ArrowUpDown, GripVertical,
 } from '@/components/ui/Icons'
 import { conversationName, otherMembers } from '@/lib/dm'
 import { cn } from '@/lib/utils'
@@ -17,11 +26,71 @@ import { APP_VERSION } from '@/lib/version'
 import { CreateChannelModal } from '@/components/channels/CreateChannelModal'
 import { BrowseChannelsModal } from '@/components/channels/BrowseChannelsModal'
 import { NewDMModal } from '@/components/dms/NewDMModal'
+import type { ChannelWithMeta } from '@/types'
 
 function ChannelIcon({ type, className }: { type: string; className?: string }) {
   if (type === 'private' || type === 'admin') return <Lock className={className} />
   if (type === 'announcement') return <Megaphone className={className} />
   return <Hash className={className} />
+}
+
+// One channel row. In manual mode it exposes a drag handle (dnd-kit); otherwise it renders
+// exactly like a normal nav row. Tapping the row always navigates; only the ⣿ handle drags.
+function ChannelRow({
+  c, unread, manual, onNavigate, onToggleFav,
+}: {
+  c: ChannelWithMeta
+  unread: number
+  manual: boolean
+  onNavigate: () => void
+  onToggleFav: () => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: c.id,
+    disabled: !manual,
+  })
+  const fav = !!c.is_favorite
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={cn('group relative flex items-center', isDragging && 'z-10 opacity-80')}
+    >
+      {manual && (
+        <button
+          {...attributes}
+          {...listeners}
+          title="Drag to reorder"
+          aria-label="Drag to reorder"
+          className="cursor-grab touch-none rounded p-1 text-slate-500 hover:text-slate-300 active:cursor-grabbing"
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+      )}
+      <NavLink
+        to={`/channel/${c.id}`}
+        onClick={onNavigate}
+        className={({ isActive }) => cn(NAV_LINK, 'flex-1 py-1.5 pr-8', manual ? 'gap-2 pl-1' : undefined, isActive ? active : idle)}
+      >
+        <ChannelIcon type={c.type} className="h-4 w-4 shrink-0 opacity-70" />
+        <span className={cn('flex-1 truncate', !!unread && 'font-semibold text-white')}>{c.name}</span>
+        <UnreadBadge count={c.is_muted ? 0 : unread} />
+      </NavLink>
+      <button
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleFav() }}
+        title={fav ? 'Remove from favorites' : 'Favorite — pin to top'}
+        aria-label={fav ? 'Remove from favorites' : 'Add to favorites'}
+        className={cn(
+          'absolute right-1 rounded p-1.5 transition',
+          fav
+            ? 'text-gold-400 hover:text-gold-300'
+            : 'text-slate-500 opacity-60 hover:text-gold-300 focus:opacity-100 lg:opacity-0 lg:group-hover:opacity-100',
+        )}
+      >
+        <Star className="h-4 w-4" {...(fav ? { fill: 'currentColor' } : {})} />
+      </button>
+    </div>
+  )
 }
 
 const NAV_LINK = 'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition'
@@ -39,7 +108,17 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const setChannelSort = useUIStore((s) => s.setChannelSort)
   const hideInactive = useUIStore((s) => s.hideInactive)
   const setHideInactive = useUIStore((s) => s.setHideInactive)
+  const channelOrder = useUIStore((s) => s.channelOrder)
+  const setChannelOrder = useUIStore((s) => s.setChannelOrder)
   const navigate = useNavigate()
+
+  const manual = channelSort === 'manual'
+  // Touch = press-and-hold to drag (so normal scrolling still works); mouse = small move to drag.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
   const [showCreate, setShowCreate] = useState(false)
   const [showBrowse, setShowBrowse] = useState(false)
   const [showNewDM, setShowNewDM] = useState(false)
@@ -51,10 +130,32 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const isActiveChannel = (c: (typeof channels)[number]) =>
     !!c.is_favorite || (unreadByChannel[c.id] ?? 0) > 0 || (c.message_count ?? 0) > 0
 
-  // Display list: optional hide-quiet filter, then sort. Favorites always float to the top;
+  // The full manual ordering of EVERY channel (incl. hidden ones), by the user's saved
+  // drag order; channels never dragged fall to the end alphabetically. Used for drag math
+  // so hidden channels keep their place when reordering the visible ones.
+  const manualOrderIds = useMemo(() => {
+    const pos = new Map(channelOrder.map((id, i) => [id, i]))
+    return channels
+      .slice()
+      .sort((a, b) => {
+        const pa = pos.has(a.id) ? (pos.get(a.id) as number) : Infinity
+        const pb = pos.has(b.id) ? (pos.get(b.id) as number) : Infinity
+        if (pa !== pb) return pa - pb
+        return (a.name ?? '').localeCompare(b.name ?? '')
+      })
+      .map((c) => c.id)
+  }, [channels, channelOrder])
+
+  // Display list: optional hide-quiet filter, then sort. In manual mode we honor the user's
+  // drag order exactly (no favorite-floating). Otherwise favorites float to the top and
   // `channelSort` orders within each group (A–Z, most-recent activity, or most-unread first).
   const visibleChannels = useMemo(() => {
     const list = hideInactive ? channels.filter(isActiveChannel) : channels.slice()
+    if (channelSort === 'manual') {
+      const pos = new Map(manualOrderIds.map((id, i) => [id, i]))
+      list.sort((a, b) => (pos.get(a.id) ?? Infinity) - (pos.get(b.id) ?? Infinity))
+      return list
+    }
     list.sort((a, b) => {
       if (!!a.is_favorite !== !!b.is_favorite) return a.is_favorite ? -1 : 1
       if (channelSort === 'unread') {
@@ -71,16 +172,31 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     })
     return list
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channels, hideInactive, channelSort, unreadByChannel])
+  }, [channels, hideInactive, channelSort, unreadByChannel, manualOrderIds])
+
+  function onDragEnd(e: DragEndEvent) {
+    const { active, over } = e
+    if (!over || active.id === over.id) return
+    const from = manualOrderIds.indexOf(String(active.id))
+    const to = manualOrderIds.indexOf(String(over.id))
+    if (from < 0 || to < 0) return
+    setChannelOrder(arrayMove(manualOrderIds, from, to))
+  }
 
   const hiddenCount = channels.length - visibleChannels.length
   const SORT_LABEL: Record<typeof channelSort, string> = {
     name: 'A–Z',
     activity: 'Recent activity',
     unread: 'Unread first',
+    manual: 'My order',
   }
   const nextSort = () =>
-    setChannelSort(channelSort === 'name' ? 'activity' : channelSort === 'activity' ? 'unread' : 'name')
+    setChannelSort(
+      channelSort === 'name' ? 'activity'
+        : channelSort === 'activity' ? 'unread'
+        : channelSort === 'unread' ? 'manual'
+        : 'name',
+    )
 
   return (
     <div className="flex h-full flex-col bg-brand-900/95">
@@ -149,50 +265,37 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
               </button>
             </div>
           </div>
-          <div className="space-y-0.5">
-            {visibleChannels.map((c) => {
-              const unread = unreadByChannel[c.id] ?? 0
-              const fav = !!c.is_favorite
-              return (
-                <div key={c.id} className="group relative flex items-center">
-                  <NavLink
-                    to={`/channel/${c.id}`}
-                    onClick={go}
-                    className={({ isActive }) => cn(NAV_LINK, 'flex-1 py-1.5 pr-8', isActive ? active : idle)}
-                  >
-                    <ChannelIcon type={c.type} className="h-4 w-4 shrink-0 opacity-70" />
-                    <span className={cn('flex-1 truncate', !!unread && 'font-semibold text-white')}>{c.name}</span>
-                    <UnreadBadge count={c.is_muted ? 0 : unread} />
-                  </NavLink>
+          {manual && (
+            <p className="px-3 pb-1 text-[10px] text-slate-500">Drag the ⣿ handle to reorder. Tap the sort button to switch back.</p>
+          )}
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+            <SortableContext items={visibleChannels.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+              <div className="space-y-0.5">
+                {visibleChannels.map((c) => (
+                  <ChannelRow
+                    key={c.id}
+                    c={c}
+                    unread={unreadByChannel[c.id] ?? 0}
+                    manual={manual}
+                    onNavigate={go}
+                    onToggleFav={() => void toggleFavorite(c.id, !c.is_favorite)}
+                  />
+                ))}
+                {channels.length === 0 && <p className="px-3 py-1 text-xs text-slate-500">No channels yet.</p>}
+                {channels.length > 0 && visibleChannels.length === 0 && (
+                  <p className="px-3 py-1 text-xs text-slate-500">All channels are quiet right now.</p>
+                )}
+                {hideInactive && hiddenCount > 0 && (
                   <button
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); void toggleFavorite(c.id, !fav) }}
-                    title={fav ? 'Remove from favorites' : 'Favorite — pin to top'}
-                    aria-label={fav ? 'Remove from favorites' : 'Add to favorites'}
-                    className={cn(
-                      'absolute right-1 rounded p-1.5 transition',
-                      fav
-                        ? 'text-gold-400 hover:text-gold-300'
-                        : 'text-slate-500 opacity-60 hover:text-gold-300 focus:opacity-100 lg:opacity-0 lg:group-hover:opacity-100',
-                    )}
+                    onClick={() => setHideInactive(false)}
+                    className="w-full px-3 py-1 text-left text-[11px] text-slate-500 hover:text-slate-300"
                   >
-                    <Star className="h-4 w-4" {...(fav ? { fill: 'currentColor' } : {})} />
+                    + Show {hiddenCount} quiet channel{hiddenCount === 1 ? '' : 's'}
                   </button>
-                </div>
-              )
-            })}
-            {channels.length === 0 && <p className="px-3 py-1 text-xs text-slate-500">No channels yet.</p>}
-            {channels.length > 0 && visibleChannels.length === 0 && (
-              <p className="px-3 py-1 text-xs text-slate-500">All channels are quiet right now.</p>
-            )}
-            {hideInactive && hiddenCount > 0 && (
-              <button
-                onClick={() => setHideInactive(false)}
-                className="w-full px-3 py-1 text-left text-[11px] text-slate-500 hover:text-slate-300"
-              >
-                + Show {hiddenCount} quiet channel{hiddenCount === 1 ? '' : 's'}
-              </button>
-            )}
-          </div>
+                )}
+              </div>
+            </SortableContext>
+          </DndContext>
         </div>
 
         {/* Direct messages */}

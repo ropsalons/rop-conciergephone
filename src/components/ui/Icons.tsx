@@ -38,6 +38,9 @@ export const Send = (p: P) => (
 export const Plus = (p: P) => (
   <svg {...base(p)}><path d="M5 12h14" /><path d="M12 5v14" /></svg>
 )
+export const GripVertical = (p: P) => (
+  <svg {...base(p)}><circle cx="9" cy="6" r="1" /><circle cx="9" cy="12" r="1" /><circle cx="9" cy="18" r="1" /><circle cx="15" cy="6" r="1" /><circle cx="15" cy="12" r="1" /><circle cx="15" cy="18" r="1" /></svg>
+)
 export const X = (p: P) => (
   <svg {...base(p)}><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
 )

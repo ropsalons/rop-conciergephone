@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.10.3'
+export const APP_VERSION = '1.10.4'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.10.4',
+    date: '2026-07-13',
+    time: '12:35 PM ET',
+    title: 'Drag to reorder your channels + merged Announcements',
+    changes: [
+      'You can now put your channels in any order you want: tap the sort button in the Channels header until it says “My order,” then drag the ⣿ handle to arrange them. Your order is remembered on that device.',
+      'Merged the old imported announcements channel into the main Announcements channel, so all 4 years of history now live in the one channel everyone follows.',
+    ],
+  },
   {
     version: '1.10.3',
     date: '2026-07-13',
