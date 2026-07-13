@@ -5,7 +5,6 @@ import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
 import { useDirectoryStore } from '@/stores/directoryStore'
 import { useChatStore } from '@/stores/chatStore'
-import { useUIStore } from '@/stores/uiStore'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Avatar } from '@/components/ui/Avatar'
 import { UnreadBadge, Tag } from '@/components/ui/Badge'
@@ -14,19 +13,15 @@ import {
   AlertTriangle,
   Megaphone,
   Star,
-  ClipboardList,
   LifeBuoy,
   Calendar,
-  Users,
-  Search,
   Hash,
   MessageSquare,
-  Sparkles,
   ChevronLeft,
 } from '@/components/ui/Icons'
 import { SHOUTOUT_CATEGORIES } from '@/lib/constants'
 import { displayName, timeAgo, cn } from '@/lib/utils'
-import type { UrgentAlertRow, AnnouncementRow, DailyHuddleRow, ShoutoutRow } from '@/types'
+import type { UrgentAlertRow, AnnouncementRow, ShoutoutRow } from '@/types'
 
 const CATEGORY_EMOJI: Record<string, string> = Object.fromEntries(
   SHOUTOUT_CATEGORIES.map((c) => [c.key, c.emoji]),
@@ -34,10 +29,8 @@ const CATEGORY_EMOJI: Record<string, string> = Object.fromEntries(
 
 const QUICK_ACTIONS = [
   { key: 'shoutout', label: 'New Shoutout', to: '/shoutouts', Icon: Star, tint: 'text-gold-300' },
-  { key: 'huddle', label: 'Daily Huddle', to: '/huddle', Icon: ClipboardList, tint: 'text-brand-200' },
   { key: 'recovery', label: 'Guest Recovery', to: '/recovery', Icon: LifeBuoy, tint: 'text-emerald-300' },
   { key: 'scheduling', label: 'Scheduling', to: '/scheduling', Icon: Calendar, tint: 'text-purple-300' },
-  { key: 'people', label: 'People', to: '/people', Icon: Users, tint: 'text-sky-300' },
 ] as const
 
 function SectionCard({
@@ -83,7 +76,6 @@ export function DashboardPage() {
 
   const [alerts, setAlerts] = useState<UrgentAlertRow[]>([])
   const [announcements, setAnnouncements] = useState<AnnouncementRow[]>([])
-  const [huddle, setHuddle] = useState<DailyHuddleRow | null>(null)
   const [shoutouts, setShoutouts] = useState<ShoutoutRow[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -102,7 +94,6 @@ export function DashboardPage() {
     async function load() {
       const nowIso = new Date().toISOString()
       const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
-      const today = new Date().toISOString().slice(0, 10)
 
       const alertsQ = supabase
         .from('urgent_alerts')
@@ -125,27 +116,12 @@ export function DashboardPage() {
         .order('created_at', { ascending: false })
         .limit(5)
 
-      const huddleQ = profile?.location_id
-        ? supabase
-            .from('daily_huddles')
-            .select('*')
-            .eq('location_id', profile.location_id)
-            .eq('huddle_date', today)
-            .maybeSingle()
-        : null
-
-      const [alertsRes, annRes, shoutRes, huddleRes] = await Promise.all([
-        alertsQ,
-        announcementsQ,
-        shoutoutsQ,
-        huddleQ ?? Promise.resolve({ data: null }),
-      ])
+      const [alertsRes, annRes, shoutRes] = await Promise.all([alertsQ, announcementsQ, shoutoutsQ])
 
       if (!active) return
       setAlerts((alertsRes.data as UrgentAlertRow[]) ?? [])
       setAnnouncements((annRes.data as AnnouncementRow[]) ?? [])
       setShoutouts((shoutRes.data as ShoutoutRow[]) ?? [])
-      setHuddle((huddleRes.data as DailyHuddleRow | null) ?? null)
       setLoading(false)
     }
     load()
@@ -171,8 +147,6 @@ export function DashboardPage() {
     [unreadChannels, unreadByChannel],
   )
   const hasUnread = totalUnreadDMs + totalUnreadChannels > 0
-
-  const focus = huddle?.focus?.trim()
 
   if (loading) return <FullPageLoader label="Loading your day…" />
 
@@ -230,25 +204,8 @@ export function DashboardPage() {
             </SectionCard>
           )}
 
-          {/* Daily focus */}
-          {focus && (
-            <div className="rounded-2xl border border-gold-400/30 bg-gradient-to-br from-gold-400/10 to-transparent p-4">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-gold-300" />
-                <h2 className="text-sm font-semibold text-gold-200">Today's focus</h2>
-              </div>
-              <p className="mt-2 text-sm text-slate-100">{focus}</p>
-              <button
-                onClick={() => navigate('/huddle')}
-                className="mt-2 text-xs font-medium text-gold-300 hover:text-gold-200"
-              >
-                Open daily huddle →
-              </button>
-            </div>
-          )}
-
-          {/* Quick actions */}
-          <SectionCard title="Quick actions">
+          {/* Salon quick actions */}
+          <SectionCard title="Salon actions">
             <div className="grid grid-cols-3 gap-2">
               {QUICK_ACTIONS.map(({ key, label, to, Icon, tint }) => (
                 <button
@@ -260,13 +217,6 @@ export function DashboardPage() {
                   <span className="text-[11px] font-medium leading-tight text-slate-200">{label}</span>
                 </button>
               ))}
-              <button
-                onClick={() => useUIStore.getState().setSearchOpen(true)}
-                className="flex flex-col items-center gap-1.5 rounded-xl bg-white/5 p-3 text-center transition hover:bg-white/10"
-              >
-                <Search className="h-6 w-6 text-slate-300" />
-                <span className="text-[11px] font-medium leading-tight text-slate-200">Search</span>
-              </button>
             </div>
           </SectionCard>
 

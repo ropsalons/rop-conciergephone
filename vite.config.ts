@@ -12,6 +12,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: false, // we register + poll for updates manually in main.tsx
       includeAssets: ['favicon.svg', 'icons/apple-touch-icon.png', 'offline.html'],
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],

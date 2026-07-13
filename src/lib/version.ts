@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.10.6'
+export const APP_VERSION = '1.10.7'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.10.7',
+    date: '2026-07-13',
+    time: '1:55 PM ET',
+    title: 'Auto-updating app + cleaner dashboard',
+    changes: [
+      'The app now checks for new versions on its own (every 30 seconds and whenever you reopen it) and quietly refreshes to the latest — no more force-closing to get updates.',
+      'Cleaned up the Salon Dashboard: removed Daily Huddle, and the “Quick actions” grid is now a focused “Salon actions” set (New Shoutout, Guest Recovery, Scheduling).',
+    ],
+  },
   {
     version: '1.10.6',
     date: '2026-07-13',
