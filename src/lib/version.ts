@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.10.2'
+export const APP_VERSION = '1.10.3'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,15 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.10.3',
+    date: '2026-07-13',
+    time: '12:12 PM ET',
+    title: 'Simpler sidebar',
+    changes: [
+      'Removed the extra “Salon” shortcut group from the left menu (it duplicated real channels like Announcements and confused people). Your actual Channels now come right after the top menu, followed by Direct Messages.',
+    ],
+  },
   {
     version: '1.10.2',
     date: '2026-07-13',

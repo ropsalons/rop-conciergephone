@@ -7,7 +7,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { UnreadBadge } from '@/components/ui/Badge'
 import {
   Hash, Lock, Megaphone, Home, MessageSquare, Users, Search, Bell, Plus,
-  Star, LifeBuoy, GraduationCap, Calendar, ClipboardList, AlertTriangle, Shield, Settings,
+  Star, LifeBuoy, Shield, Settings,
   Eye, EyeOff, ArrowUpDown,
 } from '@/components/ui/Icons'
 import { conversationName, otherMembers } from '@/lib/dm'
@@ -82,16 +82,6 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const nextSort = () =>
     setChannelSort(channelSort === 'name' ? 'activity' : channelSort === 'activity' ? 'unread' : 'name')
 
-  const salonLinks = [
-    { to: '/announcements', label: 'Announcements', icon: Megaphone },
-    { to: '/alerts', label: 'Urgent Alerts', icon: AlertTriangle },
-    { to: '/huddle', label: 'Daily Huddle', icon: ClipboardList },
-    { to: '/shoutouts', label: 'Shoutouts', icon: Star },
-    { to: '/recovery', label: 'Guest Recovery', icon: LifeBuoy },
-    { to: '/education', label: 'Education', icon: GraduationCap },
-    { to: '/scheduling', label: 'Scheduling', icon: Calendar },
-  ]
-
   return (
     <div className="flex h-full flex-col bg-brand-900/95">
       {/* Brand */}
@@ -128,18 +118,6 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           <button onClick={() => { setHelpOpen(true); go() }} className={cn(NAV_LINK, idle, 'w-full')}>
             <LifeBuoy className="h-4 w-4" /> Help &amp; Guide
           </button>
-        </div>
-
-        {/* Salon */}
-        <div>
-          <p className="px-3 pb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">Salon</p>
-          <div className="space-y-0.5">
-            {salonLinks.map((l) => (
-              <NavLink key={l.to} to={l.to} onClick={go} className={({ isActive }) => cn(NAV_LINK, isActive ? active : idle)}>
-                <l.icon className="h-4 w-4" /> {l.label}
-              </NavLink>
-            ))}
-          </div>
         </div>
 
         {/* Channels */}
