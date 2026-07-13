@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.10.5'
+export const APP_VERSION = '1.10.6'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.10.6',
+    date: '2026-07-13',
+    time: '1:25 PM ET',
+    title: 'Slack-style mobile Home + easy Settings',
+    changes: [
+      'The mobile Home tab now looks like Slack: your Starred channels, all Channels, and Direct Messages in one scroll, with unread DMs pulled to the top.',
+      'Settings & notifications are now front-and-center on Home — tap the gear or your avatar in the top-right (or the Settings tile). The salon dashboard moved to its own “Salon Dashboard” tile at the top of Home.',
+    ],
+  },
   {
     version: '1.10.5',
     date: '2026-07-13',

@@ -7,6 +7,7 @@ import { MissingConfig } from '@/components/MissingConfig'
 import { AuthPage } from '@/pages/AuthPage'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { DashboardPage } from '@/pages/DashboardPage'
+import { HomePage } from '@/pages/HomePage'
 import { ChannelPage } from '@/pages/ChannelPage'
 import { ChannelsHomePage } from '@/pages/ChannelsHomePage'
 import { DMPage } from '@/pages/DMPage'
@@ -62,7 +63,8 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Navigate to="/" replace />} />
         <Route path="/" element={<AppLayout />}>
-          <Route index element={<DashboardPage />} />
+          <Route index element={<HomePage />} />
+          <Route path="dashboard" element={<DashboardPage />} />
           <Route path="channels" element={<ChannelsHomePage />} />
           <Route path="channel/:channelId" element={<ChannelPage />} />
           <Route path="dms" element={<DMListPage />} />
