@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.10.12'
+export const APP_VERSION = '1.10.13'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.10.13',
+    date: '2026-07-13',
+    time: '5:10 PM ET',
+    title: 'Clearer Notifications you can dismiss',
+    changes: [
+      'The Notifications page is now one simple newest-first list (not grouped by type), so it matches the order things happened.',
+      'Unread items are obvious now — gold left-bar, highlight and a dot — and the header shows how many are unread.',
+      'You can dismiss any notification with the ✕, or “Clear all” — so things like an old urgent alert no longer stick around forever.',
+    ],
+  },
   {
     version: '1.10.12',
     date: '2026-07-13',

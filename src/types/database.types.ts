@@ -17,6 +17,7 @@ export type NotificationType =
   | 'thread_reply'
   | 'announcement'
   | 'urgent'
+  | 'channel'
   | 'channel_invite'
   | 'system'
 
