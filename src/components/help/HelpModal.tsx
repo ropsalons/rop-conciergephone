@@ -236,6 +236,23 @@ export function HelpModal() {
               <p className="text-xs text-slate-400">An owner/admin sets this up — ask for the integration API key and the one-page guide, or see the Admin. Rich cards are shown in a locked sandbox, so an outside report can never touch your data.</p>
             </Topic>
 
+            <Topic icon={<MessageSquare className="h-4 w-4" />} title="Post into ROP Chat by email">
+              <p>You — or another system, like an outside AI — can drop a message into {APP_NAME} just by sending an <b>email</b> to a special address. The email&apos;s body becomes the message, and the sender&apos;s name shows as the author.</p>
+              <p className="font-semibold text-white">To a channel:</p>
+              <p><K>channel-&lt;name&gt;@chat.rop2020.com</K> — use the channel&apos;s name (spaces become hyphens).</p>
+              <ul className="ml-4 list-disc space-y-1 marker:text-slate-500">
+                <li><K>channel-announcements@chat.rop2020.com</K> → posts in Announcements</li>
+                <li><K>channel-victories@chat.rop2020.com</K> → posts in Victories</li>
+              </ul>
+              <p className="font-semibold text-white">To a person (a DM):</p>
+              <p><K>dm-&lt;name&gt;@chat.rop2020.com</K> — use their first name, or the part before the @ in their email if the name isn&apos;t unique.</p>
+              <ul className="ml-4 list-disc space-y-1 marker:text-slate-500">
+                <li><K>dm-zach@chat.rop2020.com</K> → DMs Zach</li>
+                <li><K>dm-robd@chat.rop2020.com</K> → DMs Rob</li>
+              </ul>
+              <p className="text-xs text-slate-400">The Subject line can also route: send to <K>chat@chat.rop2020.com</K> with a subject of <K>#channel-name</K> or <K>@firstname</K>. Anyone who knows the address can post, so keep it internal.</p>
+            </Topic>
+
             <Topic icon={<Home className="h-4 w-4" />} title="Install it on your phone">
               <p>On <b>iPhone</b>: open the site in Safari → Share → <b>Add to Home Screen</b>. On <b>Android</b>: Chrome menu → <b>Install app</b>. On desktop Chrome/Edge: the install icon in the address bar.</p>
             </Topic>

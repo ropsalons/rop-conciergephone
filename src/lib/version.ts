@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.10.9'
+export const APP_VERSION = '1.10.10'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,15 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.10.10',
+    date: '2026-07-13',
+    time: '3:30 PM ET',
+    title: 'Email → Chat bridge',
+    changes: [
+      'You can now post into ROP Chat by email. Send to channel-<name>@chat.rop2020.com to post in a channel, or dm-<name>@chat.rop2020.com to DM a person — the email body becomes the message. Full instructions are in Help → “Post into ROP Chat by email” and in the how-to-operations channel.',
+    ],
+  },
   {
     version: '1.10.9',
     date: '2026-07-13',
