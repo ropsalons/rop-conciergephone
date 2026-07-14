@@ -41,6 +41,9 @@ export const Plus = (p: P) => (
 export const GripVertical = (p: P) => (
   <svg {...base(p)}><circle cx="9" cy="6" r="1" /><circle cx="9" cy="12" r="1" /><circle cx="9" cy="18" r="1" /><circle cx="15" cy="6" r="1" /><circle cx="15" cy="12" r="1" /><circle cx="15" cy="18" r="1" /></svg>
 )
+export const Link = (p: P) => (
+  <svg {...base(p)}><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
+)
 export const X = (p: P) => (
   <svg {...base(p)}><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
 )

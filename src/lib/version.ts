@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.10.8'
+export const APP_VERSION = '1.10.9'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.10.9',
+    date: '2026-07-13',
+    time: '2:55 PM ET',
+    title: 'Powerful search — including Links',
+    changes: [
+      'New “Links” tab in Search finds every link ever shared across channels and DMs — open the Links tab with no search term to browse them all, or type to narrow down.',
+      'Search now handles multi-word queries (all words must match) and is indexed for speed across the entire message archive, so results are instant.',
+      'Search still spans messages, files, channels and people, with filters for sender, date, location and department.',
+    ],
+  },
   {
     version: '1.10.8',
     date: '2026-07-13',
