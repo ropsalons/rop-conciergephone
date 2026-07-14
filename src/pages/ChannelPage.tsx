@@ -177,7 +177,7 @@ export function ChannelPage() {
       {canPost ? (
         <MessageComposer
           placeholder={`Message #${channel.name}`}
-          onSend={({ body, mentions, files }) => send({ body, mentions, files })}
+          onSend={({ body, mentions, files, html }) => send({ body, mentions, files, html })}
         />
       ) : postingLocked && isMember ? (
         <div className="border-t border-white/10 bg-brand-900/40 p-3 text-center text-xs text-slate-400">

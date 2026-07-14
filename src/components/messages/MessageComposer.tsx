@@ -4,14 +4,14 @@ import { useDirectoryStore } from '@/stores/directoryStore'
 import { useUIStore } from '@/stores/uiStore'
 import { Avatar } from '@/components/ui/Avatar'
 import { Spinner } from '@/components/ui/Feedback'
-import { Send, Paperclip, Smile, X } from '@/components/ui/Icons'
+import { Send, Paperclip, Smile, X, Code } from '@/components/ui/Icons'
 import { QUICK_EMOJIS } from '@/lib/constants'
-import { displayName, extractMentionQuery } from '@/lib/utils'
+import { cn, displayName, extractMentionQuery } from '@/lib/utils'
 import { uploadAttachment, type PendingFile } from '@/lib/files'
 import type { Profile } from '@/types'
 
 interface Props {
-  onSend: (input: { body: string; mentions: string[]; files: PendingFile[] }) => Promise<unknown>
+  onSend: (input: { body: string; mentions: string[]; files: PendingFile[]; html?: boolean }) => Promise<unknown>
   placeholder?: string
   disabled?: boolean
   autoFocus?: boolean
@@ -27,6 +27,7 @@ export function MessageComposer({ onSend, placeholder = 'Write a message…', di
   const [uploading, setUploading] = useState(0)
   const [mentionQuery, setMentionQuery] = useState<string | null>(null)
   const [emojiOpen, setEmojiOpen] = useState(false)
+  const [htmlMode, setHtmlMode] = useState(false)
   const mentionsRef = useRef<Array<{ token: string; id: string }>>([])
   const taRef = useRef<HTMLTextAreaElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -49,7 +50,7 @@ export function MessageComposer({ onSend, placeholder = 'Write a message…', di
   function onChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     const val = e.target.value
     setText(val)
-    setMentionQuery(extractMentionQuery(val, e.target.selectionStart ?? val.length))
+    setMentionQuery(htmlMode ? null : extractMentionQuery(val, e.target.selectionStart ?? val.length))
   }
 
   function insertMention(p: Profile) {
@@ -94,7 +95,7 @@ export function MessageComposer({ onSend, placeholder = 'Write a message…', di
       ),
     ]
     try {
-      await onSend({ body, mentions, files: pending })
+      await onSend({ body, mentions: htmlMode ? [] : mentions, files: pending, html: htmlMode })
       setText('')
       setPending([])
       mentionsRef.current = []
@@ -154,12 +155,20 @@ export function MessageComposer({ onSend, placeholder = 'Write a message…', di
           {uploading > 0 ? <Spinner className="h-4 w-4" /> : <Paperclip className="h-5 w-5" />}
         </button>
         <input ref={fileRef} type="file" multiple hidden onChange={onPickFiles} />
+        <button
+          onClick={() => setHtmlMode((v) => !v)}
+          aria-pressed={htmlMode}
+          className={cn('rounded-lg p-2 hover:bg-white/10', htmlMode ? 'bg-gold-400/20 text-gold-300' : 'text-slate-400 hover:text-white')}
+          title={htmlMode ? 'HTML mode is ON — your message will render as HTML. Tap to turn off.' : 'Send as HTML (paste HTML to render it)'}
+        >
+          <Code className="h-5 w-5" />
+        </button>
         <textarea
           ref={taRef}
           value={text}
           onChange={onChange}
           onKeyDown={onKeyDown}
-          placeholder={placeholder}
+          placeholder={htmlMode ? 'Paste HTML — it will render as a card…' : placeholder}
           rows={1}
           autoFocus={autoFocus}
           disabled={disabled}
@@ -197,7 +206,13 @@ export function MessageComposer({ onSend, placeholder = 'Write a message…', di
         </button>
       </div>
       <p className="mt-1 hidden px-1 text-[11px] text-slate-500 sm:block">
-        <span className="font-semibold">Enter</span> to send · <span className="font-semibold">Shift+Enter</span> for a new line · **bold** *italic* `code`
+        {htmlMode ? (
+          <span className="text-gold-300/90">HTML mode — your message will render as HTML in a safe sandbox. Tap <Code className="inline h-3 w-3" /> to turn off.</span>
+        ) : (
+          <>
+            <span className="font-semibold">Enter</span> to send · <span className="font-semibold">Shift+Enter</span> for a new line · **bold** *italic* `code`
+          </>
+        )}
       </p>
     </div>
   )

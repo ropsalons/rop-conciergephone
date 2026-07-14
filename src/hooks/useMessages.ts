@@ -16,8 +16,13 @@ interface SendInput {
   body: string
   mentions?: string[]
   parentId?: string | null
+  html?: boolean // send the body as a rendered HTML card (shown in the same sandbox as API cards)
   files?: Array<Omit<FileRow, 'id' | 'created_at' | 'uploader_id'>>
 }
+
+// Plain-text fallback for an HTML message (used for search, previews and notifications).
+const stripHtml = (s: string) =>
+  s.replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 500)
 
 export function useMessages(target: Target, opts: { parentId?: string | null } = {}) {
   const me = useAuthStore((s) => s.user?.id)
@@ -174,13 +179,19 @@ export function useMessages(target: Target, opts: { parentId?: string | null } =
       const clientId = uuid()
       const metadata: Record<string, unknown> = { client_id: clientId }
       if (input.mentions?.length) metadata.mentions = input.mentions
+      if (input.html) {
+        metadata.format = 'html'
+        metadata.html = input.body
+      }
+      // For HTML messages the visible body becomes a stripped preview; the raw HTML lives in metadata.
+      const storedBody = input.html ? stripHtml(input.body) : input.body
       const optimistic: MessageWithAuthor = {
         id: `temp-${clientId}`,
         channel_id: target.channelId ?? null,
         conversation_id: target.conversationId ?? null,
         user_id: me,
         parent_message_id: input.parentId ?? null,
-        body: input.body,
+        body: storedBody,
         message_type: 'user',
         metadata,
         reply_count: 0,
@@ -204,7 +215,7 @@ export function useMessages(target: Target, opts: { parentId?: string | null } =
         .insert({
           [column]: key,
           user_id: me,
-          body: input.body,
+          body: storedBody,
           parent_message_id: input.parentId ?? null,
           metadata,
         } as any)

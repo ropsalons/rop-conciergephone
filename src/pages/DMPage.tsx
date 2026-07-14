@@ -76,7 +76,7 @@ export function DMPage() {
       />
       <MessageComposer
         placeholder={`Message ${conversationName(conv, me)}`}
-        onSend={({ body, mentions, files }) => send({ body, mentions, files })}
+        onSend={({ body, mentions, files, html }) => send({ body, mentions, files, html })}
       />
     </div>
   )

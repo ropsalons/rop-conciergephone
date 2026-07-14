@@ -142,7 +142,7 @@ function ThreadBody({
 
       <MessageComposer
         placeholder="Reply…"
-        onSend={({ body, mentions, files }) => send({ body, mentions, files, parentId: rootId })}
+        onSend={({ body, mentions, files, html }) => send({ body, mentions, files, html, parentId: rootId })}
       />
     </>
   )

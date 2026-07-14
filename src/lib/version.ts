@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.10.10'
+export const APP_VERSION = '1.10.11'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,15 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.10.11',
+    date: '2026-07-13',
+    time: '3:50 PM ET',
+    title: 'Send HTML in messages',
+    changes: [
+      'New “</>” button in the message box: turn it on, paste your HTML, and it posts as a rendered card (in the same safe sandbox the automated cards use). Turn it off for normal messages. Works in channels, DMs and threads.',
+    ],
+  },
   {
     version: '1.10.10',
     date: '2026-07-13',
