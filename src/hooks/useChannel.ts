@@ -52,14 +52,21 @@ export function useChannel(channelId?: string) {
     await useChatStore.getState().loadSidebar()
   }, [channelId, me])
 
-  const toggleMute = useCallback(
-    async (muted: boolean) => {
+  // Per-channel notification level: 'all' (every post), 'mentions' (default), 'mute' (nothing).
+  // is_muted is kept in sync so unread badges + older checks keep working.
+  const setNotifyLevel = useCallback(
+    async (level: 'all' | 'mentions' | 'mute') => {
       if (!channelId || !me) return
-      await supabase.from('channel_members').update({ is_muted: muted }).eq('channel_id', channelId).eq('user_id', me)
+      await supabase
+        .from('channel_members')
+        .update({ notify_level: level, is_muted: level === 'mute' } as any)
+        .eq('channel_id', channelId)
+        .eq('user_id', me)
+      await loadMembers()
       await useChatStore.getState().loadSidebar()
     },
-    [channelId, me],
+    [channelId, me, loadMembers],
   )
 
-  return { channel, members, isMember, loading, reload: load, loadMembers, join, leave, toggleMute }
+  return { channel, members, isMember, loading, reload: load, loadMembers, join, leave, setNotifyLevel }
 }

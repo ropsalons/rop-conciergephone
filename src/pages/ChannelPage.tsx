@@ -12,7 +12,7 @@ import { MessageComposer } from '@/components/messages/MessageComposer'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { FullPageLoader, EmptyState } from '@/components/ui/Feedback'
 import { Avatar } from '@/components/ui/Avatar'
-import { Hash, Lock, Megaphone, Users, Pin, Plus, X, LogOut, Search, Star, Bell, BellOff } from '@/components/ui/Icons'
+import { Hash, Lock, Megaphone, Users, Pin, Plus, X, LogOut, Search, Star, Bell, BellOff, Check } from '@/components/ui/Icons'
 import { Modal } from '@/components/ui/Modal'
 import { PinnedMessagesModal } from '@/components/channels/PinnedMessagesModal'
 import { displayName, cn } from '@/lib/utils'
@@ -20,7 +20,7 @@ import { canModerate as canModRole, canManage } from '@/lib/constants'
 
 export function ChannelPage() {
   const { channelId } = useParams()
-  const { channel, members, isMember, loading, join, leave, loadMembers, toggleMute } = useChannel(channelId)
+  const { channel, members, isMember, loading, join, leave, loadMembers, setNotifyLevel } = useChannel(channelId)
   const me = useAuthStore((s) => s.user?.id)
   const myRole = useAuthStore((s) => s.profile?.role)
   const markChannelRead = useChatStore((s) => s.markChannelRead)
@@ -36,19 +36,20 @@ export function ChannelPage() {
   const [showAddPeople, setShowAddPeople] = useState(false)
   const [peopleQuery, setPeopleQuery] = useState('')
   const [busyUser, setBusyUser] = useState<string | null>(null)
-  const [muted, setMuted] = useState(false)
+  const [notifyOpen, setNotifyOpen] = useState(false)
 
   const myMembership = members.find((m) => m.user_id === me)
-  useEffect(() => {
-    setMuted(!!myMembership?.is_muted)
-  }, [myMembership?.is_muted])
+  const level: 'all' | 'mentions' | 'mute' = (myMembership as any)?.notify_level ?? 'mentions'
 
-  async function onToggleMute() {
-    const next = !muted
-    setMuted(next)
-    await toggleMute(next)
-    await loadMembers()
-    toast({ kind: 'success', title: next ? `Muted #${channel?.name}` : `Unmuted #${channel?.name}`, body: next ? 'No phone notifications from this channel.' : 'Notifications on for this channel.' })
+  async function chooseLevel(next: 'all' | 'mentions' | 'mute') {
+    setNotifyOpen(false)
+    if (next === level) return
+    await setNotifyLevel(next)
+    toast({
+      kind: 'success',
+      title: `#${channel?.name} notifications`,
+      body: next === 'all' ? 'You’ll be notified on every message.' : next === 'mute' ? 'Muted — nothing from this channel.' : 'Only @mentions & replies.',
+    })
   }
 
   const iCanManageMembers = canManage(myRole)
@@ -132,13 +133,40 @@ export function ChannelPage() {
               </button>
             )}
             {isMember && (
-              <button
-                onClick={onToggleMute}
-                className={cn('rounded-lg p-2 hover:bg-white/10', muted ? 'text-amber-300' : 'text-slate-300')}
-                title={muted ? 'Muted — tap to turn notifications back on' : 'Mute — no phone notifications from this channel'}
-              >
-                {muted ? <BellOff className="h-5 w-5" /> : <Bell className="h-5 w-5" />}
-              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setNotifyOpen((v) => !v)}
+                  className={cn('rounded-lg p-2 hover:bg-white/10', level === 'mute' ? 'text-amber-300' : level === 'all' ? 'text-gold-400' : 'text-slate-300')}
+                  title={`Notifications: ${level === 'all' ? 'All messages' : level === 'mute' ? 'Muted' : 'Mentions & DMs'} — tap to change`}
+                >
+                  {level === 'mute' ? <BellOff className="h-5 w-5" /> : <Bell className="h-5 w-5" />}
+                </button>
+                {notifyOpen && (
+                  <>
+                    <div className="fixed inset-0 z-20" onClick={() => setNotifyOpen(false)} />
+                    <div className="absolute right-0 z-30 mt-1 w-60 overflow-hidden rounded-xl border border-white/10 bg-brand-800 shadow-2xl">
+                      <p className="px-3 pt-2.5 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Notify me about…</p>
+                      {([
+                        ['all', 'All messages', 'Every post in this channel'],
+                        ['mentions', 'Mentions & DMs only', 'The default'],
+                        ['mute', 'Nothing (mute)', 'No notifications'],
+                      ] as const).map(([val, label, desc]) => (
+                        <button
+                          key={val}
+                          onClick={() => chooseLevel(val)}
+                          className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-white/10"
+                        >
+                          <Check className={cn('mt-0.5 h-4 w-4 shrink-0', level === val ? 'text-gold-400' : 'text-transparent')} />
+                          <span className="min-w-0">
+                            <span className="block text-sm text-white">{label}</span>
+                            <span className="block text-[11px] text-slate-400">{desc}</span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
             )}
             <button onClick={() => setShowPinned(true)} className="rounded-lg p-2 text-slate-300 hover:bg-white/10" title="Pinned">
               <Pin className="h-5 w-5" />

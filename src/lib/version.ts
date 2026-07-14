@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.10.11'
+export const APP_VERSION = '1.10.12'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.10.12',
+    date: '2026-07-13',
+    time: '4:35 PM ET',
+    title: 'Per-channel notifications (get pinged on every post)',
+    changes: [
+      'Open any channel and tap the bell to choose how it notifies you: “All messages” (buzz on every post — great for Victories, Announcements, or any channel you want to follow closely), “Mentions & DMs only” (the default), or “Mute”.',
+      'Set a channel to “All messages” and you’ll get a push on your phone/desktop for every new post there.',
+    ],
+  },
   {
     version: '1.10.11',
     date: '2026-07-13',
