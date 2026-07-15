@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.10.17'
+export const APP_VERSION = '1.10.18'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,18 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.10.18',
+    date: '2026-07-15',
+    time: '2:40 PM ET',
+    title: 'Text blasts, login log, live green dots, backup status',
+    changes: [
+      'New Admin → Send Text tab: text a message to all staff, a location, hand-picked people, or custom numbers (36 of 50 staff have a phone on file — add numbers in Users for full reach).',
+      'Logins and logouts are now recorded in the Audit Log, so you can see who’s coming and going alongside admin actions.',
+      'Green “online” dots now work reliably — anyone active in the last few minutes shows green, and your own dot lights up as soon as you open the app.',
+      'Storage & Export now shows Backup status: the app is snapshotted every night (all messages, channels, people, files, settings) and kept for 14 days.',
+    ],
+  },
   {
     version: '1.10.17',
     date: '2026-07-15',

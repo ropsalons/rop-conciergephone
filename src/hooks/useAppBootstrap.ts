@@ -73,7 +73,8 @@ export function useAppBootstrap() {
     const setPresence = (presence: 'online' | 'away' | 'offline') =>
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (supabase.rpc as any)('touch_last_seen', { p_presence: presence })
-    setPresence('online')
+    // Mark online, then refresh our own profile so our avatar's green dot reflects it right away.
+    void Promise.resolve(setPresence('online')).then(() => useAuthStore.getState().refreshProfile())
     const heartbeat = setInterval(() => setPresence(document.hidden ? 'away' : 'online'), 60_000)
     const onVisibility = () => setPresence(document.hidden ? 'away' : 'online')
     const onUnload = () => setPresence('offline')

@@ -15,6 +15,19 @@ const DOT: Record<string, string> = {
   offline: 'bg-slate-500',
 }
 
+// Derive the dot from last-active time so it self-heals: active in the last 3 min = green (online),
+// last 15 min = amber (away), otherwise fall back to the stored presence string / offline.
+function effectivePresence(profile?: Partial<Profile> | null): 'online' | 'away' | 'offline' {
+  const seen = profile?.last_seen_at ? new Date(profile.last_seen_at).getTime() : 0
+  if (seen) {
+    const age = Date.now() - seen
+    if (age < 3 * 60_000) return 'online'
+    if (age < 15 * 60_000) return 'away'
+  }
+  const p = profile?.presence
+  return p === 'online' || p === 'away' ? p : 'offline'
+}
+
 export function Avatar({
   profile,
   size = 'md',
@@ -50,7 +63,7 @@ export function Avatar({
         <span
           className={cn(
             'absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-brand-950',
-            DOT[profile?.presence ?? 'offline'],
+            DOT[effectivePresence(profile)],
           )}
         />
       )}

@@ -55,6 +55,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ loading: true })
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     set({ loading: false })
+    // Record the login in the audit log (fire-and-forget; security-definer RPC so it works for all staff).
+    if (!error) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(supabase.rpc as any)('log_event', { p_action: 'login', p_entity_type: 'session', p_metadata: {} }).then(
+        () => {},
+        () => {},
+      )
+    }
     return { error: error?.message ?? null }
   },
 
@@ -78,7 +86,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signOut: async () => {
     const uid = get().user?.id
-    if (uid) await supabase.from('profiles').update({ presence: 'offline' }).eq('id', uid)
+    if (uid) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.rpc as any)('log_event', { p_action: 'logout', p_entity_type: 'session', p_metadata: {} }).catch(() => {})
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.rpc as any)('touch_last_seen', { p_presence: 'offline' }).catch(() => {})
+    }
     await supabase.auth.signOut()
     set({ session: null, user: null, profile: null })
   },

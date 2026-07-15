@@ -33,6 +33,7 @@ const TABS = [
   { key: 'activity', label: 'Activity' },
   { key: 'channels', label: 'Channels' },
   { key: 'email', label: 'Send Email' },
+  { key: 'sms', label: 'Send Text' },
   { key: 'acks', label: 'Acknowledgements' },
   { key: 'audit', label: 'Audit Log' },
   { key: 'storage', label: 'Storage & Export' },
@@ -103,6 +104,7 @@ export function AdminPage() {
         {tab === 'activity' && <ActivityTab />}
         {tab === 'channels' && <ChannelsTab me={me ?? ''} logAudit={logAudit} />}
         {tab === 'email' && <EmailTab logAudit={logAudit} />}
+        {tab === 'sms' && <SmsTab logAudit={logAudit} />}
         {tab === 'acks' && <AcksTab />}
         {tab === 'audit' && <AuditTab />}
         {tab === 'storage' && <StorageTab />}
@@ -477,6 +479,185 @@ function EmailTab({ logAudit }: { logAudit: LogAudit }) {
 
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string))
+}
+
+/* ------------------------------------------------------------------ */
+/* Send Text (SMS blast to staff / any number via Twilio)              */
+/* ------------------------------------------------------------------ */
+
+function SmsTab({ logAudit }: { logAudit: LogAudit }) {
+  const profiles = useDirectoryStore((s) => s.profiles)
+  const locations = useDirectoryStore((s) => s.locations)
+  const toast = useUIStore((s) => s.toast)
+
+  const [mode, setMode] = useState<RecipMode>('all')
+  const [locationId, setLocationId] = useState('')
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [custom, setCustom] = useState('')
+  const [message, setMessage] = useState('')
+  const [sending, setSending] = useState(false)
+  const [search, setSearch] = useState('')
+
+  const withPhone = useMemo(() => profiles.filter((p) => p.is_active && p.phone), [profiles])
+
+  const recipients = useMemo<string[]>(() => {
+    if (mode === 'all') return withPhone.map((p) => p.phone as string)
+    if (mode === 'location') return withPhone.filter((p) => p.location_id === locationId).map((p) => p.phone as string)
+    if (mode === 'people') return withPhone.filter((p) => picked.has(p.id)).map((p) => p.phone as string)
+    return custom
+      .split(/[\s,;]+/)
+      .map((s) => s.trim())
+      .filter((s) => s.replace(/\D/g, '').length >= 10)
+  }, [mode, withPhone, locationId, picked, custom])
+
+  const filteredPeople = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return withPhone
+      .filter((p) => !q || `${p.full_name} ${p.display_name ?? ''} ${p.phone}`.toLowerCase().includes(q))
+      .slice(0, 100)
+  }, [withPhone, search])
+
+  const segments = Math.max(1, Math.ceil(message.length / 153))
+
+  async function send() {
+    const to = [...new Set(recipients)]
+    if (!message.trim()) return toast({ kind: 'error', title: 'Message required' })
+    if (!to.length) return toast({ kind: 'error', title: 'No one to text', body: 'No recipients with a phone number on file.' })
+    if (!window.confirm(`Send this text to ${to.length} number${to.length === 1 ? '' : 's'}?`)) return
+
+    setSending(true)
+    const { data, error } = await supabase.functions.invoke('send-sms', {
+      body: { to, body: message.trim() },
+    })
+    setSending(false)
+    if (error || !(data as any)?.ok) {
+      const failed = (data as any)?.results?.find((r: any) => !r.ok)?.error
+      toast({ kind: 'error', title: 'Text not sent', body: failed || (data as any)?.error || error?.message })
+      return
+    }
+    const sent = (data as any).sent ?? to.length
+    const failed = (data as any).failed ?? 0
+    await logAudit('send_sms', 'sms', null, { recipients: to.length, sent, failed, mode })
+    toast({
+      kind: failed ? 'info' : 'success',
+      title: 'Text sent',
+      body: `Delivered to ${sent} number${sent === 1 ? '' : 's'}${failed ? ` · ${failed} failed` : ''}.`,
+    })
+    setMessage('')
+  }
+
+  return (
+    <div className="mx-auto max-w-2xl space-y-4">
+      <div className="card space-y-3 p-4">
+        <h2 className="text-sm font-semibold text-white">Send a text</h2>
+        <p className="text-xs text-slate-400">
+          Sends an SMS from your ROP number (<b>+1&nbsp;239&nbsp;880&nbsp;8681</b>) via Twilio. Only people with a phone number on file
+          can be texted. Each recipient gets it privately.
+        </p>
+
+        <div>
+          <span className="label">Recipients</span>
+          <div className="mt-1 flex flex-wrap gap-2">
+            {(
+              [
+                ['all', 'All active staff'],
+                ['location', 'By location'],
+                ['people', 'Choose people'],
+                ['custom', 'Custom numbers'],
+              ] as [RecipMode, string][]
+            ).map(([k, label]) => (
+              <button
+                key={k}
+                onClick={() => setMode(k)}
+                className={cn(
+                  'rounded-full border px-3 py-1 text-xs font-semibold',
+                  mode === k ? 'border-brand-400 bg-brand-400/20 text-brand-100' : 'border-white/15 text-slate-300 hover:bg-white/5',
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {mode === 'location' && (
+          <select className="input" value={locationId} onChange={(e) => setLocationId(e.target.value)}>
+            <option value="">Select location…</option>
+            {locations.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
+          </select>
+        )}
+
+        {mode === 'people' && (
+          <div className="rounded-xl border border-white/10 bg-brand-950/40 p-2">
+            <div className="mb-2 flex items-center gap-2 rounded-lg border border-white/10 bg-brand-900 px-3">
+              <Search className="h-4 w-4 text-slate-400" />
+              <input
+                className="flex-1 bg-transparent py-2 text-sm focus:outline-none"
+                placeholder="Search staff…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <div className="max-h-56 space-y-0.5 overflow-y-auto">
+              {filteredPeople.map((p) => {
+                const on = picked.has(p.id)
+                return (
+                  <label key={p.id} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-white/5">
+                    <input
+                      type="checkbox"
+                      checked={on}
+                      onChange={() =>
+                        setPicked((prev) => {
+                          const next = new Set(prev)
+                          on ? next.delete(p.id) : next.add(p.id)
+                          return next
+                        })
+                      }
+                    />
+                    <span className="min-w-0 flex-1 truncate text-sm text-white">{displayName(p)}</span>
+                    <span className="truncate text-[11px] text-slate-500">{p.phone}</span>
+                  </label>
+                )
+              })}
+              {filteredPeople.length === 0 && (
+                <p className="px-2 py-3 text-center text-xs text-slate-500">No active staff with a phone number on file.</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {mode === 'custom' && (
+          <textarea
+            className="input"
+            rows={3}
+            value={custom}
+            onChange={(e) => setCustom(e.target.value)}
+            placeholder="Enter phone numbers separated by commas or new lines"
+          />
+        )}
+
+        <label className="block">
+          <span className="label">Message</span>
+          <textarea className="input" rows={6} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Write your text message…" />
+          <span className="mt-1 block text-[11px] text-slate-500">
+            {message.length} characters · ~{segments} SMS segment{segments === 1 ? '' : 's'} per person
+          </span>
+        </label>
+
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-slate-400">{recipients.length} recipient{recipients.length === 1 ? '' : 's'}</span>
+          <button onClick={send} disabled={sending} className="btn-primary flex items-center gap-2 px-4 py-1.5 text-sm">
+            {sending && <Spinner className="h-4 w-4" />}
+            Send text
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 /* ------------------------------------------------------------------ */
@@ -1397,17 +1578,27 @@ function StorageTab() {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [exporting, setExporting] = useState(false)
+  const [backup, setBackup] = useState<{
+    last_backup: string | null
+    tables_backed_up: number
+    rows_backed_up: number
+    days_retained: number
+    oldest_backup: string | null
+  } | null>(null)
 
   useEffect(() => {
     void (async () => {
-      const [filesRes, chRes] = await Promise.all([
+      const [filesRes, chRes, bkRes] = await Promise.all([
         supabase.from('files').select('size_bytes').limit(1000),
         supabase.from('channels').select('id, name').order('name'),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (supabase.rpc as any)('backup_status'),
       ])
       const rows = (filesRes.data as { size_bytes: number }[]) ?? []
       setTotalBytes(rows.reduce((sum, r) => sum + (r.size_bytes ?? 0), 0))
       setFileCount(rows.length)
       setChannels((chRes.data as { id: string; name: string }[]) ?? [])
+      setBackup(((bkRes as any)?.data?.[0] as typeof backup) ?? null)
       setLoading(false)
     })()
   }, [])
@@ -1465,6 +1656,39 @@ function StorageTab() {
             <p className="text-xs text-slate-400">Files{fileCount >= 1000 ? '+' : ''}</p>
           </div>
         </div>
+      </div>
+
+      <div>
+        <h3 className="mb-2 text-sm font-semibold text-slate-200">Backups</h3>
+        {backup && backup.last_backup ? (
+          <div className="card space-y-2 p-4">
+            <div className="flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+              <span className="text-sm font-semibold text-white">Automatic daily backup is on</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div>
+                <p className="text-lg font-bold text-white">{timeAgo(`${backup.last_backup}T07:00:00Z`)}</p>
+                <p className="text-[11px] text-slate-500">Last backup</p>
+              </div>
+              <div>
+                <p className="text-lg font-bold text-white">{backup.tables_backed_up}</p>
+                <p className="text-[11px] text-slate-500">Tables saved</p>
+              </div>
+              <div>
+                <p className="text-lg font-bold text-white">{backup.days_retained}</p>
+                <p className="text-[11px] text-slate-500">Days kept</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-400">
+              Every night the whole app (messages, channels, people, DMs, files, settings —
+              {' '}{backup.rows_backed_up.toLocaleString()} rows) is snapshotted into our database and kept for 14 days,
+              so any bad change or data loss can be rolled back. Newest: {backup.last_backup}.
+            </p>
+          </div>
+        ) : (
+          <p className="text-xs text-amber-300">No backup found yet — the nightly job runs at ~3 AM ET.</p>
+        )}
       </div>
 
       <div>
