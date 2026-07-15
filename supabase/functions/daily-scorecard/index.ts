@@ -112,6 +112,8 @@ const STYLE = `<style>
 .rc tbody tr.now td:first-child{color:#ddd6fe}
 .rc tbody tr.hr td{background:linear-gradient(90deg,rgba(74,222,128,.24),rgba(74,222,128,.08));border-top-color:rgba(74,222,128,.4)}
 .rc tbody tr.hr td:first-child{color:#bbf7d0}
+.rc tbody tr.tot td{background:rgba(124,58,237,.16);border-top:2px solid rgba(124,58,237,.5);font-weight:800;color:#fff}
+.rc tbody tr.tot td:first-child{color:#ddd6fe;text-transform:uppercase;letter-spacing:.03em;font-size:.92em}
 .rc .trophy{filter:drop-shadow(0 0 3px rgba(74,222,128,.6))}
 .rc .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:16px 0 6px}
 .rc .tabs button{cursor:pointer;border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:5px 13px;font-size:12px;font-weight:700;background:rgba(255,255,255,.06);color:#cbd5e1}
@@ -143,12 +145,14 @@ const HEAD = (first: string, second: string) =>
   `<thead><tr><th>${first}</th><th>${second}</th><th>New</th><th>New PB%</th><th>RPG</th><th>Prebook%</th><th>LUX%</th><th>New Req%</th></tr></thead>`
 
 // Interactive widget: one window tab bar drives the By-salon and By-stylist tables. Today is first.
-function widget(salons: string[][], stylists: string[][]): string {
+// `co` is the company-total row — used to render an accurate "All salons" total under the salon table
+// (percentages are properly weighted in SQL, so we use the company figures rather than summing rates).
+function widget(salons: string[][], stylists: string[][], co: string[]): string {
   return `<div class="tabs" id="rop-tabs"></div>
 <h4>By salon</h4><div class="wrap"><table id="rop-sal"></table></div>
 <h4>By stylist</h4><div class="wrap"><table id="rop-tbl"></table></div>
 <script>(function(){
-  var SAL=${JSON.stringify(salons)}, STY=${JSON.stringify(stylists)};
+  var SAL=${JSON.stringify(salons)}, STY=${JSON.stringify(stylists)}, CO=${JSON.stringify(co)};
   var W=[{k:'Today',o:1},{k:'Yesterday',o:8},{k:'Week&#8209;to&#8209;date',o:15},{k:'Month&#8209;to&#8209;date',o:22},{k:'Year&#8209;to&#8209;date',o:29}];
   var cur=0;
   function num(v){return v==null||v===''?0:Number(v)}
@@ -160,11 +164,13 @@ function widget(salons: string[][], stylists: string[][]): string {
   function short(nm){var p=String(nm).trim().split(' ');return p.length>1?p[0]+' '+p[1].charAt(0)+'.':p[0]}
   function homer(r,o){return num(r[o+4])>=70&&num(r[o+3])>=8&&num(r[o+5])>=33}
   var TROPHY=' <span class="trophy" title="Home run — prebook, RPG and LUX all on target">🏆</span>';
-  function row(r,o){var h=homer(r,o);return '<tr'+(h?' class="hr"':'')+'><td>'+esc(r[0])+(h?TROPHY:'')+'</td><td>'+fmt(r[o])+'</td><td>'+fmt(r[o+1])+'</td><td>'+kpi(r[o+2],'pb')+'</td><td>'+kpi(r[o+3],'rpg')+'</td><td>'+kpi(r[o+4],'pb')+'</td><td>'+kpi(r[o+5],'lux')+'</td><td>'+P(r[o+6])+'</td></tr>'}
+  function row(r,o,cls){var h=homer(r,o);var k=[h?'hr':'',cls||''].filter(Boolean).join(' ');return '<tr'+(k?' class="'+k+'"':'')+'><td>'+esc(r[0])+(h?TROPHY:'')+'</td><td>'+fmt(r[o])+'</td><td>'+fmt(r[o+1])+'</td><td>'+kpi(r[o+2],'pb')+'</td><td>'+kpi(r[o+3],'rpg')+'</td><td>'+kpi(r[o+4],'pb')+'</td><td>'+kpi(r[o+5],'lux')+'</td><td>'+P(r[o+6])+'</td></tr>'}
   var HEAD=function(a,b){return '<thead><tr><th>'+a+'</th><th>'+b+'</th><th>New</th><th>New PB%</th><th>RPG</th><th>Prebook%</th><th>LUX%</th><th>New Req%</th></tr></thead>'}
+  // Company total, re-labeled, as the "All salons" total row (CO shares the salon row layout after col 0).
+  var TOT=['All salons'].concat(CO.slice(1));
   function render(){
     var o=W[cur].o;
-    document.getElementById('rop-sal').innerHTML=HEAD('Salon','Guests')+'<tbody>'+SAL.map(function(r){return row(r,o)}).join('')+'</tbody>';
+    document.getElementById('rop-sal').innerHTML=HEAD('Salon','Guests')+'<tbody>'+SAL.map(function(r){return row(r,o)}).join('')+row(TOT,o,'tot')+'</tbody>';
     var rows=STY.filter(function(r){return num(r[o])>0}).sort(function(a,b){return num(b[o])-num(a[o])});
     document.getElementById('rop-tbl').innerHTML=HEAD('Stylist','Appts')+'<tbody>'+rows.map(function(r){var rr=r.slice();rr[0]=short(rr[0]);return row(rr,o)}).join('')+'</tbody>';
     document.getElementById('rop-tabs').innerHTML=W.map(function(x,i){return '<button class="'+(i===cur?'on':'')+'" data-i="'+i+'">'+x.k+'</button>'}).join('');
@@ -208,7 +214,7 @@ async function buildAndPost() {
     tiles +
     `<div class="hd">Company total &mdash; today (live) plus Yesterday / WTD / MTD / YTD</div>` +
     `<div class="wrap"><table>${HEAD('Window', 'Guests')}<tbody>${companyRows}</tbody></table></div>` +
-    widget(salons, stylists) +
+    widget(salons, stylists, c) +
     `<div class="foot">` +
     (rebookYtd ? `<b style="color:#fff">Rebooking YTD:</b> ${pct(rebookYtd)} &middot; ` : '') +
     `<b style="color:#fff">Today</b> updates through the day (refreshes hourly) and is complete after close. Tap a window to switch every table. <b style="color:#fff">New&nbsp;PB%</b> = of new guests, how many pre‑booked their next visit. <b style="color:#fff">New&nbsp;Req%</b> = guests who were new <i>and</i> requested that stylist. Colors: <span style="color:#4ade80">on target</span> / <span style="color:#fbbf24">close</span> / <span style="color:#f87171">below</span>. Targets: prebook 70%, LUX 33%, RPG $8. <b style="color:#bbf7d0">🏆 Home run</b> = a green row where prebook, RPG <i>and</i> LUX are all on target at once.</div>` +

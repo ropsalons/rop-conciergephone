@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.10.15'
+export const APP_VERSION = '1.10.16'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.10.16',
+    date: '2026-07-15',
+    time: '10:05 AM ET',
+    title: 'Drag-and-drop files + text a reminder',
+    changes: [
+      'Drag a file straight onto the message box to attach it — no need to hit the paperclip. Works in channels, DMs and threads.',
+      'Admins: when you’re in a 1:1 message with someone, tap “Text reminder” in the top bar to send them a text saying they have a message waiting in ROP Chat — with a link and how to log in / install the app. Great for nudging people who aren’t set up yet.',
+      'ROP Scorecard: the “By salon” table now has an “All salons” total row at the bottom (company totals, with correctly-weighted percentages).',
+    ],
+  },
   {
     version: '1.10.15',
     date: '2026-07-15',

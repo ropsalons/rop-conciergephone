@@ -7,9 +7,12 @@ import { useUIStore } from '@/stores/uiStore'
 import { useMessages } from '@/hooks/useMessages'
 import { MessageList } from '@/components/messages/MessageList'
 import { MessageComposer } from '@/components/messages/MessageComposer'
+import { TextReminderModal } from '@/components/messages/TextReminderModal'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Avatar } from '@/components/ui/Avatar'
 import { FullPageLoader } from '@/components/ui/Feedback'
+import { MessageSquare } from '@/components/ui/Icons'
+import { isAdmin } from '@/lib/constants'
 import { conversationName, otherMembers } from '@/lib/dm'
 import type { DirectConversationRow, Profile } from '@/types'
 import type { ConversationWithMeta } from '@/types'
@@ -17,10 +20,12 @@ import type { ConversationWithMeta } from '@/types'
 export function DMPage() {
   const { conversationId } = useParams()
   const me = useAuthStore((s) => s.user?.id)
+  const myRole = useAuthStore((s) => s.profile?.role)
   const markConversationRead = useChatStore((s) => s.markConversationRead)
   const openThread = useUIStore((s) => s.openThread)
   const [conv, setConv] = useState<ConversationWithMeta | null>(null)
   const [loading, setLoading] = useState(true)
+  const [reminderOpen, setReminderOpen] = useState(false)
 
   useEffect(() => {
     if (!conversationId) return
@@ -63,6 +68,19 @@ export function DMPage() {
               ? 'Active now'
               : lead?.title || lead?.role
         }
+        actions={
+          // Admins can nudge a 1:1 recipient by text ("you have a message waiting in ROP Chat").
+          !conv.is_group && lead && isAdmin(myRole) ? (
+            <button
+              onClick={() => setReminderOpen(true)}
+              title={`Text ${conversationName(conv, me)} a reminder`}
+              className="flex items-center gap-1 rounded-lg border border-white/10 px-2 py-1.5 text-slate-300 hover:bg-white/10 hover:text-white"
+            >
+              <MessageSquare className="h-5 w-5" />
+              <span className="hidden text-xs font-semibold sm:inline">Text reminder</span>
+            </button>
+          ) : undefined
+        }
       />
       <MessageList
         messages={messages}
@@ -78,6 +96,7 @@ export function DMPage() {
         placeholder={`Message ${conversationName(conv, me)}`}
         onSend={({ body, mentions, files, html }) => send({ body, mentions, files, html })}
       />
+      <TextReminderModal open={reminderOpen} onClose={() => setReminderOpen(false)} recipient={lead ?? null} />
     </div>
   )
 }

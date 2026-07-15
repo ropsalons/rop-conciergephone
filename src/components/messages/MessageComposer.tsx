@@ -28,7 +28,9 @@ export function MessageComposer({ onSend, placeholder = 'Write a message…', di
   const [mentionQuery, setMentionQuery] = useState<string | null>(null)
   const [emojiOpen, setEmojiOpen] = useState(false)
   const [htmlMode, setHtmlMode] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
   const mentionsRef = useRef<Array<{ token: string; id: string }>>([])
+  const dragDepth = useRef(0) // dragenter/leave fire on children too — count depth to avoid flicker
   const taRef = useRef<HTMLTextAreaElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -67,10 +69,8 @@ export function MessageComposer({ onSend, placeholder = 'Write a message…', di
     setTimeout(() => ta.focus(), 0)
   }
 
-  async function onPickFiles(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? [])
-    e.target.value = ''
-    if (!me) return
+  async function addFiles(files: File[]) {
+    if (!me || !files.length) return
     for (const file of files) {
       setUploading((n) => n + 1)
       try {
@@ -82,6 +82,38 @@ export function MessageComposer({ onSend, placeholder = 'Write a message…', di
         setUploading((n) => n - 1)
       }
     }
+  }
+
+  async function onPickFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? [])
+    e.target.value = ''
+    await addFiles(files)
+  }
+
+  // Drag a file (or several) anywhere onto the composer to attach it — no need to hit the paperclip.
+  function onDragEnter(e: React.DragEvent) {
+    if (disabled || !Array.from(e.dataTransfer.types).includes('Files')) return
+    e.preventDefault()
+    dragDepth.current += 1
+    setDragOver(true)
+  }
+  function onDragOver(e: React.DragEvent) {
+    if (disabled || !Array.from(e.dataTransfer.types).includes('Files')) return
+    e.preventDefault() // required so the browser fires `drop` instead of opening the file
+    e.dataTransfer.dropEffect = 'copy'
+  }
+  function onDragLeave() {
+    dragDepth.current = Math.max(0, dragDepth.current - 1)
+    if (dragDepth.current === 0) setDragOver(false)
+  }
+  function onDrop(e: React.DragEvent) {
+    dragDepth.current = 0
+    setDragOver(false)
+    if (disabled) return
+    const files = Array.from(e.dataTransfer.files ?? [])
+    if (!files.length) return
+    e.preventDefault()
+    addFiles(files)
   }
 
   async function submit() {
@@ -115,7 +147,19 @@ export function MessageComposer({ onSend, placeholder = 'Write a message…', di
   }
 
   return (
-    <div className="relative border-t border-white/10 bg-brand-900/40 p-2 sm:p-3">
+    <div
+      className="relative border-t border-white/10 bg-brand-900/40 p-2 sm:p-3"
+      onDragEnter={onDragEnter}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+    >
+      {dragOver && (
+        <div className="pointer-events-none absolute inset-1 z-20 flex flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-brand-400 bg-brand-900/90 text-center">
+          <Paperclip className="h-6 w-6 text-brand-300" />
+          <p className="text-sm font-semibold text-brand-100">Drop to attach</p>
+        </div>
+      )}
       {mentionMatches.length > 0 && (
         <div className="absolute bottom-full left-3 mb-1 w-64 overflow-hidden rounded-xl border border-white/10 bg-brand-800 shadow-2xl">
           {mentionMatches.map((p) => (
