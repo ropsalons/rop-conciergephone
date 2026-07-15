@@ -48,9 +48,11 @@ const REF = `with r as (select max(DATE_LOC) d from ANALYTICS.MARTS.STYLIST_DAIL
 const FILT = `DATE_LOC>=date_trunc('year',(select d from r)) and DATE_LOC<=current_date`
 const T = `DATE_LOC=current_date`
 const Y = `DATE_LOC=(select d from r)`
-const W = `DATE_LOC>=date_trunc('week',(select d from r)) and DATE_LOC<=(select d from r)`
-const M = `DATE_LOC>=date_trunc('month',(select d from r)) and DATE_LOC<=(select d from r)`
-const YTD = `DATE_LOC>=date_trunc('year',(select d from r)) and DATE_LOC<=(select d from r)`
+// WTD / MTD / YTD are cumulative THROUGH today (include today's live rows), truncated on
+// current_date so they roll today in all day instead of waiting until tomorrow.
+const W = `DATE_LOC>=date_trunc('week',current_date) and DATE_LOC<=current_date`
+const M = `DATE_LOC>=date_trunc('month',current_date) and DATE_LOC<=current_date`
+const YTD = `DATE_LOC>=date_trunc('year',current_date) and DATE_LOC<=current_date`
 // STYLIST_DAILY blocks: guests + RPG
 const gm = (p: string, P: string) => `sum(iff(${P},CLIENTS,0)) ${p}_g, round(sum(iff(${P},RETAIL_REVENUE,0))/nullif(sum(iff(${P},CLIENTS,0)),0)) ${p}_rpg`
 const rpgm = (p: string, P: string) => `round(sum(iff(${P},RETAIL_REVENUE,0))/nullif(sum(iff(${P},CLIENTS,0)),0)) ${p}_rpg`
