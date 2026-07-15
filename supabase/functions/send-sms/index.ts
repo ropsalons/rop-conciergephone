@@ -11,13 +11,20 @@ const CRON_SECRET = Deno.env.get('CRON_SECRET') ?? 'REDACTED_SEE_DEPLOYED_FUNCTI
 const SUPA_URL = Deno.env.get('SUPABASE_URL') ?? 'https://qrigzwactbwbpuufehxo.supabase.co'
 const ANON = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
 
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-cron-secret',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+// Reflect whatever headers the browser's CORS preflight asks for (supabase-js sends x-client-info,
+// x-supabase-api-version, etc.). A fixed allow-list silently dropped the POST — the preflight passed
+// but the browser blocked the real request ("Failed to send a request to the Edge Function").
+function corsHeaders(req: Request) {
+  return {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers':
+      req.headers.get('access-control-request-headers') ??
+      'authorization, apikey, content-type, x-cron-secret, x-client-info, x-supabase-api-version',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  }
 }
-const json = (b: unknown, status = 200) =>
-  new Response(JSON.stringify(b), { status, headers: { 'Content-Type': 'application/json', ...CORS } })
+const json = (b: unknown, req: Request, status = 200) =>
+  new Response(JSON.stringify(b), { status, headers: { 'Content-Type': 'application/json', ...corsHeaders(req) } })
 
 async function isAdmin(authz: string): Promise<boolean> {
   try {
@@ -59,23 +66,23 @@ async function sendOne(to: string, body: string): Promise<{ to: string; ok: bool
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders(req) })
   try {
     const trusted = req.headers.get('x-cron-secret') === CRON_SECRET
     if (!trusted) {
       const authz = req.headers.get('Authorization') ?? ''
-      if (!authz || !(await isAdmin(authz))) return json({ ok: false, error: 'forbidden' }, 403)
+      if (!authz || !(await isAdmin(authz))) return json({ ok: false, error: 'forbidden' }, req, 403)
     }
     const b = await req.json().catch(() => ({} as any))
     const recipients: string[] = Array.isArray(b.to) ? b.to.map(String) : b.to ? [String(b.to)] : []
     const body = String(b.body ?? b.message ?? '').trim()
-    if (!recipients.length || !body) return json({ ok: false, error: 'need `to` + `body`' }, 400)
+    if (!recipients.length || !body) return json({ ok: false, error: 'need `to` + `body`' }, req, 400)
 
     const results = []
     for (const to of recipients) results.push(await sendOne(to, body))
     const sent = results.filter((r) => r.ok).length
-    return json({ ok: sent > 0, sent, failed: results.length - sent, results })
+    return json({ ok: sent > 0, sent, failed: results.length - sent, results }, req)
   } catch (e) {
-    return json({ ok: false, error: String((e as Error).message ?? e) }, 500)
+    return json({ ok: false, error: String((e as Error).message ?? e) }, req, 500)
   }
 })

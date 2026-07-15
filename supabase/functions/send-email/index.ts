@@ -13,7 +13,7 @@ const DEFAULT_FROM = Deno.env.get('EMAIL_FROM') ?? 'ROP Chat <notifications@rop2
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-cron-secret',
+  'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-cron-secret, x-client-info, x-supabase-api-version',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 const json = (b: unknown, status = 200) =>

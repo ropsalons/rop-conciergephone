@@ -19,7 +19,7 @@ function defaultMessage(p: Profile): string {
     `(if that doesn't work, try rop2020).\n\n` +
     `Tip: on iPhone open the link in Safari, tap the Share icon, then "Add to Home Screen" so it ` +
     `installs like an app. On Android, open in Chrome and choose "Install app."\n\n` +
-    `— Rob, Robert of Philadelphia`
+    `— The AI Assistant for Robert of Philadelphia (ROP)`
   )
 }
 
