@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { HashRouter } from 'react-router-dom'
 import { registerSW } from 'virtual:pwa-register'
 import App from './App'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import './index.css'
 
 // Keep installed apps current. A service worker only re-checks for a new build on a full
@@ -40,8 +41,10 @@ registerSW({
 // redirect also supports BrowserRouter, but HashRouter works everywhere with no config.
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <HashRouter>
-      <App />
-    </HashRouter>
+    <ErrorBoundary>
+      <HashRouter>
+        <App />
+      </HashRouter>
+    </ErrorBoundary>
   </React.StrictMode>,
 )

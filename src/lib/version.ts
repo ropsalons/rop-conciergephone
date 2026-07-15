@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.10.13'
+export const APP_VERSION = '1.10.14'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.10.14',
+    date: '2026-07-13',
+    time: '6:05 PM ET',
+    title: 'No more blank screens',
+    changes: [
+      'Added a safety net so if any screen ever hits an error, you get a friendly “Something went wrong — Reload” screen instead of a blank page.',
+      'Opening a thread (including from a pinned message) is now isolated — if a thread fails to load, only that panel shows a small notice; the rest of the app keeps working.',
+    ],
+  },
   {
     version: '1.10.13',
     date: '2026-07-13',

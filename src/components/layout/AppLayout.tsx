@@ -7,7 +7,20 @@ import { MobileNav } from './MobileNav'
 import { SearchModal } from '@/components/search/SearchModal'
 import { ThreadPanel } from '@/components/messages/ThreadPanel'
 import { HelpModal } from '@/components/help/HelpModal'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { X } from '@/components/ui/Icons'
 import { cn } from '@/lib/utils'
+
+// Compact fallback for a thread that failed to render — closes it instead of blanking the app.
+function ThreadError() {
+  const closeThread = () => useUIStore.getState().openThread(null)
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-3 bg-brand-950 p-6 text-center">
+      <p className="text-sm text-slate-300">This thread couldn't be opened.</p>
+      <button onClick={closeThread} className="btn-ghost px-3 py-1.5 text-sm"><X className="h-4 w-4" /> Close</button>
+    </div>
+  )
+}
 
 export function AppLayout() {
   useAppBootstrap()
@@ -71,14 +84,18 @@ export function AppLayout() {
       {/* Right-hand thread panel (desktop) */}
       {threadRootId && (
         <aside className="hidden w-96 shrink-0 border-l border-white/10 xl:block">
-          <ThreadPanel rootId={threadRootId} />
+          <ErrorBoundary key={threadRootId} fallback={() => <ThreadError />}>
+            <ThreadPanel rootId={threadRootId} />
+          </ErrorBoundary>
         </aside>
       )}
 
       {/* Full-screen thread overlay (mobile / tablet) */}
       {threadRootId && (
         <div className="fixed inset-0 z-40 bg-brand-950 xl:hidden">
-          <ThreadPanel rootId={threadRootId} />
+          <ErrorBoundary key={threadRootId} fallback={() => <ThreadError />}>
+            <ThreadPanel rootId={threadRootId} />
+          </ErrorBoundary>
         </div>
       )}
 
