@@ -12,11 +12,14 @@ import { X } from '@/components/ui/Icons'
 import { cn } from '@/lib/utils'
 
 // Compact fallback for a thread that failed to render — closes it instead of blanking the app.
-function ThreadError() {
+function ThreadError({ error }: { error?: Error }) {
   const closeThread = () => useUIStore.getState().openThread(null)
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 bg-brand-950 p-6 text-center">
       <p className="text-sm text-slate-300">This thread couldn't be opened.</p>
+      {error?.message && (
+        <p className="max-w-xs break-words rounded-lg bg-red-950/40 px-3 py-2 font-mono text-[11px] text-red-200/90">{error.message}</p>
+      )}
       <button onClick={closeThread} className="btn-ghost px-3 py-1.5 text-sm"><X className="h-4 w-4" /> Close</button>
     </div>
   )
@@ -84,7 +87,7 @@ export function AppLayout() {
       {/* Right-hand thread panel (desktop) */}
       {threadRootId && (
         <aside className="hidden w-96 shrink-0 border-l border-white/10 xl:block">
-          <ErrorBoundary key={threadRootId} fallback={() => <ThreadError />}>
+          <ErrorBoundary key={threadRootId} fallback={(_r, err) => <ThreadError error={err} />}>
             <ThreadPanel rootId={threadRootId} />
           </ErrorBoundary>
         </aside>
@@ -93,7 +96,7 @@ export function AppLayout() {
       {/* Full-screen thread overlay (mobile / tablet) */}
       {threadRootId && (
         <div className="fixed inset-0 z-40 bg-brand-950 xl:hidden">
-          <ErrorBoundary key={threadRootId} fallback={() => <ThreadError />}>
+          <ErrorBoundary key={threadRootId} fallback={(_r, err) => <ThreadError error={err} />}>
             <ThreadPanel rootId={threadRootId} />
           </ErrorBoundary>
         </div>
