@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.10.16'
+export const APP_VERSION = '1.10.17'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.10.17',
+    date: '2026-07-15',
+    time: '10:20 AM ET',
+    title: 'Activity log — see who’s using the app',
+    changes: [
+      'New Admin → Activity tab: see who has signed in, when they last logged in, when they were last active, and how many messages they’ve sent (7- and 30-day) — with a “Never signed in” flag so you can see who still needs to be onboarded. Search, filter to signed-in only, and Download CSV for your records.',
+      'Fixed activity tracking so the app now reliably records when each person is active (it wasn’t saving before).',
+    ],
+  },
   {
     version: '1.10.16',
     date: '2026-07-15',

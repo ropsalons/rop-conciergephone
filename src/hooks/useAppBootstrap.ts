@@ -68,8 +68,11 @@ export function useAppBootstrap() {
       .subscribe()
 
     // --- Presence heartbeat --------------------------------------------------
+    // Uses a security-definer RPC: the direct table UPDATE was silently no-opping in production,
+    // so last_seen_at (the "who's active" signal for the admin activity report) never persisted.
     const setPresence = (presence: 'online' | 'away' | 'offline') =>
-      supabase.from('profiles').update({ presence, last_seen_at: new Date().toISOString() }).eq('id', userId)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase.rpc as any)('touch_last_seen', { p_presence: presence })
     setPresence('online')
     const heartbeat = setInterval(() => setPresence(document.hidden ? 'away' : 'online'), 60_000)
     const onVisibility = () => setPresence(document.hidden ? 'away' : 'online')

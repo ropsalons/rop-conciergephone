@@ -30,6 +30,7 @@ type LogAudit = (
 
 const TABS = [
   { key: 'users', label: 'Users' },
+  { key: 'activity', label: 'Activity' },
   { key: 'channels', label: 'Channels' },
   { key: 'email', label: 'Send Email' },
   { key: 'acks', label: 'Acknowledgements' },
@@ -99,12 +100,195 @@ export function AdminPage() {
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
         {tab === 'users' && <UsersTab logAudit={logAudit} />}
+        {tab === 'activity' && <ActivityTab />}
         {tab === 'channels' && <ChannelsTab me={me ?? ''} logAudit={logAudit} />}
         {tab === 'email' && <EmailTab logAudit={logAudit} />}
         {tab === 'acks' && <AcksTab />}
         {tab === 'audit' && <AuditTab />}
         {tab === 'storage' && <StorageTab />}
       </div>
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Activity — who's logging in and using the app                       */
+/* ------------------------------------------------------------------ */
+
+interface ActivityRow {
+  id: string
+  full_name: string | null
+  display_name: string | null
+  role: string
+  title: string | null
+  location_name: string | null
+  is_active: boolean
+  presence: string
+  last_seen_at: string | null
+  created_at: string
+  last_sign_in_at: string | null
+  has_account: boolean
+  msgs_7d: number
+  msgs_30d: number
+  last_message_at: string | null
+}
+
+// A person's "last active" is the most recent of their live heartbeat or their last login.
+const lastActive = (r: ActivityRow) => r.last_seen_at ?? r.last_sign_in_at
+
+function ActivityTab() {
+  const [rows, setRows] = useState<ActivityRow[] | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+  const [q, setQ] = useState('')
+  const [onlySignedIn, setOnlySignedIn] = useState(false)
+  const [nonce, setNonce] = useState(0)
+
+  useEffect(() => {
+    let alive = true
+    setRows(null)
+    setErr(null)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(supabase.rpc as any)('user_activity').then(({ data, error }: any) => {
+      if (!alive) return
+      if (error) setErr(error.message)
+      else setRows((data as ActivityRow[]) ?? [])
+    })
+    return () => {
+      alive = false
+    }
+  }, [nonce])
+
+  const summary = useMemo(() => {
+    const now = Date.now()
+    const DAY = 86_400_000
+    const within = (iso: string | null, ms: number) => !!iso && now - new Date(iso).getTime() < ms
+    const list = rows ?? []
+    return {
+      activeToday: list.filter((r) => within(lastActive(r), DAY)).length,
+      active7: list.filter((r) => within(lastActive(r), 7 * DAY)).length,
+      signedIn: list.filter((r) => r.last_sign_in_at).length,
+      never: list.filter((r) => !r.last_sign_in_at).length,
+    }
+  }, [rows])
+
+  const filtered = useMemo(() => {
+    const list = rows ?? []
+    return list
+      .filter((r) => !onlySignedIn || r.last_sign_in_at)
+      .filter((r) => {
+        if (!q) return true
+        const s = q.toLowerCase()
+        return displayName(r as any).toLowerCase().includes(s) || (r.location_name ?? '').toLowerCase().includes(s)
+      })
+  }, [rows, q, onlySignedIn])
+
+  function downloadCsv() {
+    const head = ['Name', 'Role', 'Location', 'Signed up?', 'Last login', 'Last active', 'Msgs 7d', 'Msgs 30d']
+    const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`
+    const lines = (rows ?? []).map((r) =>
+      [
+        displayName(r as any),
+        r.role,
+        r.location_name ?? '',
+        r.last_sign_in_at ? 'yes' : 'no',
+        r.last_sign_in_at ?? '',
+        lastActive(r) ?? '',
+        r.msgs_7d,
+        r.msgs_30d,
+      ]
+        .map(esc)
+        .join(','),
+    )
+    const csv = [head.map(esc).join(','), ...lines].join('\n')
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `rop-chat-activity-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  if (err)
+    return (
+      <EmptyState icon={<Users className="h-8 w-8" />} title="Couldn't load activity" body={err} />
+    )
+  if (!rows) return <FullPageLoader label="Loading activity…" />
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <StatTile label="Active today" value={summary.activeToday} />
+        <StatTile label="Active this week" value={summary.active7} />
+        <StatTile label="Signed in (ever)" value={summary.signedIn} />
+        <StatTile label="Never signed in" value={summary.never} muted />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[180px]">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search name or salon…"
+            className="input w-full pl-8"
+          />
+        </div>
+        <button
+          onClick={() => setOnlySignedIn((v) => !v)}
+          className={cn('rounded-lg border px-3 py-2 text-sm', onlySignedIn ? 'border-brand-400/60 bg-brand-400/15 text-brand-100' : 'border-white/10 text-slate-300 hover:bg-white/10')}
+        >
+          Signed-in only
+        </button>
+        <button onClick={() => setNonce((n) => n + 1)} className="btn-ghost px-3 py-2 text-sm">Refresh</button>
+        <button onClick={downloadCsv} className="btn-ghost px-3 py-2 text-sm">Download CSV</button>
+      </div>
+
+      <div className="overflow-hidden rounded-xl border border-white/10">
+        {filtered.map((r, i) => (
+          <div
+            key={r.id}
+            className={cn('flex items-center gap-3 px-3 py-2.5', i > 0 && 'border-t border-white/5')}
+          >
+            <Avatar profile={r as any} size="sm" showPresence={false} />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="truncate text-sm font-semibold text-white">{displayName(r as any)}</span>
+                {!r.last_sign_in_at && <Tag className="bg-slate-700/60 text-slate-300">Never signed in</Tag>}
+              </div>
+              <p className="truncate text-xs text-slate-500">
+                <span className="capitalize">{ROLE_LABELS[r.role] ?? r.role}</span>
+                {r.location_name ? ` · ${r.location_name}` : ''}
+              </p>
+            </div>
+            <div className="hidden text-right sm:block">
+              <p className="text-xs text-slate-300">{r.last_sign_in_at ? timeAgo(r.last_sign_in_at) : '—'}</p>
+              <p className="text-[10px] uppercase tracking-wide text-slate-600">last login</p>
+            </div>
+            <div className="w-24 text-right">
+              <p className="text-xs text-slate-300">{lastActive(r) ? timeAgo(lastActive(r)!) : '—'}</p>
+              <p className="text-[10px] uppercase tracking-wide text-slate-600">last active</p>
+            </div>
+            <div className="w-14 text-right">
+              <p className="text-sm font-semibold text-white">{r.msgs_30d}</p>
+              <p className="text-[10px] uppercase tracking-wide text-slate-600">msgs 30d</p>
+            </div>
+          </div>
+        ))}
+        {filtered.length === 0 && <p className="px-3 py-6 text-center text-sm text-slate-500">No one matches.</p>}
+      </div>
+      <p className="text-xs text-slate-500">
+        “Last login” is when they last signed in. “Last active” also counts the app being open (live
+        heartbeat). New sign-ins and activity start filling in as people use the updated app.
+      </p>
+    </div>
+  )
+}
+
+function StatTile({ label, value, muted }: { label: string; value: number; muted?: boolean }) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5">
+      <p className={cn('text-2xl font-bold', muted ? 'text-slate-400' : 'text-white')}>{value}</p>
+      <p className="text-[11px] uppercase tracking-wide text-slate-500">{label}</p>
     </div>
   )
 }
