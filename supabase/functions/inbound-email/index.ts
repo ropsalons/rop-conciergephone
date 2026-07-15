@@ -43,7 +43,10 @@ function cleanBody(raw: string): string {
   return t.trim().slice(0, 4000)
 }
 
-interface Parsed { to: string; from: string; subject: string; text: string }
+interface Parsed { to: string; from: string; subject: string; text: string; html: string }
+
+const stripTags = (s: string) =>
+  String(s ?? '').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 500)
 
 async function parseInbound(req: Request): Promise<Parsed> {
   const ct = req.headers.get('content-type') ?? ''
@@ -55,7 +58,7 @@ async function parseInbound(req: Request): Promise<Parsed> {
       const env = typeof b.envelope === 'string' ? JSON.parse(b.envelope) : b.envelope
       if (env?.to?.[0]) to = env.to[0]
     } catch { /* ignore */ }
-    return { to: String(to), from: String(b.from ?? ''), subject: String(b.subject ?? ''), text: String(b.text ?? b.body ?? b.html ?? '') }
+    return { to: String(to), from: String(b.from ?? ''), subject: String(b.subject ?? ''), text: String(b.text ?? b.body ?? ''), html: String(b.html ?? '') }
   }
   const form = await req.formData()
   let to = String(form.get('to') ?? '')
@@ -63,7 +66,7 @@ async function parseInbound(req: Request): Promise<Parsed> {
     const env = JSON.parse(String(form.get('envelope') ?? '{}'))
     if (env?.to?.[0]) to = env.to[0]
   } catch { /* ignore */ }
-  return { to, from: String(form.get('from') ?? ''), subject: String(form.get('subject') ?? ''), text: String(form.get('text') ?? '') }
+  return { to, from: String(form.get('from') ?? ''), subject: String(form.get('subject') ?? ''), text: String(form.get('text') ?? ''), html: String(form.get('html') ?? '') }
 }
 
 type Target = { channel: string } | { person: string } | null
@@ -90,14 +93,30 @@ Deno.serve(async (req) => {
     const fromEmail = emailOf(p.from)
     if (ALLOWED.length && !ALLOWED.includes(fromEmail)) return json({ ok: false, error: `sender ${fromEmail} not allowed` }, 403)
 
-    const target = resolveTarget(p.to, p.subject)
+    // A Subject beginning with [html] means "render my body as an HTML card"; the rest of the
+    // subject becomes the card title. Otherwise the plain-text body is posted (markdown-lite).
+    const rawSubject = p.subject.trim()
+    const htmlMode = /^\[html\]/i.test(rawSubject)
+    const subject = htmlMode ? rawSubject.replace(/^\[html\]\s*/i, '').trim() : rawSubject
+
+    const target = resolveTarget(p.to, subject)
     if (!target) return json({ ok: false, error: 'could not determine destination from address or subject' }, 400)
 
-    const text = cleanBody(p.text) || p.subject.trim()
-    if (!text) return json({ ok: false, error: 'empty message' }, 400)
-
     const authorName = nameOf(p.from) || fromEmail || 'Email'
-    const metadata = { via_api: true, source: 'email-bridge', author_name: authorName, email_from: fromEmail }
+    const metadata: Record<string, unknown> = { via_api: true, source: 'email-bridge', author_name: authorName, email_from: fromEmail }
+
+    let text: string
+    if (htmlMode) {
+      const htmlContent = (p.html && p.html.trim()) ? p.html : p.text
+      if (!htmlContent.trim()) return json({ ok: false, error: 'empty html body' }, 400)
+      metadata.format = 'html'
+      metadata.html = htmlContent
+      if (subject) metadata.card_title = subject
+      text = stripTags(htmlContent) || subject || 'Card'
+    } else {
+      text = cleanBody(p.text) || subject
+      if (!text) return json({ ok: false, error: 'empty message' }, 400)
+    }
 
     // Post to a channel (by slug or name).
     async function toChannel(slug: string) {
