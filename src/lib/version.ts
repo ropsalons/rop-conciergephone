@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.10.14'
+export const APP_VERSION = '1.10.15'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.10.15',
+    date: '2026-07-15',
+    time: '10:30 PM ET',
+    title: 'Fix: pinned-message thread + easier “get unstuck”',
+    changes: [
+      'If a thread ever fails to open, the notice now has a “Reload app” button that clears the old cached copy and pulls the latest version — the usual cause of a stuck screen.',
+      'Hardened the app against bad timestamps so a single odd message can’t blank out a thread.',
+    ],
+  },
   {
     version: '1.10.14',
     date: '2026-07-13',

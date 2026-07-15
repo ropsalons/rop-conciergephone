@@ -7,20 +7,29 @@ import { MobileNav } from './MobileNav'
 import { SearchModal } from '@/components/search/SearchModal'
 import { ThreadPanel } from '@/components/messages/ThreadPanel'
 import { HelpModal } from '@/components/help/HelpModal'
-import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { ErrorBoundary, hardReloadApp } from '@/components/ErrorBoundary'
 import { X } from '@/components/ui/Icons'
 import { cn } from '@/lib/utils'
 
 // Compact fallback for a thread that failed to render — closes it instead of blanking the app.
+// Offers a cache-clearing reload because the most common cause is an installed app stuck on a
+// stale build; always surfaces the underlying error text so a real bug can be diagnosed.
 function ThreadError({ error }: { error?: Error }) {
   const closeThread = () => useUIStore.getState().openThread(null)
+  const detail = error?.message || error?.name || (error ? String(error) : '')
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 bg-brand-950 p-6 text-center">
       <p className="text-sm text-slate-300">This thread couldn't be opened.</p>
-      {error?.message && (
-        <p className="max-w-xs break-words rounded-lg bg-red-950/40 px-3 py-2 font-mono text-[11px] text-red-200/90">{error.message}</p>
+      <p className="max-w-xs text-xs text-slate-500">
+        This is usually an out-of-date copy of the app. Tap “Reload app” to pull the latest version.
+      </p>
+      {detail && (
+        <p className="max-w-xs break-words rounded-lg bg-red-950/40 px-3 py-2 font-mono text-[11px] text-red-200/90">{detail}</p>
       )}
-      <button onClick={closeThread} className="btn-ghost px-3 py-1.5 text-sm"><X className="h-4 w-4" /> Close</button>
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        <button onClick={() => hardReloadApp()} className="btn-primary px-3 py-1.5 text-sm">Reload app</button>
+        <button onClick={closeThread} className="btn-ghost px-3 py-1.5 text-sm"><X className="h-4 w-4" /> Close</button>
+      </div>
     </div>
   )
 }
@@ -87,7 +96,7 @@ export function AppLayout() {
       {/* Right-hand thread panel (desktop) */}
       {threadRootId && (
         <aside className="hidden w-96 shrink-0 border-l border-white/10 xl:block">
-          <ErrorBoundary key={threadRootId} fallback={(_r, err) => <ThreadError error={err} />}>
+          <ErrorBoundary key={threadRootId} context="thread" fallback={(_r, err) => <ThreadError error={err} />}>
             <ThreadPanel rootId={threadRootId} />
           </ErrorBoundary>
         </aside>
@@ -96,7 +105,7 @@ export function AppLayout() {
       {/* Full-screen thread overlay (mobile / tablet) */}
       {threadRootId && (
         <div className="fixed inset-0 z-40 bg-brand-950 xl:hidden">
-          <ErrorBoundary key={threadRootId} fallback={(_r, err) => <ThreadError error={err} />}>
+          <ErrorBoundary key={threadRootId} context="thread" fallback={(_r, err) => <ThreadError error={err} />}>
             <ThreadPanel rootId={threadRootId} />
           </ErrorBoundary>
         </div>

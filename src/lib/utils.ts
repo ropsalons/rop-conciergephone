@@ -40,6 +40,7 @@ export function timeAgo(iso: string): string {
 
 export function messageTime(iso: string): string {
   const d = new Date(iso)
+  if (isNaN(d.getTime())) return '' // date-fns format() throws on invalid dates — never let a bad timestamp crash a message
   if (isToday(d)) return format(d, 'h:mm a')
   if (isYesterday(d)) return `Yesterday ${format(d, 'h:mm a')}`
   return format(d, 'MMM d, h:mm a')
@@ -47,6 +48,7 @@ export function messageTime(iso: string): string {
 
 export function dayLabel(iso: string): string {
   const d = new Date(iso)
+  if (isNaN(d.getTime())) return ''
   if (isToday(d)) return 'Today'
   if (isYesterday(d)) return 'Yesterday'
   return format(d, 'EEEE, MMMM d')
