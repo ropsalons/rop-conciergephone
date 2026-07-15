@@ -1,9 +1,8 @@
-// ROP Connect — hourly "bookings by booker" summary into #bookings-by-booker.
-// Reads ANALYTICS.MARTS.BOOKINGS_CREATED (a view over the full BLVD_SHARE appointments table,
-// exposing CREATED_BY_NAME = the staff login who booked it) and posts/updates a card grouping
-// EVERY appointment created today by who made the booking. Snowflake data lags real-time ~1-2h,
-// so this is the "who booked" companion to the instant #dc-coordinators feed. Hourly (pg_cron).
-// Deployed copy holds live secrets; the repo copy keeps them redacted (Deno.env fallback).
+// ROP Connect — "bookings by booker" summary into #bookings-by-booker (hourly, pg_cron).
+// Reads ANALYTICS.MARTS.BOOKINGS_CREATED (CREATED_BY_NAME = the staff login who booked). Computes,
+// per booker, bookings + new-guest counts across 8 windows (Today / Yesterday / WTD / Last week /
+// MTD / Last month / Last 3 mo / Last 12 mo) and posts an interactive card whose tab bar switches
+// every window client-side. Snowflake lags real-time ~1-2h. Deployed copy holds live secrets.
 
 const SF_URL = 'https://QXKKQNU-JNB21158.snowflakecomputing.com/api/v2/statements'
 const SF_TOKEN = Deno.env.get('SF_TOKEN') ?? 'REDACTED_SEE_DEPLOYED_FUNCTION'
@@ -28,13 +27,41 @@ async function sf(sql: string): Promise<string[][]> {
   return j.data as string[][]
 }
 
-const esc = (s: string) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' } as any)[c])
-const fmt = (v: any) => (v == null || v === '' ? 0 : Number(v)).toLocaleString('en-US')
+// 8 windows: label + SQL predicate over b.d (the ET booking-created date) and r.td (ET today).
+const WINS: [string, string][] = [
+  ['Today', 'b.d = r.td'],
+  ['Yesterday', "b.d = dateadd('day',-1,r.td)"],
+  ['Week-to-date', "b.d >= date_trunc('week', r.td) and b.d <= r.td"],
+  ['Last week', "b.d >= dateadd('day',-7, date_trunc('week', r.td)) and b.d < date_trunc('week', r.td)"],
+  ['Month-to-date', "b.d >= date_trunc('month', r.td) and b.d <= r.td"],
+  ['Last month', "b.d >= date_trunc('month', dateadd('month',-1, r.td)) and b.d < date_trunc('month', r.td)"],
+  ['Last 3 months', "b.d >= dateadd('month',-3, r.td) and b.d <= r.td"],
+  ['Last 12 months', "b.d >= dateadd('month',-12, r.td) and b.d <= r.td"],
+]
+const AGG = WINS.map(([, p], i) => `count_if(${p}) w${i}_n, sum(iff(${p}, b.newg, 0)) w${i}_new`).join(', ')
 
-// Shared look with the ROP Scorecard card (.rc-scoped so it can't leak out of the sandboxed iframe).
+const SQL = `with r as (select convert_timezone('UTC','${TZ}', sysdate())::date td),
+b as (
+  select
+    case when lower(CREATED_BY_TYPE)='staff' then coalesce(nullif(trim(CREATED_BY_NAME),''),'Staff') else 'Online / self-booked' end booker,
+    case when lower(CREATED_BY_TYPE)='staff' then 'Staff' else 'Online' end typ,
+    convert_timezone('UTC','${TZ}', CREATED_AT)::date d,
+    iff(IS_NEW_CLIENT,1,0) newg
+  from ANALYTICS.MARTS.BOOKINGS_CREATED
+  where coalesce(IS_CANCELLED,false)=false
+    and convert_timezone('UTC','${TZ}', CREATED_AT)::date >= dateadd('month',-12, (select td from r))
+)
+select b.booker, b.typ, ${AGG}
+from b cross join r
+group by b.booker, b.typ
+order by b.booker`
+
 const STYLE = `<style>
 .rc{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#e5e7eb}
 .rc .hd{color:#9fb3c8;font-size:12px;margin-bottom:10px}
+.rc .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}
+.rc .tabs button{cursor:pointer;border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:5px 12px;font-size:12px;font-weight:700;background:rgba(255,255,255,.06);color:#cbd5e1}
+.rc .tabs button.on{background:#2563eb;color:#fff;border-color:#2563eb;box-shadow:0 2px 8px rgba(37,99,235,.45)}
 .rc .tiles{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
 .rc .tt{display:inline-block;min-width:104px;flex:1;background:linear-gradient(180deg,rgba(37,99,235,.14),rgba(37,99,235,.05));border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:10px 12px}
 .rc .tt .l{font-size:10px;color:#9fb3c8;text-transform:uppercase;letter-spacing:.05em}
@@ -48,60 +75,69 @@ const STYLE = `<style>
 .rc td.typ{text-align:left;color:#9fb3c8;font-weight:500}
 .rc td.new{color:#4ade80;font-weight:700}
 .rc tbody tr:nth-child(even){background:rgba(255,255,255,.025)}
+.rc tbody tr.tot td{background:rgba(37,99,235,.16);border-top:2px solid rgba(37,99,235,.5);font-weight:800;color:#fff}
 .rc .foot{color:#9fb3c8;font-size:12px;margin-top:12px;line-height:1.65}
+@media (max-width:560px){
+  .rc .tt{min-width:0;padding:7px 8px}
+  .rc .tt .v{font-size:17px}
+  .rc table{min-width:0;font-size:11px}
+  .rc th{padding:6px 6px;font-size:9px;letter-spacing:0}
+  .rc td{padding:6px 6px}
+  .rc .tabs button{padding:4px 9px;font-size:11px}
+}
 </style>`
 
-// Every appointment CREATED today (salon-local), regardless of the appointment's date — i.e. all
-// booking activity today. Staff bookings show the staff name; client self-bookings are grouped as
-// one "Online / self-booked" row. sysdate() is UTC-naive so the ET "today" boundary is correct.
-const SQL = `select
-  case when lower(CREATED_BY_TYPE)='staff'
-       then coalesce(nullif(trim(CREATED_BY_NAME),''),'Staff')
-       else 'Online / self-booked' end booker,
-  case when lower(CREATED_BY_TYPE)='staff' then 'Staff' else 'Online' end typ,
-  count(*) n,
-  sum(iff(IS_NEW_CLIENT,1,0)) newg
-from ANALYTICS.MARTS.BOOKINGS_CREATED
-where convert_timezone('UTC','${TZ}', CREATED_AT)::date = convert_timezone('UTC','${TZ}', sysdate())::date
-  and coalesce(IS_CANCELLED,false) = false
-group by 1,2 order by iff(typ='Staff',0,1), n desc, booker`
-
-function card(rows: string[][]): string {
-  const now = new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date())
-  const total = rows.reduce((a, r) => a + Number(r[2] || 0), 0)
-  const newTotal = rows.reduce((a, r) => a + Number(r[3] || 0), 0)
-  const staff = rows.reduce((a, r) => a + (String(r[1]) === 'Staff' ? Number(r[2] || 0) : 0), 0)
-  const online = total - staff
-  if (!rows.length)
-    return (
-      STYLE +
-      `<div class="rc"><div class="hd">No bookings recorded yet today (as of ${now} ET) &middot; source: Snowflake &middot; updates hourly.</div></div>`
-    )
-  const body = rows
-    .map((r) => `<tr><td>${esc(r[0])}</td><td class="typ">${esc(r[1])}</td><td>${fmt(r[2])}</td><td class="new">${fmt(r[3])}</td></tr>`)
-    .join('')
+// Interactive widget: one tab bar (8 windows) drives the tiles + the booked-by table, client-side.
+function card(rows: string[][], nowET: string): string {
   return (
     STYLE +
     `<div class="rc">` +
-    `<div class="hd">All bookings made today (full day, salon-local) &middot; as of ${now} ET &middot; source: Snowflake</div>` +
-    `<div class="tiles">` +
-    `<div class="tt"><div class="l">Bookings today</div><div class="v">${fmt(total)}</div></div>` +
-    `<div class="tt"><div class="l">Staff&#8209;booked</div><div class="v">${fmt(staff)}</div></div>` +
-    `<div class="tt"><div class="l">Self&#8209;booked</div><div class="v">${fmt(online)}</div></div>` +
-    `<div class="tt"><div class="l">New guests</div><div class="v">${fmt(newTotal)}</div></div>` +
-    `</div>` +
-    `<div class="wrap"><table><thead><tr><th>Booked by</th><th>Type</th><th>Bookings</th><th>New</th></tr></thead><tbody>${body}</tbody></table></div>` +
-    `<div class="foot">Every appointment <b style="color:#fff">created today</b> (any appointment date), by who made the booking — staff shown by name, client self-bookings grouped as "Online". Excludes cancellations; data lags real time by ~1&ndash;2 hours.</div>` +
+    `<div class="hd">Bookings by who made them (all appointment dates) &middot; as of ${nowET} ET &middot; source: Snowflake</div>` +
+    `<div class="tabs" id="bk-tabs"></div>` +
+    `<div class="tiles" id="bk-tiles"></div>` +
+    `<div class="wrap"><table id="bk-tbl"></table></div>` +
+    `<div class="foot">Every appointment <b style="color:#fff">created in the selected window</b> (any appointment date), by who made the booking — staff shown by name, client self-bookings grouped as "Online". Tap a window to switch. Excludes cancellations; data lags real time by ~1&ndash;2 hours.</div>` +
+    `<script>(function(){
+  var ROWS=${JSON.stringify(rows)};
+  var W=${JSON.stringify(WINS.map(([k]) => k))};
+  var cur=0;
+  function num(v){return v==null||v===''?0:Number(v)}
+  function fmt(v){return num(v).toLocaleString('en-US')}
+  function esc(s){return String(s).replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c]})}
+  function render(){
+    var o=2+cur*2;
+    var rows=ROWS.filter(function(r){return num(r[o])>0}).sort(function(a,b){
+      var ra=a[1]==='Staff'?0:1, rb=b[1]==='Staff'?0:1;
+      return ra!==rb ? ra-rb : num(b[o])-num(a[o]);
+    });
+    var total=0,staff=0,newg=0;
+    rows.forEach(function(r){var n=num(r[o]);total+=n;if(r[1]==='Staff')staff+=n;newg+=num(r[o+1])});
+    var online=total-staff;
+    document.getElementById('bk-tabs').innerHTML=W.map(function(k,i){return '<button class="'+(i===cur?'on':'')+'" data-i="'+i+'">'+esc(k)+'</button>'}).join('');
+    Array.prototype.forEach.call(document.querySelectorAll('#bk-tabs button'),function(b){b.onclick=function(){cur=+b.getAttribute('data-i');render()}});
+    document.getElementById('bk-tiles').innerHTML=
+      '<div class="tt"><div class="l">Bookings</div><div class="v">'+fmt(total)+'</div></div>'+
+      '<div class="tt"><div class="l">Staff&#8209;booked</div><div class="v">'+fmt(staff)+'</div></div>'+
+      '<div class="tt"><div class="l">Self&#8209;booked</div><div class="v">'+fmt(online)+'</div></div>'+
+      '<div class="tt"><div class="l">New guests</div><div class="v">'+fmt(newg)+'</div></div>';
+    var body=rows.map(function(r){return '<tr><td>'+esc(r[0])+'</td><td class="typ">'+esc(r[1])+'</td><td>'+fmt(r[o])+'</td><td class="new">'+fmt(r[o+1])+'</td></tr>'}).join('');
+    if(!body) body='<tr><td colspan="4" style="text-align:center;color:#9fb3c8;padding:14px">No bookings in this window.</td></tr>';
+    else body+='<tr class="tot"><td>All bookers</td><td class="typ"></td><td>'+fmt(total)+'</td><td>'+fmt(newg)+'</td></tr>';
+    document.getElementById('bk-tbl').innerHTML='<thead><tr><th>Booked by</th><th>Type</th><th>Bookings</th><th>New</th></tr></thead><tbody>'+body+'</tbody>';
+  }
+  render();
+})();</script>` +
     `</div>`
   )
 }
 
 async function buildAndPost() {
   const rows = await sf(SQL)
+  const nowET = new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date())
   const r = await fetch(INGEST_URL, {
     method: 'POST',
     headers: { 'x-api-key': INGEST_KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ channel: 'bookings-by-booker', author_name: 'Bookings', title: 'Bookings today — by booker', external_key: 'bookings-by-booker-today', html: card(rows) }),
+    body: JSON.stringify({ channel: 'bookings-by-booker', author_name: 'Bookings', title: 'Bookings — by booker', external_key: 'bookings-by-booker-today', html: card(rows, nowET) }),
   })
   const body = await r.json().catch(() => ({}))
   return { ok: !!body.ok, bookers: rows.length, updated: body.updated }
