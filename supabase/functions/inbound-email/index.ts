@@ -118,9 +118,16 @@ Deno.serve(async (req) => {
       if (!text) return json({ ok: false, error: 'empty message' }, 400)
     }
 
-    // Post to a channel (by slug or name).
+    // Post to a channel — forgiving match: exact slug, or the display name (hyphens ↔ spaces,
+    // case-insensitive). So both channel-daily-numbers@ and channel-ROP-Scorecard@ work.
     async function toChannel(slug: string) {
-      const { data: ch } = await admin.from('channels').select('id').or(`slug.eq.${slug},name.eq.${slug}`).maybeSingle()
+      const spaced = slug.replace(/-/g, ' ')
+      const { data } = await admin
+        .from('channels')
+        .select('id')
+        .or(`slug.eq.${slug},name.ilike.${slug},name.ilike.${spaced}`)
+        .limit(1)
+      const ch = data?.[0]
       if (!ch) return null
       const { data: msg, error } = await admin.from('messages').insert({ channel_id: ch.id, user_id: BOT_ID, body: text, metadata }).select('id').single()
       if (error) throw error

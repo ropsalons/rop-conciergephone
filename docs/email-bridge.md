@@ -18,8 +18,9 @@ Encode the destination in the **To** address:
 | Post in a **channel** | `channel-<slug>@chat.rop2020.com` | `channel-victories@chat.rop2020.com` |
 | **DM** a person | `dm-<name>@chat.rop2020.com` | `dm-zach@chat.rop2020.com` |
 
-- **`<slug>`** = the channel's short name (lowercase, hyphens for spaces). ⚠️ Use the **slug**,
-  not the fancy display name — e.g. the "ROP Scorecard" channel's slug is `daily-numbers`.
+- **`<slug>`** = the channel's name (lowercase, hyphens for spaces). **Either the slug or the
+  display name works** — e.g. `channel-daily-numbers@…` and `channel-ROP-Scorecard@…` both post
+  to the ROP Scorecard channel.
 - **`<name>`** = the person's **first name** (e.g. `zach`, `gustavo`, `jenn`). If two people
   share a first name, use the **part before the `@` in their email** instead
   (e.g. `dm-robd` for robd@rop2020.com).
@@ -126,9 +127,10 @@ the URL, or it's the name lowercased with hyphens._
 ## 6. Copy‑paste prompt for an AI project
 
 > **How to send a message into ROP Chat (our team app):** send an email via `chat.rop2020.com`.
-> - To post in a channel, email **`channel-<slug>@chat.rop2020.com`** (use the channel's slug,
->   lowercase with hyphens — e.g. `channel-victories@chat.rop2020.com`,
->   `channel-announcements@chat.rop2020.com`, `channel-daily-numbers@chat.rop2020.com`).
+> - To post in a channel, email **`channel-<name>@chat.rop2020.com`** using the channel's name,
+>   lowercase with hyphens (the slug or the display name both work) — e.g.
+>   `channel-victories@chat.rop2020.com`, `channel-announcements@chat.rop2020.com`,
+>   `channel-ROP-Scorecard@chat.rop2020.com`.
 > - To direct-message a person, email **`dm-<firstname>@chat.rop2020.com`**
 >   (e.g. `dm-zach@chat.rop2020.com`, `dm-robd@chat.rop2020.com`). If a first name isn't unique,
 >   use the part before the `@` in their work email.
