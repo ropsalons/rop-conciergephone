@@ -117,10 +117,30 @@ const STYLE = `<style>
 .rc .tabs button{cursor:pointer;border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:5px 13px;font-size:12px;font-weight:700;background:rgba(255,255,255,.06);color:#cbd5e1}
 .rc .tabs button.on{background:#7c3aed;color:#fff;border-color:#7c3aed;box-shadow:0 2px 8px rgba(124,58,237,.45)}
 .rc .foot{color:#9fb3c8;font-size:12px;margin-top:12px;line-height:1.65}
+/* Phone: fit all 8 columns on screen — drop the min-width, compact padding/type, and let the
+   multi-word headers ("New PB%", "New Req%") wrap to two lines instead of forcing wide columns. */
+@media (max-width:560px){
+  .rc .hero{padding:12px 13px;border-radius:13px;margin-bottom:12px}
+  .rc .hero .t{font-size:15px}
+  .rc .hero .s{font-size:10.5px}
+  .rc .tiles{gap:6px}
+  .rc .tt{min-width:0;padding:7px 8px}
+  .rc .tt .l{font-size:8.5px}
+  .rc .tt .v{font-size:16px}
+  .rc .hd{font-size:11px}
+  .rc table{min-width:0;font-size:11px}
+  .rc th{padding:5px 3px;font-size:9px;letter-spacing:0;white-space:normal;vertical-align:bottom;line-height:1.15}
+  .rc td{padding:5px 3px}
+  .rc th:first-child,.rc td:first-child{padding-left:8px}
+  .rc th:last-child,.rc td:last-child{padding-right:8px}
+  .rc .tabs{gap:5px;margin:12px 0 6px}
+  .rc .tabs button{padding:4px 9px;font-size:11px}
+  .rc .foot{font-size:11px}
+}
 </style>`
 
 const HEAD = (first: string, second: string) =>
-  `<thead><tr><th>${first}</th><th>${second}</th><th>New</th><th>New&nbsp;PB%</th><th>RPG</th><th>Prebook%</th><th>LUX%</th><th>New&nbsp;Req%</th></tr></thead>`
+  `<thead><tr><th>${first}</th><th>${second}</th><th>New</th><th>New PB%</th><th>RPG</th><th>Prebook%</th><th>LUX%</th><th>New Req%</th></tr></thead>`
 
 // Interactive widget: one window tab bar drives the By-salon and By-stylist tables. Today is first.
 function widget(salons: string[][], stylists: string[][]): string {
@@ -141,7 +161,7 @@ function widget(salons: string[][], stylists: string[][]): string {
   function homer(r,o){return num(r[o+4])>=70&&num(r[o+3])>=8&&num(r[o+5])>=33}
   var TROPHY=' <span class="trophy" title="Home run — prebook, RPG and LUX all on target">🏆</span>';
   function row(r,o){var h=homer(r,o);return '<tr'+(h?' class="hr"':'')+'><td>'+esc(r[0])+(h?TROPHY:'')+'</td><td>'+fmt(r[o])+'</td><td>'+fmt(r[o+1])+'</td><td>'+kpi(r[o+2],'pb')+'</td><td>'+kpi(r[o+3],'rpg')+'</td><td>'+kpi(r[o+4],'pb')+'</td><td>'+kpi(r[o+5],'lux')+'</td><td>'+P(r[o+6])+'</td></tr>'}
-  var HEAD=function(a,b){return '<thead><tr><th>'+a+'</th><th>'+b+'</th><th>New</th><th>New&nbsp;PB%</th><th>RPG</th><th>Prebook%</th><th>LUX%</th><th>New&nbsp;Req%</th></tr></thead>'}
+  var HEAD=function(a,b){return '<thead><tr><th>'+a+'</th><th>'+b+'</th><th>New</th><th>New PB%</th><th>RPG</th><th>Prebook%</th><th>LUX%</th><th>New Req%</th></tr></thead>'}
   function render(){
     var o=W[cur].o;
     document.getElementById('rop-sal').innerHTML=HEAD('Salon','Guests')+'<tbody>'+SAL.map(function(r){return row(r,o)}).join('')+'</tbody>';
