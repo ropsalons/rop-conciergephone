@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.12.5'
+export const APP_VERSION = '1.12.6'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,15 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.12.6',
+    date: '2026-07-16',
+    time: '4:55 PM ET',
+    title: 'iPhone: notifications open the exact message',
+    changes: [
+      'Fixed notification tapping on iPhone: tapping a message notification now opens ROP Chat straight to that exact conversation, instead of just the messages list. (Android already did this; iPhones drop the link when the app is opened from closed, so the app now grabs it on launch.)',
+    ],
+  },
   {
     version: '1.12.5',
     date: '2026-07-16',
