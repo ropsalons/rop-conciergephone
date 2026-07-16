@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.12.8'
+export const APP_VERSION = '1.13.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.13.0',
+    date: '2026-07-16',
+    time: '5:55 PM ET',
+    title: 'Share a link to any message',
+    changes: [
+      'You can now copy a link to any message: hover a message on desktop and click the link icon, or long-press it on your phone and choose “Copy / share link to message.” On phones this opens your share sheet so you can text it straight to someone.',
+      'Opening a shared message link jumps ROP Chat right to that conversation and briefly highlights the message — great for nudging someone to check ROP Chat.',
+    ],
+  },
   {
     version: '1.12.8',
     date: '2026-07-16',

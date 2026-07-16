@@ -8,7 +8,8 @@ import { RichCard } from './RichCard'
 import { FileChip } from '@/components/files/FileChip'
 import { messageTime, displayName, cn } from '@/lib/utils'
 import { QUICK_EMOJIS, canManage } from '@/lib/constants'
-import { Smile, Reply, Pin, Edit, Trash, Check, X, MoreHorizontal } from '@/components/ui/Icons'
+import { Smile, Reply, Pin, Edit, Trash, Check, X, MoreHorizontal, Link as LinkIcon } from '@/components/ui/Icons'
+import { useUIStore } from '@/stores/uiStore'
 
 interface Props {
   message: MessageWithAuthor
@@ -25,6 +26,7 @@ export function MessageItem({ message, grouped, showThread = true, onReact, onRe
   const me = useAuthStore((s) => s.user?.id)
   const myRole = useAuthStore((s) => s.profile?.role)
   const profilesById = useDirectoryStore((s) => s.profilesById)
+  const toast = useUIStore((s) => s.toast)
   const [showEmoji, setShowEmoji] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -54,6 +56,30 @@ export function MessageItem({ message, grouped, showThread = true, onReact, onRe
   const isMine = message.user_id === me
   const canModerate = isMine || canManage(myRole)
   const isTemp = message.id.startsWith('temp-')
+
+  // A shareable deep link to THIS message — open it (or text it to someone) and the app jumps to the
+  // conversation and highlights the message. On phones we use the native share sheet (so it's one tap
+  // to text it); otherwise we copy it to the clipboard.
+  function messageLink() {
+    const path = message.channel_id ? `/channel/${message.channel_id}` : `/dm/${message.conversation_id}`
+    return `${window.location.origin}/#${path}?m=${message.id}`
+  }
+  async function shareLink(done?: () => void) {
+    const url = messageLink()
+    const nav = navigator as Navigator & { share?: (d: { title?: string; text?: string; url?: string }) => Promise<void> }
+    if (nav.share) {
+      try { await nav.share({ title: 'ROP Chat', text: 'Message in ROP Chat', url }) } catch { /* cancelled */ }
+      done?.()
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(url)
+      toast({ kind: 'success', title: 'Link copied', body: 'Paste it into a text or email to share.' })
+    } catch {
+      window.prompt('Copy this link to the message:', url)
+    }
+    done?.()
+  }
 
   // Imported Slack history is owned by the archive account but carries the original
   // author's name (and reactions) in metadata — surface those instead.
@@ -92,6 +118,7 @@ export function MessageItem({ message, grouped, showThread = true, onReact, onRe
 
   return (
     <div
+      data-mid={message.id}
       className={cn('group relative flex gap-3 px-3 hover:bg-white/[0.03] sm:px-4', grouped ? 'py-0.5' : 'mt-3 py-0.5')}
       onTouchStart={() => { if (!editing && !isTemp) startLongPress() }}
       onTouchEnd={cancelLongPress}
@@ -252,6 +279,9 @@ export function MessageItem({ message, grouped, showThread = true, onReact, onRe
               <Reply className="h-4 w-4" />
             </button>
           )}
+          <button onClick={() => shareLink()} className="rounded p-1.5 text-slate-300 hover:bg-white/10" title="Copy link to this message">
+            <LinkIcon className="h-4 w-4" />
+          </button>
           {onTogglePin && canManage(myRole) && (
             <button onClick={() => onTogglePin(!message.is_pinned)} className="rounded p-1.5 text-slate-300 hover:bg-white/10" title={message.is_pinned ? 'Unpin' : 'Pin'}>
               <Pin className={cn('h-4 w-4', message.is_pinned && 'text-gold-400')} />
@@ -292,6 +322,11 @@ export function MessageItem({ message, grouped, showThread = true, onReact, onRe
               ))}
             </div>
             <div className="divide-y divide-white/5">
+              <SheetItem
+                icon={<LinkIcon className="h-5 w-5" />}
+                label="Copy / share link to message"
+                onClick={() => shareLink(() => setSheetOpen(false))}
+              />
               {showThread && onReply && (
                 <SheetItem icon={<Reply className="h-5 w-5" />} label="Reply in thread" onClick={() => { onReply(); setSheetOpen(false) }} />
               )}

@@ -15,6 +15,7 @@ interface Props {
   onDelete: (id: string) => void
   onTogglePin?: (id: string, pinned: boolean) => void
   showThreads?: boolean
+  highlightId?: string
 }
 
 export function MessageList({
@@ -28,11 +29,25 @@ export function MessageList({
   onDelete,
   onTogglePin,
   showThreads = true,
+  highlightId,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const prevLen = useRef(0)
   const prevHeight = useRef(0)
+  const flashedFor = useRef<string | null>(null)
+
+  // Opened from a shared link (…?m=<id>): scroll to that exact message and flash it, once it's
+  // loaded. If it isn't in the loaded page, we simply stay in the conversation.
+  useEffect(() => {
+    if (!highlightId || flashedFor.current === highlightId) return
+    const el = scrollRef.current?.querySelector(`[data-mid="${CSS.escape(highlightId)}"]`) as HTMLElement | null
+    if (!el) return
+    flashedFor.current = highlightId
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el.classList.add('msg-flash')
+    window.setTimeout(() => el.classList.remove('msg-flash'), 2600)
+  }, [highlightId, messages])
 
   // Auto-scroll to newest when appropriate; preserve position when prepending history.
   useLayoutEffect(() => {

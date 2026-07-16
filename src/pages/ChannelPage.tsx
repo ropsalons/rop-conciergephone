@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useChannel } from '@/hooks/useChannel'
 import { useMessages } from '@/hooks/useMessages'
@@ -20,6 +20,8 @@ import { canModerate as canModRole, canManage } from '@/lib/constants'
 
 export function ChannelPage() {
   const { channelId } = useParams()
+  const [searchParams] = useSearchParams()
+  const highlightId = searchParams.get('m') ?? undefined
   const { channel, members, isMember, loading, join, leave, loadMembers, setNotifyLevel } = useChannel(channelId)
   const me = useAuthStore((s) => s.user?.id)
   const myRole = useAuthStore((s) => s.profile?.role)
@@ -199,6 +201,7 @@ export function ChannelPage() {
           onEdit={edit}
           onDelete={remove}
           onTogglePin={togglePin}
+          highlightId={highlightId}
         />
       )}
 

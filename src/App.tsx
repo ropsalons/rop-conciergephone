@@ -41,8 +41,10 @@ export default function App() {
     return (
       <>
         <Routes>
+          {/* Show the login screen without changing the URL, so a shared/notification deep link
+              (e.g. /#/dm/123?m=456) survives sign-in and routes to the right message afterward. */}
           <Route path="/login" element={<AuthPage />} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<AuthPage />} />
         </Routes>
         <Toaster />
         <UpdatePrompt />

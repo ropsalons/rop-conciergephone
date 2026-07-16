@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
 import { useChatStore } from '@/stores/chatStore'
@@ -19,6 +19,8 @@ import type { ConversationWithMeta } from '@/types'
 
 export function DMPage() {
   const { conversationId } = useParams()
+  const [searchParams] = useSearchParams()
+  const highlightId = searchParams.get('m') ?? undefined
   const me = useAuthStore((s) => s.user?.id)
   const myRole = useAuthStore((s) => s.profile?.role)
   const markConversationRead = useChatStore((s) => s.markConversationRead)
@@ -91,6 +93,7 @@ export function DMPage() {
         onOpenThread={openThread}
         onEdit={edit}
         onDelete={remove}
+        highlightId={highlightId}
       />
       <MessageComposer
         placeholder={`Message ${conversationName(conv, me)}`}
