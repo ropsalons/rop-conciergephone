@@ -148,7 +148,7 @@ export function MessageComposer({ onSend, placeholder = 'Write a message…', di
 
   return (
     <div
-      className="relative border-t border-white/10 bg-brand-900/40 p-2 sm:p-3"
+      className="relative border-t border-white/10 bg-brand-900/40 px-2 pt-2 pb-safe sm:px-3 sm:pt-3"
       onDragEnter={onDragEnter}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
@@ -216,7 +216,7 @@ export function MessageComposer({ onSend, placeholder = 'Write a message…', di
           rows={1}
           autoFocus={autoFocus}
           disabled={disabled}
-          className="max-h-44 flex-1 resize-none bg-transparent py-1.5 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none"
+          className="max-h-44 min-w-0 flex-1 resize-none bg-transparent py-1.5 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none"
         />
         <div className="relative">
           <button

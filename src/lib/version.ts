@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.11.3'
+export const APP_VERSION = '1.12.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.12.0',
+    date: '2026-07-16',
+    time: '12:15 PM ET',
+    title: 'iPhone fit fix + attachments can be received from outside',
+    changes: [
+      'Fixed the message box on iPhone: the Send button was tucked under the home-bar at the bottom of the screen on installed iPhones, and the box could run past the edge. It now sits above the home bar and fits the screen. (If it still looks off, fully close and reopen the app to update.)',
+      'ROP Chat can now RECEIVE files — photos, PDFs, docs — from outside: by email, from the API, from an AI assistant, and by text/MMS to the ROP number. They show up in the message like any normal attachment.',
+      'New private #text-messages channel: texts and photos sent to the ROP number now post there.',
+    ],
+  },
   {
     version: '1.11.3',
     date: '2026-07-15',
