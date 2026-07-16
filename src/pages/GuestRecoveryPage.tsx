@@ -196,11 +196,17 @@ function NewIssueModal({
   const [urgency, setUrgency] = useState<Urgency>('medium')
   const [ownerId, setOwnerId] = useState('')
   const [involved, setInvolved] = useState<string[]>([])
+  const [memberQuery, setMemberQuery] = useState('')
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
 
   const toggleInvolved = (id: string) =>
     setInvolved((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+
+  // Type to filter the staff list instead of scrolling from the A's.
+  const shownPeople = memberQuery.trim()
+    ? people.filter((p) => displayName(p).toLowerCase().includes(memberQuery.trim().toLowerCase()))
+    : people
 
   async function submit() {
     if (!guestName.trim() || !issue.trim() || !me) return
@@ -293,13 +299,22 @@ function NewIssueModal({
         </div>
         <div>
           <label className="label">Involved team members</label>
+          <input
+            className="input mb-2"
+            value={memberQuery}
+            onChange={(e) => setMemberQuery(e.target.value)}
+            placeholder="Search staff…"
+          />
           <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-white/10 p-2">
-            {people.map((p) => (
+            {shownPeople.map((p) => (
               <label key={p.id} className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 text-sm text-slate-200 hover:bg-white/5">
                 <input type="checkbox" checked={involved.includes(p.id)} onChange={() => toggleInvolved(p.id)} />
                 {displayName(p)}
               </label>
             ))}
+            {shownPeople.length === 0 && (
+              <p className="px-1 py-2 text-center text-xs text-slate-500">No staff match “{memberQuery.trim()}”.</p>
+            )}
           </div>
         </div>
         <div>

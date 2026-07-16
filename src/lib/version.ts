@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.13.2'
+export const APP_VERSION = '1.13.3'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.13.3',
+    date: '2026-07-16',
+    time: '7:45 PM ET',
+    title: 'Search the staff list instead of scrolling',
+    changes: [
+      'When you log a guest issue and pick the “Involved team members,” there’s now a search box — type a name instead of scrolling the whole roster from the A’s.',
+      'The urgent-alert “Specific people” picker is now searchable too — type a name or role to find someone fast.',
+    ],
+  },
   {
     version: '1.13.2',
     date: '2026-07-16',

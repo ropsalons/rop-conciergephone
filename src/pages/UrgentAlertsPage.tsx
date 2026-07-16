@@ -220,12 +220,20 @@ function ComposeModal({
   const [departmentId, setDepartmentId] = useState('')
   const [targetUserIds, setTargetUserIds] = useState<string[]>([])
   const [requiresAck, setRequiresAck] = useState(true)
+  const [userQuery, setUserQuery] = useState('')
   const [busy, setBusy] = useState(false)
 
   const people = useMemo(
     () => profiles.filter((p) => p.is_active && p.id !== me),
     [profiles, me],
   )
+
+  // Type to filter instead of scrolling the whole roster from the A's.
+  const shownPeople = useMemo(() => {
+    const q = userQuery.trim().toLowerCase()
+    if (!q) return people
+    return people.filter((p) => displayName(p).toLowerCase().includes(q) || (p.role ?? '').toLowerCase().includes(q))
+  }, [people, userQuery])
 
   function reset() {
     setTitle('')
@@ -343,8 +351,14 @@ function ComposeModal({
         {audience === 'users' && (
           <div>
             <label className="label">People ({targetUserIds.length} selected)</label>
+            <input
+              className="input mb-2"
+              value={userQuery}
+              onChange={(e) => setUserQuery(e.target.value)}
+              placeholder="Search people…"
+            />
             <div className="max-h-56 space-y-1 overflow-y-auto rounded-lg border border-white/10 bg-brand-900/60 p-2">
-              {people.map((p) => {
+              {shownPeople.map((p) => {
                 const on = targetUserIds.includes(p.id)
                 return (
                   <button
@@ -364,7 +378,11 @@ function ComposeModal({
                   </button>
                 )
               })}
-              {people.length === 0 && <p className="px-2 py-3 text-center text-sm text-slate-500">No people available.</p>}
+              {shownPeople.length === 0 && (
+                <p className="px-2 py-3 text-center text-sm text-slate-500">
+                  {people.length === 0 ? 'No people available.' : `No one matches “${userQuery.trim()}”.`}
+                </p>
+              )}
             </div>
           </div>
         )}
