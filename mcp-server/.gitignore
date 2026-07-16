@@ -1,0 +1,5 @@
+node_modules/
+package-lock.json
+# never commit a real token config
+.mcp.json
+*.local

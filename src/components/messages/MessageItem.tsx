@@ -59,6 +59,10 @@ export function MessageItem({ message, grouped, showThread = true, onReact, onRe
   // author's name (and reactions) in metadata — surface those instead.
   const meta = message.metadata as Record<string, any>
   const archivedAuthor = typeof meta?.slack_author === 'string' ? (meta.slack_author as string) : undefined
+  // AI-agent messages are authored by the Integrations account but carry an explicit agent identity;
+  // surface the agent name + an AI badge so it's never mistaken for a hand-typed employee message.
+  const aiAgent = meta?.ai_agent && typeof meta.ai_agent === 'object' ? (meta.ai_agent as { name?: string; provider?: string }) : undefined
+  const aiName = aiAgent ? (typeof meta.author_name === 'string' ? meta.author_name : aiAgent.name) : undefined
   const displayAuthor = archivedAuthor
     ? ({ id: `slack:${archivedAuthor}`, full_name: archivedAuthor } as any)
     : message.author
@@ -107,8 +111,13 @@ export function MessageItem({ message, grouped, showThread = true, onReact, onRe
         {!grouped && (
           <div className="flex items-baseline gap-2">
             <span className="text-sm font-semibold text-white">
-              {archivedAuthor ?? displayName(message.author)}
+              {aiName ?? archivedAuthor ?? displayName(message.author)}
             </span>
+            {aiAgent && (
+              <span className="rounded bg-brand-400/20 px-1.5 text-[10px] font-semibold text-brand-200" title={`AI agent${aiAgent.provider ? ` · ${aiAgent.provider}` : ''}`}>
+                🤖 AI{aiAgent.provider ? ` · ${aiAgent.provider}` : ''}
+              </span>
+            )}
             <span className="text-[11px] text-slate-500">{messageTime(message.created_at)}</span>
             {archivedAuthor && (
               <span className="rounded bg-white/10 px-1.5 text-[10px] font-medium text-slate-400">archived</span>

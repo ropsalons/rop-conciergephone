@@ -31,6 +31,7 @@ type LogAudit = (
 const TABS = [
   { key: 'users', label: 'Users' },
   { key: 'activity', label: 'Activity' },
+  { key: 'ai', label: 'AI Integrations' },
   { key: 'channels', label: 'Channels' },
   { key: 'email', label: 'Send Email' },
   { key: 'sms', label: 'Send Text' },
@@ -102,6 +103,7 @@ export function AdminPage() {
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
         {tab === 'users' && <UsersTab logAudit={logAudit} />}
         {tab === 'activity' && <ActivityTab />}
+        {tab === 'ai' && <AiTab />}
         {tab === 'channels' && <ChannelsTab me={me ?? ''} logAudit={logAudit} />}
         {tab === 'email' && <EmailTab logAudit={logAudit} />}
         {tab === 'sms' && <SmsTab logAudit={logAudit} />}
@@ -291,6 +293,220 @@ function StatTile({ label, value, muted }: { label: string; value: number; muted
     <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5">
       <p className={cn('text-2xl font-bold', muted ? 'text-slate-400' : 'text-white')}>{value}</p>
       <p className="text-[11px] uppercase tracking-wide text-slate-500">{label}</p>
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* AI Integrations — agents, permissions, approvals, kill-switch       */
+/* ------------------------------------------------------------------ */
+
+interface AiAgent {
+  id: string; name: string; slug: string; provider: string; agent_type: string
+  is_active: boolean; token_prefix: string; channel_scope: string; allow_dms: boolean
+  allowed_actions: string[]; require_approval_for: string[]; rate_per_min: number
+  last_used_at: string | null; created_at: string; channel_ids: string[]; req_24h: number
+}
+interface AiOverview { ai_enabled: boolean; pending_approvals: number; agents: AiAgent[] }
+
+function AiTab() {
+  const toast = useUIStore((s) => s.toast)
+  const [ov, setOv] = useState<AiOverview | null>(null)
+  const [activity, setActivity] = useState<any[]>([])
+  const [approvals, setApprovals] = useState<any[]>([])
+  const [err, setErr] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [token, setToken] = useState<{ name: string; value: string } | null>(null)
+  const [showAdd, setShowAdd] = useState(false)
+  const [channels, setChannels] = useState<{ id: string; name: string; slug: string; type: string; ai_excluded?: boolean }[]>([])
+  const [form, setForm] = useState<{ name: string; provider: string; scope: string; allow_dms: boolean; channel_ids: Set<string> }>({ name: '', provider: 'anthropic', scope: 'all_public', allow_dms: false, channel_ids: new Set() })
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rpc = (fn: string, args: any = {}) => (supabase.rpc as any)(fn, args)
+
+  async function load() {
+    setErr(null)
+    const [o, a, ap] = await Promise.all([rpc('ai_admin_overview'), rpc('ai_recent_activity', { p_limit: 40 }), rpc('ai_list_approvals', { p_status: 'pending' })])
+    if (o.error) { setErr(o.error.message); return }
+    setOv(o.data as AiOverview); setActivity((a.data as any[]) || []); setApprovals((ap.data as any[]) || [])
+  }
+  useEffect(() => {
+    void load()
+    void supabase.from('channels').select('id,name,slug,type,ai_excluded').eq('is_archived', false).order('name').then(({ data }) => setChannels((data as any) || []))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  async function killSwitch(enable: boolean) {
+    if (!enable && !window.confirm('Disable ALL AI access immediately? Every agent is blocked until you turn it back on. Normal employee messaging is unaffected.')) return
+    setBusy(true); const { error } = await rpc('ai_set_kill_switch', { p_enabled: enable }); setBusy(false)
+    if (error) return toast({ kind: 'error', title: 'Failed', body: error.message })
+    toast({ kind: enable ? 'success' : 'urgent', title: enable ? 'AI access enabled' : 'ALL AI access disabled' }); void load()
+  }
+  async function toggleAgent(a: AiAgent) { await rpc('ai_set_agent_active', { p_agent: a.id, p_active: !a.is_active }); void load() }
+  async function rotate(a: AiAgent) {
+    if (!window.confirm(`Rotate ${a.name}'s token? The current token stops working immediately and you'll get a new one to reconfigure.`)) return
+    const { data, error } = await rpc('ai_rotate_token', { p_agent: a.id })
+    if (error) return toast({ kind: 'error', title: 'Failed', body: error.message })
+    setToken({ name: a.name, value: data as string })
+  }
+  async function decide(id: string, ok: boolean) { await rpc('ai_decide_approval', { p_id: id, p_approve: ok }); void load() }
+  async function create() {
+    if (!form.name.trim()) return toast({ kind: 'error', title: 'Name required' })
+    setBusy(true)
+    const { data, error } = await rpc('ai_create_agent', {
+      p_name: form.name.trim(), p_provider: form.provider, p_channel_scope: form.scope,
+      p_allow_dms: form.allow_dms, p_channel_ids: form.scope === 'listed' ? [...form.channel_ids] : [],
+    })
+    setBusy(false)
+    if (error) return toast({ kind: 'error', title: 'Failed', body: error.message })
+    const row = Array.isArray(data) ? data[0] : data
+    setToken({ name: form.name.trim(), value: row.token }); setShowAdd(false)
+    setForm({ name: '', provider: 'anthropic', scope: 'all_public', allow_dms: false, channel_ids: new Set() }); void load()
+  }
+
+  if (err) return <EmptyState icon={<Shield className="h-8 w-8" />} title="Couldn't load AI settings" body={err} />
+  if (!ov) return <FullPageLoader label="Loading AI integrations…" />
+
+  return (
+    <div className="space-y-5">
+      {/* Emergency kill-switch */}
+      <div className={cn('rounded-xl border p-4', ov.ai_enabled ? 'border-white/10 bg-white/5' : 'border-red-500/50 bg-red-950/30')}>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-white">
+              {ov.ai_enabled ? 'AI access is ON' : 'AI access is OFF (all agents blocked)'}
+            </p>
+            <p className="text-xs text-slate-400">Master switch for every AI agent. Employee messaging is never affected.</p>
+          </div>
+          <button
+            onClick={() => killSwitch(!ov.ai_enabled)}
+            disabled={busy}
+            className={cn('rounded-lg px-4 py-2 text-sm font-bold', ov.ai_enabled ? 'bg-red-600 text-white hover:bg-red-500' : 'bg-emerald-600 text-white hover:bg-emerald-500')}
+          >
+            {ov.ai_enabled ? 'DISABLE ALL AI ACCESS' : 'Re-enable AI access'}
+          </button>
+        </div>
+      </div>
+
+      {/* Token reveal */}
+      {token && (
+        <Modal open onClose={() => setToken(null)} title={`Token for ${token.name}`}>
+          <p className="mb-2 text-sm text-amber-300">Copy this now — it is shown only once. Store it in your MCP config / Netlify env. You can rotate it anytime.</p>
+          <code className="block break-all rounded-lg bg-black/50 p-3 font-mono text-xs text-emerald-300">{token.value}</code>
+          <div className="mt-3 flex justify-end gap-2">
+            <button className="btn-ghost px-3 py-1.5 text-sm" onClick={() => { navigator.clipboard?.writeText(token.value); toast({ kind: 'success', title: 'Copied' }) }}>Copy</button>
+            <button className="btn-primary px-3 py-1.5 text-sm" onClick={() => setToken(null)}>Done</button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Pending approvals */}
+      {approvals.length > 0 && (
+        <div>
+          <h3 className="mb-2 text-sm font-semibold text-slate-200">Pending approvals ({approvals.length})</h3>
+          <div className="space-y-2">
+            {approvals.map((ap) => (
+              <div key={ap.id} className="flex items-center gap-3 rounded-xl border border-gold-400/30 bg-gold-400/5 p-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-white"><span className="font-semibold">{ap.agent}</span> · {ap.action}</p>
+                  {ap.preview && <p className="truncate text-xs text-slate-400">{ap.preview}</p>}
+                </div>
+                <button onClick={() => decide(ap.id, true)} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white">Approve</button>
+                <button onClick={() => decide(ap.id, false)} className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-slate-200">Reject</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Agents */}
+      <div>
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-slate-200">AI agents ({ov.agents.length})</h3>
+          <button onClick={() => setShowAdd((v) => !v)} className="btn-primary px-3 py-1.5 text-sm"><Plus className="h-4 w-4" /> Add agent</button>
+        </div>
+
+        {showAdd && (
+          <div className="mb-3 space-y-3 rounded-xl border border-white/10 bg-brand-950/40 p-4">
+            <label className="block"><span className="label">Name</span>
+              <input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Claude Cowork, Ops AI" />
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="block"><span className="label">Provider</span>
+                <select className="input" value={form.provider} onChange={(e) => setForm({ ...form, provider: e.target.value })}>
+                  <option value="anthropic">Anthropic (Claude)</option>
+                  <option value="email">Email automation</option>
+                  <option value="custom">Custom</option>
+                </select>
+              </label>
+              <label className="block"><span className="label">Channel access</span>
+                <select className="input" value={form.scope} onChange={(e) => setForm({ ...form, scope: e.target.value })}>
+                  <option value="all_public">All public channels (except protected)</option>
+                  <option value="listed">Only channels I pick</option>
+                </select>
+              </label>
+            </div>
+            <label className="flex items-center gap-2 text-sm text-slate-200">
+              <input type="checkbox" checked={form.allow_dms} onChange={(e) => setForm({ ...form, allow_dms: e.target.checked })} />
+              Allow this agent to send direct messages
+            </label>
+            {form.scope === 'listed' && (
+              <div className="max-h-48 overflow-y-auto rounded-lg border border-white/10 p-2">
+                {channels.map((c) => (
+                  <label key={c.id} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm hover:bg-white/5">
+                    <input type="checkbox" checked={form.channel_ids.has(c.id)} onChange={() => setForm((f) => { const n = new Set(f.channel_ids); n.has(c.id) ? n.delete(c.id) : n.add(c.id); return { ...f, channel_ids: n } })} />
+                    <span className="text-white">#{c.slug || c.name}</span>
+                    {c.ai_excluded && <span className="text-[10px] text-red-300">protected</span>}
+                  </label>
+                ))}
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <button className="btn-ghost px-3 py-1.5 text-sm" onClick={() => setShowAdd(false)}>Cancel</button>
+              <button className="btn-primary px-3 py-1.5 text-sm" disabled={busy} onClick={create}>{busy && <Spinner className="h-4 w-4" />} Create & get token</button>
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-2">
+          {ov.agents.map((a) => (
+            <div key={a.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+              <div className="flex items-center gap-2">
+                <span className={cn('h-2 w-2 rounded-full', a.is_active ? 'bg-emerald-400' : 'bg-slate-500')} />
+                <span className="text-sm font-semibold text-white">{a.name}</span>
+                <Tag className="bg-brand-400/20 text-brand-200">{a.provider}</Tag>
+                <span className="ml-auto text-[11px] text-slate-500">{a.last_used_at ? `used ${timeAgo(a.last_used_at)}` : 'never used'}</span>
+              </div>
+              <p className="mt-1 text-xs text-slate-400">
+                {a.channel_scope === 'all_public' ? 'All public channels' : `${a.channel_ids.length} channel${a.channel_ids.length === 1 ? '' : 's'}`}
+                {a.allow_dms ? ' · DMs allowed' : ' · no DMs'} · {a.allowed_actions.length} actions · {a.req_24h} requests (24h) · token {a.token_prefix}…
+              </p>
+              <div className="mt-2 flex gap-2">
+                <button onClick={() => toggleAgent(a)} className="btn-ghost px-2.5 py-1 text-xs">{a.is_active ? 'Disable' : 'Enable'}</button>
+                <button onClick={() => rotate(a)} className="btn-ghost px-2.5 py-1 text-xs">Rotate token</button>
+              </div>
+            </div>
+          ))}
+          {ov.agents.length === 0 && <p className="text-sm text-slate-500">No agents yet. Add one to connect Claude Code or another AI.</p>}
+        </div>
+      </div>
+
+      {/* Recent activity */}
+      <div>
+        <h3 className="mb-2 text-sm font-semibold text-slate-200">Recent AI activity</h3>
+        <div className="overflow-hidden rounded-xl border border-white/10">
+          {activity.map((l, i) => (
+            <div key={i} className={cn('flex items-center gap-2 px-3 py-2 text-xs', i > 0 && 'border-t border-white/5')}>
+              <span className={cn('rounded px-1.5 py-0.5 font-semibold', l.status === 'ok' ? 'bg-emerald-500/15 text-emerald-300' : l.status === 'denied' ? 'bg-red-500/15 text-red-300' : 'bg-white/10 text-slate-300')}>{l.status}</span>
+              <span className="font-medium text-white">{l.agent}</span>
+              <span className="text-slate-400">{l.action}</span>
+              {l.error && <span className="truncate text-red-300">{l.error}</span>}
+              <span className="ml-auto text-slate-500">{timeAgo(l.created_at)}</span>
+            </div>
+          ))}
+          {activity.length === 0 && <p className="px-3 py-4 text-center text-sm text-slate-500">No AI activity yet.</p>}
+        </div>
+      </div>
     </div>
   )
 }

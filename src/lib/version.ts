@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.10.18'
+export const APP_VERSION = '1.11.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,18 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.11.0',
+    date: '2026-07-15',
+    time: '5:20 PM ET',
+    title: 'Two-way AI integration (Claude Code, Cowork & more)',
+    changes: [
+      'Approved AI agents can now securely read AND write ROP Chat — post to channels, reply in threads, DM people, search history, and create tasks — through a new authenticated gateway with per-agent permissions and full audit logging.',
+      'New Admin → AI Integrations panel: add/disable AI agents, choose exactly which channels and actions each can use, review recent AI activity and pending approvals, rotate tokens, and a big “DISABLE ALL AI ACCESS” switch for instant shut-off.',
+      'AI messages are clearly badged (🤖 AI + agent name) so they’re never mistaken for a person, and sensitive channels (payables, leadership) are protected from AI by default.',
+      'Claude Code / Cowork connect via an included MCP server (see mcp-server/). Full docs in docs/ai-integration.md.',
+    ],
+  },
   {
     version: '1.10.18',
     date: '2026-07-15',

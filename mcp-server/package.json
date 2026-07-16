@@ -1,0 +1,13 @@
+{
+  "name": "rop-chat-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP server exposing ROP Chat's AI gateway as scoped tools for Claude Code and other MCP clients.",
+  "bin": { "rop-chat-mcp": "index.mjs" },
+  "scripts": { "start": "node index.mjs" },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4"
+  }
+}
