@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.12.7'
+export const APP_VERSION = '1.12.8'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,15 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.12.8',
+    date: '2026-07-16',
+    time: '5:40 PM ET',
+    title: 'Updates now install themselves',
+    changes: [
+      'Fixed the underlying reason updates kept getting “stuck”: new versions were installing but never switching on. Now the app updates itself automatically within a minute of a new version going out — and it refreshes to it for you. This should clear up the update trouble on its own, no reinstalling needed.',
+    ],
+  },
   {
     version: '1.12.7',
     date: '2026-07-16',

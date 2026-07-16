@@ -15,6 +15,13 @@ export default defineConfig({
       injectRegister: false, // we register + poll for updates manually in main.tsx
       includeAssets: ['favicon.svg', 'icons/apple-touch-icon.png', 'offline.html'],
       workbox: {
+        // Take over as soon as a new build installs, and control open pages immediately. Without
+        // these, the generated SW only skip-waited on an explicit message that nothing sent, so
+        // every new version installed and then sat waiting forever — the app never updated itself
+        // and the Refresh button couldn't activate it. With these, a new build activates on its own
+        // and the page reloads onto it automatically.
+        skipWaiting: true,
+        clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
         // Layer our Web Push handlers onto the generated Workbox SW (push + notificationclick).
         importScripts: ['/push-sw.js'],
