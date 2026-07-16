@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.13.0'
+export const APP_VERSION = '1.13.1'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.13.1',
+    date: '2026-07-16',
+    time: '6:20 PM ET',
+    title: 'No more accidental deletes',
+    changes: [
+      'Deleting a message now asks you to confirm first — a stray tap can no longer delete a message. The delete button is also dimmer and set apart so it’s harder to hit by accident.',
+      'Deleted messages now keep their text behind the scenes, so an accidental delete can always be restored (nothing is permanently wiped anymore).',
+    ],
+  },
   {
     version: '1.13.0',
     date: '2026-07-16',

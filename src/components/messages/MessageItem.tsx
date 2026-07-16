@@ -29,6 +29,7 @@ export function MessageItem({ message, grouped, showThread = true, onReact, onRe
   const toast = useUIStore((s) => s.toast)
   const [showEmoji, setShowEmoji] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [confirmDel, setConfirmDel] = useState(false)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(message.body)
   const longPress = useRef<number | null>(null)
@@ -293,7 +294,7 @@ export function MessageItem({ message, grouped, showThread = true, onReact, onRe
             </button>
           )}
           {canModerate && (
-            <button onClick={onDelete} className="rounded p-1.5 text-slate-300 hover:bg-white/10 hover:text-red-400" title="Delete">
+            <button onClick={() => setConfirmDel(true)} className="ml-0.5 rounded p-1.5 text-slate-500 hover:bg-red-500/10 hover:text-red-400" title="Delete">
               <Trash className="h-4 w-4" />
             </button>
           )}
@@ -341,8 +342,28 @@ export function MessageItem({ message, grouped, showThread = true, onReact, onRe
                 <SheetItem icon={<Edit className="h-5 w-5" />} label="Edit message" onClick={() => { setEditing(true); setSheetOpen(false) }} />
               )}
               {canModerate && (
-                <SheetItem icon={<Trash className="h-5 w-5" />} label="Delete message" danger onClick={() => { setSheetOpen(false); onDelete() }} />
+                <SheetItem icon={<Trash className="h-5 w-5" />} label="Delete message" danger onClick={() => { setSheetOpen(false); setConfirmDel(true) }} />
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation — a tap never deletes on its own; you have to confirm here. */}
+      {confirmDel && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" onClick={() => setConfirmDel(false)}>
+          <div className="absolute inset-0 bg-black/60" />
+          <div
+            className="relative w-full max-w-xs rounded-2xl border border-white/10 bg-brand-900 p-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-base font-semibold text-white">Delete this message?</p>
+            <p className="mt-1 text-sm text-slate-400">It will be removed for everyone in this conversation.</p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => setConfirmDel(false)} className="btn-ghost px-4 py-2 text-sm">Cancel</button>
+              <button onClick={() => { setConfirmDel(false); onDelete() }} className="btn-danger px-4 py-2 text-sm">
+                <Trash className="h-4 w-4" /> Delete
+              </button>
             </div>
           </div>
         </div>

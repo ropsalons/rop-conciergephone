@@ -281,9 +281,11 @@ export function useMessages(target: Target, opts: { parentId?: string | null } =
   }, [])
 
   const remove = useCallback(async (id: string) => {
+    // Soft-delete only — keep the original body in the row (hidden from the UI) so an accidental
+    // delete can always be restored. Previously we wiped the body to '', which destroyed the text.
     await supabase
       .from('messages')
-      .update({ is_deleted: true, deleted_at: new Date().toISOString(), body: '' })
+      .update({ is_deleted: true, deleted_at: new Date().toISOString() })
       .eq('id', id)
   }, [])
 
