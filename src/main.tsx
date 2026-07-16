@@ -4,7 +4,12 @@ import { HashRouter } from 'react-router-dom'
 import { registerSW } from 'virtual:pwa-register'
 import App from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { supabase } from './lib/supabase'
+import { initDevMetrics } from './lib/devMetrics'
 import './index.css'
+
+// Development-only: log Supabase request volume + active realtime subscriptions. No-op in production.
+initDevMetrics(supabase)
 
 // Keep installed apps current. A service worker only re-checks for a new build on a full
 // navigation, which almost never happens inside a PWA — so phones get stuck on an old

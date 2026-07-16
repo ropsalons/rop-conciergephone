@@ -1,0 +1,50 @@
+-- ROP Chat — Supabase index review (2026-07-16)
+-- =============================================================================
+-- Conclusion: NO NEW INDEXES ARE REQUIRED.
+--
+-- The high CPU / Disk IO was NOT caused by missing indexes. It was caused by an
+-- application loop that re-ran the app's whole data bootstrap thousands of times
+-- (see SUPABASE_PERFORMANCE_AUDIT.md). The fix is in the client code, not the schema.
+--
+-- Every hot query filter / join / ordering the app actually uses is already covered
+-- by an existing index. Per the operating rules, indexes were inspected — not created
+-- blindly. There are therefore no CREATE INDEX statements to run.
+--
+-- Existing indexes that cover the hot paths (already present — do NOT re-create):
+--
+--   channel_members
+--     channel_members_pkey            (channel_id, user_id)   -- covers WHERE channel_id = $1
+--     idx_channel_members_user        (user_id)               -- covers loadSidebar WHERE user_id = me
+--
+--   direct_conversation_members
+--     direct_conversation_members_pkey(conversation_id, user_id) -- covers WHERE conversation_id IN (...)
+--     idx_dm_members_user             (user_id)               -- covers loadSidebar WHERE user_id = me
+--
+--   messages
+--     idx_messages_channel_created    (channel_id, created_at DESC)      -- channel message page
+--     idx_messages_conversation_created (conversation_id, created_at DESC) -- DM message page
+--     idx_messages_parent             (parent_message_id)     -- thread replies
+--     idx_messages_body_trgm          gin (body)              -- search_messages()
+--     idx_messages_user               (user_id)
+--
+--   notifications
+--     idx_notifications_user_unread   (user_id, is_read, created_at DESC) -- get_unread_summary()
+--
+--   profiles / channels
+--     PKs + role/location/department/type/archived + name trigram indexes  -- directory + lookups
+--
+-- =============================================================================
+-- Note on the two "slow" statements in pg_stat_statements
+-- -----------------------------------------------------------------------------
+-- `channel_members … channels(*)` showed a ~189 ms mean and `channel_activity()` ~46 ms.
+-- Those means are inflated by CPU contention while the instance sat at ~91% (every query
+-- slows under saturation). They are membership/aggregate queries whose row counts are tiny
+-- (a user is in ~15-30 channels). Once the loop is removed and CPU frees up, these run at a
+-- small fraction of that cost. Re-measure AFTER the fix before considering any schema change.
+--
+-- If, after the fix, `channel_activity()` is still hot (it aggregates last-message-time and
+-- counts across all messages), the right move is to review THAT function's plan specifically
+-- (e.g. EXPLAIN ANALYZE it as an authenticated user) rather than adding speculative indexes.
+-- No change is made here because it is not currently justified by evidence.
+
+-- (Intentionally empty of executable statements.)

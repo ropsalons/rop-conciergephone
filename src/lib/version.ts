@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.13.1'
+export const APP_VERSION = '1.13.2'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,15 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.13.2',
+    date: '2026-07-16',
+    time: '7:10 PM ET',
+    title: 'Big performance fix — much lighter on the server',
+    changes: [
+      'Fixed a background loop that was quietly re-loading the app’s data over and over, driving very high database usage. The app now loads that data once when you sign in. Everything works exactly the same — it’s just far lighter and faster, and should resolve the server CPU warnings.',
+    ],
+  },
   {
     version: '1.13.1',
     date: '2026-07-16',

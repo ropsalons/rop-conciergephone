@@ -46,8 +46,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ session, user: session?.user ?? null, profile, initialized: true })
 
     supabase.auth.onAuthStateChange(async (_event, newSession) => {
-      const nextProfile = newSession?.user ? await loadProfile(newSession.user.id) : null
-      set({ session: newSession, user: newSession?.user ?? null, profile: nextProfile })
+      const nextUser = newSession?.user ?? null
+      const sameUser = !!nextUser?.id && nextUser.id === get().user?.id
+      // Only refetch the profile when the signed-in user actually changes (sign-in / switch / sign-out).
+      // TOKEN_REFRESHED fires periodically and on tab focus with the SAME user — refetching there
+      // replaced the profile object on every refresh and helped drive the bootstrap re-run loop.
+      if (sameUser) {
+        set({ session: newSession, user: nextUser })
+        return
+      }
+      const nextProfile = nextUser ? await loadProfile(nextUser.id) : null
+      set({ session: newSession, user: nextUser, profile: nextProfile })
     })
   },
 

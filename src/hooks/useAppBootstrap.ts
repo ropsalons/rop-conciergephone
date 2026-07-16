@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
 import { useDirectoryStore } from '@/stores/directoryStore'
@@ -12,6 +12,16 @@ import type { NotificationRow } from '@/types'
 export function useAppBootstrap() {
   const userId = useAuthStore((s) => s.user?.id)
   const prefs = useAuthStore((s) => s.profile?.notification_prefs)
+
+  // Keep the latest notification prefs in a ref so the notification handler reads current values
+  // WITHOUT the effect depending on `prefs`. Depending on `prefs` was catastrophic: the effect calls
+  // refreshProfile(), which replaces the profile with a freshly-parsed object (new `notification_prefs`
+  // reference), which changed this dependency, which re-ran the effect, which called refreshProfile()
+  // again — an unthrottled loop that re-ran the entire bootstrap (directory, sidebar, unread, push
+  // upsert, presence) and re-subscribed Realtime on every iteration. That single bug produced the
+  // hundreds of thousands of duplicate DB calls. The effect now runs once per login.
+  const prefsRef = useRef(prefs)
+  prefsRef.current = prefs
 
   useEffect(() => {
     if (!userId) return
@@ -33,7 +43,7 @@ export function useAppBootstrap() {
         (payload) => {
           const n = payload.new as NotificationRow
           chat.refreshUnread()
-          const allow = prefs
+          const allow = prefsRef.current
           // When mobile push is on, the service worker shows the OS notification — don't double up.
           const osNotify = !!allow?.browser_push && !allow?.mobile_push
           if (n.type === 'urgent') {
@@ -88,7 +98,10 @@ export function useAppBootstrap() {
       document.removeEventListener('visibilitychange', onVisibility)
       window.removeEventListener('beforeunload', onUnload)
     }
-  }, [userId, prefs])
+    // Depend on userId ONLY. `prefs` is intentionally read via prefsRef inside the handler so that a
+    // profile refresh can never re-run this effect (which would re-subscribe Realtime + re-bootstrap).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId])
 }
 
 function maybeBrowserNotify(n: NotificationRow, enabled?: boolean) {
