@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.12.6'
+export const APP_VERSION = '1.12.7'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,15 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.12.7',
+    date: '2026-07-16',
+    time: '5:20 PM ET',
+    title: 'The Refresh button now actually updates the app',
+    changes: [
+      'Fixed the "Refresh" update button — tapping it did nothing before. It now reliably clears the old cached copy and loads the newest version on both phone and desktop, keeping you on the same screen.',
+    ],
+  },
   {
     version: '1.12.6',
     date: '2026-07-16',
