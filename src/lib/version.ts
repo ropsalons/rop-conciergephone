@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.13.3'
+export const APP_VERSION = '1.13.4'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.13.4',
+    date: '2026-07-16',
+    time: '8:05 PM ET',
+    title: 'Report a problem — right from Help',
+    changes: [
+      'New “Report a problem” button at the top of the Help window (the ? button on every page). Describe what went wrong and it posts to a new private App Support channel and notifies Rob directly — so app issues have one place to go instead of getting lost in a text or DM.',
+      'Each report automatically includes your device and app version, so we can fix it faster without asking a bunch of follow-up questions.',
+    ],
+  },
   {
     version: '1.13.3',
     date: '2026-07-16',

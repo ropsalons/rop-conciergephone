@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { useUIStore } from '@/stores/uiStore'
 import { Modal } from '@/components/ui/Modal'
+import { ReportProblemModal } from './ReportProblemModal'
 import { APP_VERSION, CHANGELOG } from '@/lib/version'
 import { APP_NAME, COMPANY_NAME } from '@/lib/constants'
 import {
@@ -60,8 +61,10 @@ export function HelpModal() {
   const open = useUIStore((s) => s.helpOpen)
   const setOpen = useUIStore((s) => s.setHelpOpen)
   const [tab, setTab] = useState<'guide' | 'whatsnew'>('guide')
+  const [reportOpen, setReportOpen] = useState(false)
 
   return (
+    <>
     <Modal
       open={open}
       onClose={() => setOpen(false)}
@@ -91,6 +94,16 @@ export function HelpModal() {
           What&apos;s new
         </button>
       </div>
+
+      {/* Always-visible way to flag a problem, from any page. */}
+      <button
+        onClick={() => setReportOpen(true)}
+        className="mb-3 flex w-full items-center gap-2 rounded-lg border border-gold-400/30 bg-gold-400/10 px-3 py-2 text-left text-sm font-medium text-gold-100 hover:bg-gold-400/20"
+      >
+        <AlertTriangle className="h-4 w-4 shrink-0 text-gold-300" />
+        <span className="flex-1">Something not working? <span className="font-semibold">Report a problem</span></span>
+        <span aria-hidden className="text-gold-300">→</span>
+      </button>
 
       <div className="max-h-[65vh] space-y-2 overflow-y-auto pr-1">
         {tab === 'guide' ? (
@@ -319,5 +332,7 @@ export function HelpModal() {
         )}
       </div>
     </Modal>
+    <ReportProblemModal open={reportOpen} onClose={() => setReportOpen(false)} />
+    </>
   )
 }

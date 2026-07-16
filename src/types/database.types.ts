@@ -341,6 +341,7 @@ export type Database = {
         Returns: MessageRow[]
       }
       mark_all_notifications_read: { Args: Record<string, never>; Returns: undefined }
+      report_app_problem: { Args: { p_message: string; p_context?: string | null }; Returns: string }
     }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>
