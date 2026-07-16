@@ -206,8 +206,13 @@ Also watch **Reports → Database → CPU / Disk IO** in the Supabase dashboard 
   `direct_conversation_members`×2, `touch_last_seen`, `push_subscriptions`) each ≈ **586k–590k calls**
   with matching counts — i.e. looping continuously per active client; `channel_members` alone burned
   ~103M ms of DB time.
+- **Before request frequency (measured live, 2026-07-16 21:01–21:02 UTC):** a 70-second delta on
+  `pg_stat_statements` showed **3,075 PostgREST data queries in 69.8s ≈ 44 requests/second
+  (~2,645/min)** — versus the 46-day average of ~105/min, i.e. the loop was actively saturating the
+  instance at the time of the fix.
 - **After request frequency:** those same queries run **once per login** (a few times/user/day). The
-  60s presence heartbeat is the only recurring per-client DB call.
+  60s presence heartbeat is the only recurring per-client DB call. Expected steady-state is a small
+  fraction of the 44/sec above (dominated by real user activity + heartbeats), not a continuous loop.
 - **Subscriptions before/after:** 2 per client **recreated every loop** (≈1.77M setup calls in the
   window) → **2 per client, created once per login** and cleaned up.
 - **Estimated reduction:** **>95% (likely >99%)** of ROP Chat's Supabase call volume — the entire
