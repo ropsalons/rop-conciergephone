@@ -59,7 +59,13 @@ const updateSW = registerSW({
       const nw = reg.installing
       if (!nw) return
       nw.addEventListener('statechange', () => {
-        if (nw.state === 'installed' && navigator.serviceWorker.controller) announce()
+        if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+          // Tell the freshly-installed worker to take over now. It then controls the page, which
+          // fires `controllerchange` above and reloads us onto the new build automatically. Without
+          // this nudge the new version sat waiting and never applied. The banner is the backup.
+          try { nw.postMessage({ type: 'SKIP_WAITING' }) } catch { /* ignore */ }
+          announce()
+        }
       })
     })
     const check = () => {
