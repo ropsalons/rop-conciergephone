@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.12.3'
+export const APP_VERSION = '1.12.4'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,15 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.12.4',
+    date: '2026-07-16',
+    time: '4:05 PM ET',
+    title: 'Fixed iPhone zooming when you tap a text field',
+    changes: [
+      'Fixed the real cause of the iPhone display trouble: tapping into the message box (or any text field) made iPhones zoom in and push the app past the edge of the screen. Text fields are now sized so iOS no longer zooms — the screen stays put when the keyboard opens.',
+    ],
+  },
   {
     version: '1.12.3',
     date: '2026-07-16',

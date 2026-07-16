@@ -26,6 +26,18 @@ body {
 /* Belt-and-suspenders: never let the app scroll sideways on a phone. */
 html, body { overflow-x: hidden; }
 
+/* iOS Safari zooms the ENTIRE page in whenever you focus a text field whose font-size is under
+   16px — which on a phone magnifies the layout past the edges of the screen (the message box and
+   Send button run off-screen the moment the keyboard opens). Forcing every text field to 16px on
+   phones stops the zoom entirely. `!important` is deliberate: it must beat Tailwind's text-sm. */
+@media (max-width: 640px) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
 @layer components {
   .btn {
     @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition
