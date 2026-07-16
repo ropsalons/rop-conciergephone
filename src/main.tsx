@@ -30,10 +30,21 @@ if ('serviceWorker' in navigator) {
   })
 }
 
-registerSW({
+const updateSW = registerSW({
   immediate: true,
   onRegisteredSW(_swUrl, reg) {
     if (!reg) return
+    // Surface a visible "Refresh" banner when a fresh build has finished installing, so nobody is
+    // ever stuck on a stale cached copy (see components/UpdatePrompt.tsx).
+    const announce = () => window.dispatchEvent(new CustomEvent('rop:update-ready'))
+    if (reg.waiting && navigator.serviceWorker.controller) announce()
+    reg.addEventListener('updatefound', () => {
+      const nw = reg.installing
+      if (!nw) return
+      nw.addEventListener('statechange', () => {
+        if (nw.state === 'installed' && navigator.serviceWorker.controller) announce()
+      })
+    })
     const check = () => {
       if (navigator.onLine) reg.update().catch(() => {})
     }
@@ -43,6 +54,10 @@ registerSW({
     })
   },
 })
+// The banner's "Refresh" button calls this to force the waiting worker to activate and reload.
+;(window as unknown as { __ropUpdate?: () => void }).__ropUpdate = () => {
+  updateSW(true).catch(() => window.location.reload())
+}
 
 // HashRouter keeps deep links working on static hosts (GitHub Pages, Supabase Storage)
 // that don't rewrite unknown paths to index.html. On Netlify the netlify.toml SPA

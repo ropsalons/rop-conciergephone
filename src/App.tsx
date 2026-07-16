@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { Toaster, FullPageLoader } from '@/components/ui/Feedback'
 import { MissingConfig } from '@/components/MissingConfig'
+import { UpdatePrompt } from '@/components/UpdatePrompt'
 import { AuthPage } from '@/pages/AuthPage'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { DashboardPage } from '@/pages/DashboardPage'
@@ -44,6 +45,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
         <Toaster />
+        <UpdatePrompt />
       </>
     )
   }
@@ -85,6 +87,7 @@ export default function App() {
         </Route>
       </Routes>
       <Toaster />
+      <UpdatePrompt />
     </>
   )
 }
