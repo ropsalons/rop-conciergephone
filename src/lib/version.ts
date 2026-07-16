@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.12.2'
+export const APP_VERSION = '1.12.3'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.12.3',
+    date: '2026-07-16',
+    time: '3:35 PM ET',
+    title: 'Simpler message box on phones — Send always visible',
+    changes: [
+      'Streamlined the message box on phones to Attach · type · Send, with a round Send button that’s always on screen — no more scrolling sideways to find it. Tested down to the smallest iPhone screens.',
+      'The HTML and emoji buttons now live on desktop only (phones already have emoji on the keyboard), keeping the phone message box clean.',
+    ],
+  },
   {
     version: '1.12.2',
     date: '2026-07-16',

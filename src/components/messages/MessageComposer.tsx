@@ -202,7 +202,7 @@ export function MessageComposer({ onSend, placeholder = 'Write a message…', di
         <button
           onClick={() => setHtmlMode((v) => !v)}
           aria-pressed={htmlMode}
-          className={cn('rounded-lg p-2 hover:bg-white/10', htmlMode ? 'bg-gold-400/20 text-gold-300' : 'text-slate-400 hover:text-white')}
+          className={cn('hidden shrink-0 rounded-lg p-2 hover:bg-white/10 sm:inline-flex', htmlMode ? 'bg-gold-400/20 text-gold-300' : 'text-slate-400 hover:text-white')}
           title={htmlMode ? 'HTML mode is ON — your message will render as HTML. Tap to turn off.' : 'Send as HTML (paste HTML to render it)'}
         >
           <Code className="h-5 w-5" />
@@ -218,7 +218,7 @@ export function MessageComposer({ onSend, placeholder = 'Write a message…', di
           disabled={disabled}
           className="max-h-44 min-w-0 flex-1 resize-none bg-transparent py-1.5 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none"
         />
-        <div className="relative">
+        <div className="relative hidden shrink-0 sm:block">
           <button
             onClick={() => setEmojiOpen((v) => !v)}
             className="rounded-lg p-2 text-slate-400 hover:bg-white/10 hover:text-white"
@@ -243,8 +243,9 @@ export function MessageComposer({ onSend, placeholder = 'Write a message…', di
         <button
           onClick={submit}
           disabled={sending || disabled || (!text.trim() && pending.length === 0)}
-          className="btn-primary rounded-lg px-3 py-2"
+          className="btn-primary shrink-0 rounded-full p-2.5"
           title="Send"
+          aria-label="Send"
         >
           {sending ? <Spinner className="h-4 w-4" /> : <Send className="h-4 w-4" />}
         </button>
