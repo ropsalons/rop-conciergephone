@@ -216,7 +216,7 @@ export function MessageComposer({ onSend, placeholder = 'Write a message…', di
           rows={1}
           autoFocus={autoFocus}
           disabled={disabled}
-          className="max-h-44 min-w-0 flex-1 resize-none bg-transparent py-1.5 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none"
+          className="max-h-44 min-w-0 flex-1 resize-none bg-transparent py-1.5 text-base text-slate-100 placeholder:text-slate-500 focus:outline-none sm:text-sm"
         />
         <div className="relative hidden shrink-0 sm:block">
           <button
