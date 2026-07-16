@@ -7,6 +7,11 @@ import { uuid } from '@/lib/utils'
 
 const PAGE = 30
 
+// In-memory cache of the last-loaded messages per channel/DM/thread. Revisiting a conversation shows
+// its messages instantly from here while a fresh copy loads in the background — so navigating between
+// channels feels immediate instead of blank-then-load. Lives for the session (cleared on reload).
+const messageCache = new Map<string, MessageWithAuthor[]>()
+
 export interface Target {
   channelId?: string
   conversationId?: string
@@ -26,13 +31,29 @@ const stripHtml = (s: string) =>
 
 export function useMessages(target: Target, opts: { parentId?: string | null } = {}) {
   const me = useAuthStore((s) => s.user?.id)
-  const [messages, setMessages] = useState<MessageWithAuthor[]>([])
-  const [loading, setLoading] = useState(true)
-  const [hasMore, setHasMore] = useState(false)
-  const oldestRef = useRef<string | null>(null)
   const key = target.channelId ?? target.conversationId ?? ''
   const column = target.channelId ? 'channel_id' : 'conversation_id'
   const parentFilter = opts.parentId ?? null
+  const cacheKey = `${column}:${key}:${parentFilter ?? 'root'}`
+  const [messages, setMessages] = useState<MessageWithAuthor[]>(() => messageCache.get(cacheKey) ?? [])
+  const [loading, setLoading] = useState(() => !messageCache.has(cacheKey))
+  const [hasMore, setHasMore] = useState(false)
+  const oldestRef = useRef<string | null>(null)
+
+  // When the target changes, immediately swap to that conversation's cached messages (no blank flash)
+  // and only show the loader if we've never loaded it. This runs during render — the standard React
+  // "reset state when a key changes" pattern — so the stale conversation never paints.
+  const prevKey = useRef(cacheKey)
+  if (prevKey.current !== cacheKey) {
+    prevKey.current = cacheKey
+    setMessages(messageCache.get(cacheKey) ?? [])
+    setLoading(!messageCache.has(cacheKey))
+  }
+
+  // Keep the cache fresh as messages change (realtime, sends, reactions), excluding optimistic temps.
+  useEffect(() => {
+    if (key) messageCache.set(cacheKey, messages.filter((m) => !m.id.startsWith('temp-')))
+  }, [messages, key, cacheKey])
 
   const hydrate = useCallback(async (rows: MessageRow[]): Promise<MessageWithAuthor[]> => {
     if (!rows.length) return []
@@ -61,7 +82,8 @@ export function useMessages(target: Target, opts: { parentId?: string | null } =
 
   const load = useCallback(async () => {
     if (!key) return
-    setLoading(true)
+    // Only show the loader when we have nothing cached to display; otherwise refresh silently.
+    if (!messageCache.has(cacheKey)) setLoading(true)
     let q = supabase
       .from('messages')
       .select('*')
@@ -73,9 +95,11 @@ export function useMessages(target: Target, opts: { parentId?: string | null } =
     const rows = ((data as MessageRow[]) ?? []).reverse()
     setHasMore(((data as MessageRow[]) ?? []).length === PAGE)
     oldestRef.current = rows[0]?.created_at ?? null
-    setMessages(await hydrate(rows))
+    const hydrated = await hydrate(rows)
+    messageCache.set(cacheKey, hydrated)
+    setMessages(hydrated)
     setLoading(false)
-  }, [key, column, parentFilter, hydrate])
+  }, [key, column, parentFilter, hydrate, cacheKey])
 
   const loadMore = useCallback(async () => {
     if (!key || !oldestRef.current) return

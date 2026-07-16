@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.11.2'
+export const APP_VERSION = '1.11.3'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.11.3',
+    date: '2026-07-15',
+    time: '11:45 PM ET',
+    title: 'Much faster channel & message loading',
+    changes: [
+      'Opening a channel or DM is now near-instant. It used to blank the screen through two separate loads every time; now it shows the conversation immediately from what’s already loaded and refreshes in the background.',
+      'Channels and DMs you’ve already opened this session reappear instantly when you go back to them.',
+    ],
+  },
   {
     version: '1.11.2',
     date: '2026-07-15',

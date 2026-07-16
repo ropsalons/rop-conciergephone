@@ -28,16 +28,24 @@ export function useChannel(channelId?: string) {
 
   const load = useCallback(async () => {
     if (!channelId) return
-    setLoading(true)
     const { data } = await supabase.from('channels').select('*').eq('id', channelId).maybeSingle()
     setChannel((data as ChannelRow) ?? null)
     await loadMembers()
     setLoading(false)
   }, [channelId, loadMembers])
 
+  // Render instantly: seed the channel from the already-loaded sidebar so the page shows right away,
+  // then refresh channel + members in the background. Only show the full-page loader when we have
+  // nothing cached (e.g. a deep link to a channel not in your sidebar).
   useEffect(() => {
-    load()
-  }, [load])
+    if (!channelId) return
+    const seed = useChatStore.getState().channels.find((c) => c.id === channelId) as ChannelRow | undefined
+    setChannel(seed ?? null)
+    setIsMember(!!seed)
+    setMembers([])
+    setLoading(!seed)
+    void load()
+  }, [channelId, load])
 
   const join = useCallback(async () => {
     if (!channelId || !me) return
