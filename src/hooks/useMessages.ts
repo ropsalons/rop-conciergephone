@@ -104,8 +104,11 @@ export function useMessages(target: Target, opts: { parentId?: string | null } =
   // Realtime: messages + reactions -------------------------------------------
   useEffect(() => {
     if (!key) return
+    // Unique topic per subscription. Reusing a fixed topic could hand back a channel that was
+    // already subscribed (e.g. a thread reopened before its old channel finished tearing down),
+    // and adding `.on()` to an already-subscribed channel throws — which blanked the thread panel.
     const ch = supabase
-      .channel(`msgs:${column}:${key}:${parentFilter ?? 'root'}`)
+      .channel(`msgs:${column}:${key}:${parentFilter ?? 'root'}:${uuid()}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `${column}=eq.${key}` },

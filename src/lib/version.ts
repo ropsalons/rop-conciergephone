@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.11.1'
+export const APP_VERSION = '1.11.2'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.11.2',
+    date: '2026-07-15',
+    time: '11:20 PM ET',
+    title: 'Fixed thread crash + daily AI briefing',
+    changes: [
+      'Fixed the bug that showed “This thread couldn’t be opened” when opening a thread or pinned message — it was a realtime subscription conflict; threads now open reliably.',
+      'New #daily-briefing channel: every morning the AI posts a short recap of what happened across ROP Chat the day before.',
+    ],
+  },
   {
     version: '1.11.1',
     date: '2026-07-15',
