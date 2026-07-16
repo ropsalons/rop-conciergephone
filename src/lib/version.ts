@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.11.0'
+export const APP_VERSION = '1.11.1'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.11.1',
+    date: '2026-07-15',
+    time: '6:05 PM ET',
+    title: 'Tap-to-open notifications + Ask AI channel',
+    changes: [
+      'Tapping a phone notification now opens straight to that message/conversation — no more landing on the home screen and hunting for it.',
+      'New #ask-ai channel where you can post a question for the AI. The always-on auto-responder is built and ready — it just needs an Anthropic API key switched on (see your DM).',
+    ],
+  },
   {
     version: '1.11.0',
     date: '2026-07-15',

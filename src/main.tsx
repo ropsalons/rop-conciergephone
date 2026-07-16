@@ -20,6 +20,14 @@ if ('serviceWorker' in navigator) {
     reloading = true
     window.location.reload()
   })
+  // When a push notification is tapped while the app is already open, the service worker asks us to
+  // route to the exact conversation/channel. HashRouter picks up the hash change and navigates there.
+  navigator.serviceWorker.addEventListener('message', (e) => {
+    const d = e.data as { type?: string; path?: string } | undefined
+    if (d && d.type === 'navigate' && typeof d.path === 'string') {
+      window.location.hash = d.path
+    }
+  })
 }
 
 registerSW({
