@@ -74,9 +74,9 @@ Body: `{ "action": "<action>", ...params, "idempotency_key"?: "<uuid>" }`
 | `read_channel_messages` | `channel`, `limit?`, `before?` | Recent messages (permission-filtered) |
 | `read_thread` | `message_id` | Root + replies |
 | `search_messages` | `query`, `channel?`, `limit?` | Searches only allowed channels |
-| `post_message` | `channel`, `text` \| `html`, `title?` | Posts as the agent identity |
-| `reply_thread` | `message_id`, `text` | Reply in a thread |
-| `send_dm` | `to_email`, `text` | Requires `allow_dms` |
+| `post_message` | `channel`, `text` \| `html`, `title?`, `attachments?` | Posts as the agent identity |
+| `reply_thread` | `message_id`, `text`, `attachments?` | Reply in a thread |
+| `send_dm` | `to_email`, `text`, `attachments?` | Requires `allow_dms` |
 | `create_task` | `title`, `body?`, `channel?`, `assignee_email?` | Structured action item |
 | `update_task` | `task_id`, `status?`, `title?`, `body?` | `open`/`in_progress`/`done`/`cancelled` |
 | `request_approval` | `request_action`, `preview`, `payload?` | Queue a sensitive action |
@@ -85,6 +85,14 @@ Body: `{ "action": "<action>", ...params, "idempotency_key"?: "<uuid>" }`
 Every response includes a `correlation_id` that also appears in the audit log. Write actions accept
 an `idempotency_key` (or `X-Idempotency-Key` header) — a repeated key returns the original result.
 Rate limit → HTTP 429. Kill-switch on → HTTP 503. Denied permission → HTTP 403.
+
+**Attachments.** `post_message`, `reply_thread` and `send_dm` accept an `attachments` array — each
+item is `{ url }` or `{ name, mime_type, base64 }` (base64 may be a `data:` URL). Files are stored
+in the private `attachments` bucket and rendered in ROP Chat exactly like a staff upload (images
+inline, others as a download chip). Up to 20 files, 25 MB each; the response reports
+`attachments: { saved, skipped }`. You can attach with no text (it's labeled "📎 Attachment").
+The one-way `ingest` webhook takes the same `attachments` field; inbound **email** and **SMS/MMS**
+also carry attachments in automatically.
 
 ## 5. MCP (Claude Code / Cowork)
 

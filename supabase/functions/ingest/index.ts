@@ -63,6 +63,78 @@ function htmlToText(html: string): string {
     .slice(0, 280)
 }
 
+// ── Inbound attachments ──────────────────────────────────────────────────────
+// Uploads received files to the private `attachments` bucket (service role bypasses the
+// per-user path RLS) and links them to a message via the `files` table, so they render in
+// ROP Chat like any staff upload. Callers pass `attachments` (or `files`): an array of
+// { url } or { name, mime_type, base64 } (base64 may be a data: URL). Best-effort per item.
+const MAX_ATTACH_BYTES = 26214400 // 25MB — matches the storage bucket cap
+interface InAttachment { name?: string; mime_type?: string | null; bytes?: Uint8Array; url?: string; base64?: string }
+function b64ToBytes(b64: string): Uint8Array {
+  const clean = b64.startsWith('data:') && b64.includes(',') ? b64.slice(b64.indexOf(',') + 1) : b64
+  const bin = atob(clean.replace(/\s+/g, ''))
+  const out = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i)
+  return out
+}
+const EXT_BY_MIME: Record<string, string> = {
+  'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp',
+  'image/heic': 'heic', 'application/pdf': 'pdf', 'text/plain': 'txt', 'text/csv': 'csv',
+  'application/msword': 'doc', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+  'application/vnd.ms-excel': 'xls', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+  'video/mp4': 'mp4', 'audio/mpeg': 'mp3', 'audio/mp4': 'm4a', 'application/zip': 'zip',
+}
+function pickExt(name: string | undefined, mime: string | null): string {
+  if (name && name.includes('.')) { const e = name.split('.').pop()!; if (e && e.length <= 8 && /^[a-z0-9]+$/i.test(e)) return e.toLowerCase() }
+  return EXT_BY_MIME[(mime ?? '').toLowerCase()] ?? 'bin'
+}
+function parseJsonAttachments(raw: any): InAttachment[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map((a: any) => {
+      if (typeof a === 'string') return { url: a } as InAttachment
+      return {
+        name: a.name ?? a.filename ?? a.file_name,
+        mime_type: a.mime_type ?? a.mimetype ?? a.type ?? a.content_type ?? a.contentType ?? null,
+        url: a.url ?? a.href ?? a.link ?? undefined,
+        base64: a.base64 ?? a.content_base64 ?? a.data ?? a.content ?? undefined,
+      } as InAttachment
+    })
+    .filter((a: InAttachment) => a.url || a.base64)
+}
+async function saveAttachments(
+  admin: any,
+  target: { message_id: string; channel_id?: string | null; conversation_id?: string | null; uploader_id: string },
+  items: InAttachment[],
+): Promise<{ saved: number; skipped: number }> {
+  let saved = 0, skipped = 0
+  for (const it of (items ?? []).slice(0, 20)) {
+    try {
+      let bytes = it.bytes
+      let mime = it.mime_type ?? null
+      const name = (it.name ?? '').trim() || `attachment-${saved + skipped + 1}`
+      if (!bytes && it.base64) bytes = b64ToBytes(it.base64)
+      if (!bytes && it.url) {
+        const r = await fetch(it.url)
+        if (!r.ok) { skipped++; continue }
+        bytes = new Uint8Array(await r.arrayBuffer())
+        if (!mime) mime = r.headers.get('content-type')
+      }
+      if (!bytes || !bytes.length || bytes.length > MAX_ATTACH_BYTES) { skipped++; continue }
+      const path = `inbound/${crypto.randomUUID()}.${pickExt(name, mime)}`
+      const up = await admin.storage.from('attachments').upload(path, bytes, { contentType: mime ?? undefined, upsert: false })
+      if (up.error) { skipped++; continue }
+      const ins = await admin.from('files').insert({
+        message_id: target.message_id, channel_id: target.channel_id ?? null, conversation_id: target.conversation_id ?? null,
+        uploader_id: target.uploader_id, bucket: 'attachments', path, name, mime_type: mime, size_bytes: bytes.length,
+      })
+      if (ins.error) { skipped++; continue }
+      saved++
+    } catch { skipped++ }
+  }
+  return { saved, skipped }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   if (req.method !== 'POST') return json({ ok: false, error: 'Use POST' }, 405)
@@ -101,11 +173,15 @@ Deno.serve(async (req) => {
   const externalKey: string | undefined =
     typeof body.external_key === 'string' && body.external_key.trim() ? body.external_key.trim() : undefined
 
-  // Body text: use provided text, else derive a short preview from the HTML/title.
+  // Attachments (photos, PDFs, etc.) sent alongside — or instead of — text.
+  const attachments = parseJsonAttachments(body.attachments ?? body.files)
+
+  // Body text: use provided text, else derive a short preview from the HTML/title/attachment.
   let text: string = (body.text ?? body.message ?? '').toString().trim()
   if (!text && html) text = title ?? htmlToText(html) ?? 'Report'
   if (!text && title) text = title
-  if (!text) return json({ ok: false, error: 'Provide "text" or "html"' }, 400)
+  if (!text && attachments.length) text = attachments.length === 1 ? '📎 Attachment' : `📎 ${attachments.length} attachments`
+  if (!text) return json({ ok: false, error: 'Provide "text", "html", or "attachments"' }, 400)
 
   const metadata: Record<string, unknown> = {
     via_api: true,
@@ -186,8 +262,10 @@ Deno.serve(async (req) => {
           ])
       }
       const res = await upsertMessage({ conversation_id: convId })
+      let attach: { saved: number; skipped: number } | undefined
+      if (attachments.length && !res.updated) attach = await saveAttachments(admin, { message_id: res.id, conversation_id: convId, uploader_id: BOT_ID }, attachments)
       await admin.from('integration_tokens').update({ last_used_at: new Date().toISOString() }).eq('id', token.id)
-      return json({ ok: true, message_id: res.id, updated: res.updated, conversation_id: convId })
+      return json({ ok: true, message_id: res.id, updated: res.updated, conversation_id: convId, attachments: attach })
     }
 
     // --- Post to a channel (by slug, name, or id) -----------------------------
@@ -205,8 +283,10 @@ Deno.serve(async (req) => {
     if (!channelId) return json({ ok: false, error: 'Provide "channel" (slug) or "to_email"' }, 400)
 
     const res = await upsertMessage({ channel_id: channelId })
+    let attach: { saved: number; skipped: number } | undefined
+    if (attachments.length && !res.updated) attach = await saveAttachments(admin, { message_id: res.id, channel_id: channelId, uploader_id: BOT_ID }, attachments)
     await admin.from('integration_tokens').update({ last_used_at: new Date().toISOString() }).eq('id', token.id)
-    return json({ ok: true, message_id: res.id, updated: res.updated, channel_id: channelId })
+    return json({ ok: true, message_id: res.id, updated: res.updated, channel_id: channelId, attachments: attach })
   } catch (e) {
     return json({ ok: false, error: String((e as Error).message ?? e) }, 500)
   }

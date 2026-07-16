@@ -27,6 +27,64 @@ const ALLOWED = (Deno.env.get('INBOUND_ALLOWED') ?? '').toLowerCase().split(',')
 const json = (b: unknown, status = 200) =>
   new Response(JSON.stringify(b), { status, headers: { 'Content-Type': 'application/json' } })
 
+// ── Inbound attachments ──────────────────────────────────────────────────────
+// Saves received files to the private `attachments` bucket (service role bypasses the
+// per-user path RLS) and links them to a message via the `files` table, so they render in
+// ROP Chat exactly like a staff upload. Accepts raw bytes (email/MMS) or {url|base64} (API/AI).
+// Best-effort per item: a bad attachment is skipped, never failing the message.
+const MAX_ATTACH_BYTES = 26214400 // 25MB — matches the storage bucket cap
+interface InAttachment { name?: string; mime_type?: string | null; bytes?: Uint8Array; url?: string; base64?: string }
+function b64ToBytes(b64: string): Uint8Array {
+  const clean = b64.startsWith('data:') && b64.includes(',') ? b64.slice(b64.indexOf(',') + 1) : b64
+  const bin = atob(clean.replace(/\s+/g, ''))
+  const out = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i)
+  return out
+}
+const EXT_BY_MIME: Record<string, string> = {
+  'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp',
+  'image/heic': 'heic', 'application/pdf': 'pdf', 'text/plain': 'txt', 'text/csv': 'csv',
+  'application/msword': 'doc', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+  'application/vnd.ms-excel': 'xls', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+  'video/mp4': 'mp4', 'audio/mpeg': 'mp3', 'audio/mp4': 'm4a', 'audio/amr': 'amr', 'application/zip': 'zip',
+}
+function pickExt(name: string | undefined, mime: string | null): string {
+  if (name && name.includes('.')) { const e = name.split('.').pop()!; if (e && e.length <= 8 && /^[a-z0-9]+$/i.test(e)) return e.toLowerCase() }
+  return EXT_BY_MIME[(mime ?? '').toLowerCase()] ?? 'bin'
+}
+async function saveAttachments(
+  admin: any,
+  target: { message_id: string; channel_id?: string | null; conversation_id?: string | null; uploader_id: string },
+  items: InAttachment[],
+): Promise<{ saved: number; skipped: number }> {
+  let saved = 0, skipped = 0
+  for (const it of (items ?? []).slice(0, 20)) {
+    try {
+      let bytes = it.bytes
+      let mime = it.mime_type ?? null
+      const name = (it.name ?? '').trim() || `attachment-${saved + skipped + 1}`
+      if (!bytes && it.base64) bytes = b64ToBytes(it.base64)
+      if (!bytes && it.url) {
+        const r = await fetch(it.url)
+        if (!r.ok) { skipped++; continue }
+        bytes = new Uint8Array(await r.arrayBuffer())
+        if (!mime) mime = r.headers.get('content-type')
+      }
+      if (!bytes || !bytes.length || bytes.length > MAX_ATTACH_BYTES) { skipped++; continue }
+      const path = `inbound/${crypto.randomUUID()}.${pickExt(name, mime)}`
+      const up = await admin.storage.from('attachments').upload(path, bytes, { contentType: mime ?? undefined, upsert: false })
+      if (up.error) { skipped++; continue }
+      const ins = await admin.from('files').insert({
+        message_id: target.message_id, channel_id: target.channel_id ?? null, conversation_id: target.conversation_id ?? null,
+        uploader_id: target.uploader_id, bucket: 'attachments', path, name, mime_type: mime, size_bytes: bytes.length,
+      })
+      if (ins.error) { skipped++; continue }
+      saved++
+    } catch { skipped++ }
+  }
+  return { saved, skipped }
+}
+
 const emailOf = (s: string) => (String(s ?? '').match(/<([^>]+)>/)?.[1] ?? String(s ?? '')).trim().toLowerCase()
 const nameOf = (s: string) => {
   const m = String(s ?? '').match(/^\s*"?([^"<]+?)"?\s*</)
@@ -43,7 +101,24 @@ function cleanBody(raw: string): string {
   return t.trim().slice(0, 4000)
 }
 
-interface Parsed { to: string; from: string; subject: string; text: string; html: string }
+interface Parsed { to: string; from: string; subject: string; text: string; html: string; attachments: InAttachment[] }
+
+// JSON attachments array (a Cloudflare Email Worker, Mailgun, or custom forwarder can send
+// [{ filename, type, content|url }, …] — content is base64, url is a fetchable link).
+function parseJsonAttachments(raw: any): InAttachment[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map((a: any) => {
+      if (typeof a === 'string') return { url: a } as InAttachment
+      return {
+        name: a.name ?? a.filename ?? a.file_name,
+        mime_type: a.mime_type ?? a.mimetype ?? a.type ?? a.content_type ?? a.contentType ?? null,
+        url: a.url ?? a.href ?? a.link ?? undefined,
+        base64: a.base64 ?? a.content_base64 ?? a.data ?? a.content ?? undefined,
+      } as InAttachment
+    })
+    .filter((a: InAttachment) => a.url || a.base64)
+}
 
 const stripTags = (s: string) =>
   String(s ?? '').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 500)
@@ -58,7 +133,7 @@ async function parseInbound(req: Request): Promise<Parsed> {
       const env = typeof b.envelope === 'string' ? JSON.parse(b.envelope) : b.envelope
       if (env?.to?.[0]) to = env.to[0]
     } catch { /* ignore */ }
-    return { to: String(to), from: String(b.from ?? ''), subject: String(b.subject ?? ''), text: String(b.text ?? b.body ?? ''), html: String(b.html ?? '') }
+    return { to: String(to), from: String(b.from ?? ''), subject: String(b.subject ?? ''), text: String(b.text ?? b.body ?? ''), html: String(b.html ?? ''), attachments: parseJsonAttachments(b.attachments) }
   }
   const form = await req.formData()
   let to = String(form.get('to') ?? '')
@@ -66,7 +141,16 @@ async function parseInbound(req: Request): Promise<Parsed> {
     const env = JSON.parse(String(form.get('envelope') ?? '{}'))
     if (env?.to?.[0]) to = env.to[0]
   } catch { /* ignore */ }
-  return { to, from: String(form.get('from') ?? ''), subject: String(form.get('subject') ?? ''), text: String(form.get('text') ?? ''), html: String(form.get('html') ?? '') }
+  // Multipart (SendGrid Inbound Parse, Mailgun): file parts arrive as form fields whose value
+  // is a File (e.g. attachment1, attachment2, …). Read each one's bytes directly.
+  const attachments: InAttachment[] = []
+  for (const [, v] of (form as any).entries()) {
+    if (v && typeof v === 'object' && typeof (v as any).arrayBuffer === 'function' && 'name' in v) {
+      const f = v as File
+      try { attachments.push({ name: f.name, mime_type: f.type || null, bytes: new Uint8Array(await f.arrayBuffer()) }) } catch { /* skip */ }
+    }
+  }
+  return { to, from: String(form.get('from') ?? ''), subject: String(form.get('subject') ?? ''), text: String(form.get('text') ?? ''), html: String(form.get('html') ?? ''), attachments }
 }
 
 type Target = { channel: string } | { person: string } | null
@@ -115,7 +199,11 @@ Deno.serve(async (req) => {
       text = stripTags(htmlContent) || subject || 'Card'
     } else {
       text = cleanBody(p.text) || subject
-      if (!text) return json({ ok: false, error: 'empty message' }, 400)
+      // An attachment-only email (photo texted/forwarded in with no body) is valid — label it.
+      if (!text) {
+        if (p.attachments.length) text = p.attachments.length === 1 ? '📎 Attachment' : `📎 ${p.attachments.length} attachments`
+        else return json({ ok: false, error: 'empty message' }, 400)
+      }
     }
 
     // Post to a channel — forgiving match: exact slug, or the display name (hyphens ↔ spaces,
@@ -170,7 +258,18 @@ Deno.serve(async (req) => {
       res = await toPerson(target.person)
     }
     if (!res) return json({ ok: false, error: 'no matching channel or person for destination' }, 404)
-    return json({ ok: true, ...res, author: authorName })
+
+    // Save any attachments and link them to the just-posted message.
+    let attachments: { saved: number; skipped: number } | undefined
+    if (p.attachments.length) {
+      attachments = await saveAttachments(admin, {
+        message_id: res.message_id,
+        channel_id: res.channel_id ?? null,
+        conversation_id: res.conversation_id ?? null,
+        uploader_id: BOT_ID,
+      }, p.attachments)
+    }
+    return json({ ok: true, ...res, author: authorName, attachments })
   } catch (e) {
     return json({ ok: false, error: String((e as Error).message ?? e) }, 500)
   }

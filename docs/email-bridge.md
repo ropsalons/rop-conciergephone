@@ -114,7 +114,11 @@ the URL, or it's the name lowercased with hyphens._
 ## 5. Good to know (gotchas)
 
 - **One email = one message.** Send separate emails for separate posts.
-- **Attachments aren't supported yet** — put content in the body (or link to a file).
+- **Attachments ARE supported.** Any files attached to the email (photos, PDFs, docs, etc.) are
+  saved and rendered in ROP Chat just like a staff upload — images show inline, other files as a
+  download chip. An attachment-only email (no body text) posts fine and is labeled "📎 Attachment".
+  Cap is 25 MB per file; up to 20 files per message. Works from your provider's multipart forward,
+  or a JSON forwarder that sends an `attachments: [{ filename, type, content(base64) | url }]` array.
 - **`@Name` mentions** render highlighted but don't yet trigger a mention notification.
   To make sure someone sees it, DM them (`dm-<name>@`) or post in a channel they follow.
 - **Anyone who knows the address can post** — there's a shared secret behind the scenes, but the

@@ -62,6 +62,74 @@ function htmlToText(h: string): string {
   return out.trim().slice(0, 280)
 }
 
+// ── Inbound attachments ──────────────────────────────────────────────────────
+// Uploads files an agent sends to the private `attachments` bucket (service role bypasses the
+// per-user path RLS) and links them to a message via `files`, so they render in ROP Chat like
+// a staff upload. Agents pass `attachments` (or `files`): [{ url } | { name, mime_type, base64 }].
+const MAX_ATTACH_BYTES = 26214400 // 25MB — matches the storage bucket cap
+interface InAttachment { name?: string; mime_type?: string | null; url?: string; base64?: string }
+function b64ToBytes(b64: string): Uint8Array {
+  const clean = b64.startsWith('data:') && b64.includes(',') ? b64.slice(b64.indexOf(',') + 1) : b64
+  const bin = atob(clean.replace(/\s+/g, ''))
+  const out = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i)
+  return out
+}
+const EXT_BY_MIME: Record<string, string> = {
+  'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp',
+  'image/heic': 'heic', 'application/pdf': 'pdf', 'text/plain': 'txt', 'text/csv': 'csv',
+  'application/msword': 'doc', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+  'application/vnd.ms-excel': 'xls', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+  'video/mp4': 'mp4', 'audio/mpeg': 'mp3', 'audio/mp4': 'm4a', 'application/zip': 'zip',
+}
+function pickExt(name: string | undefined, mime: string | null): string {
+  if (name && name.includes('.')) { const e = name.split('.').pop()!; if (e && e.length <= 8 && /^[a-z0-9]+$/i.test(e)) return e.toLowerCase() }
+  return EXT_BY_MIME[(mime ?? '').toLowerCase()] ?? 'bin'
+}
+function parseJsonAttachments(raw: any): InAttachment[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map((a: any) => (typeof a === 'string' ? { url: a } : {
+      name: a.name ?? a.filename ?? a.file_name,
+      mime_type: a.mime_type ?? a.mimetype ?? a.type ?? a.content_type ?? a.contentType ?? null,
+      url: a.url ?? a.href ?? a.link ?? undefined,
+      base64: a.base64 ?? a.content_base64 ?? a.data ?? a.content ?? undefined,
+    }) as InAttachment)
+    .filter((a: InAttachment) => a.url || a.base64)
+}
+async function saveAttachments(
+  admin: any,
+  target: { message_id: string; channel_id?: string | null; conversation_id?: string | null; uploader_id: string },
+  items: InAttachment[],
+): Promise<{ saved: number; skipped: number }> {
+  let saved = 0, skipped = 0
+  for (const it of (items ?? []).slice(0, 20)) {
+    try {
+      let bytes: Uint8Array | undefined
+      let mime = it.mime_type ?? null
+      const name = (it.name ?? '').trim() || `attachment-${saved + skipped + 1}`
+      if (it.base64) bytes = b64ToBytes(it.base64)
+      else if (it.url) {
+        const r = await fetch(it.url)
+        if (!r.ok) { skipped++; continue }
+        bytes = new Uint8Array(await r.arrayBuffer())
+        if (!mime) mime = r.headers.get('content-type')
+      }
+      if (!bytes || !bytes.length || bytes.length > MAX_ATTACH_BYTES) { skipped++; continue }
+      const path = `inbound/${crypto.randomUUID()}.${pickExt(name, mime)}`
+      const up = await admin.storage.from('attachments').upload(path, bytes, { contentType: mime ?? undefined, upsert: false })
+      if (up.error) { skipped++; continue }
+      const ins = await admin.from('files').insert({
+        message_id: target.message_id, channel_id: target.channel_id ?? null, conversation_id: target.conversation_id ?? null,
+        uploader_id: target.uploader_id, bucket: 'attachments', path, name, mime_type: mime, size_bytes: bytes.length,
+      })
+      if (ins.error) { skipped++; continue }
+      saved++
+    } catch { skipped++ }
+  }
+  return { saved, skipped }
+}
+
 Deno.serve(async (req) => {
   const CORS = cors(req)
   const json = (b: unknown, status = 200) =>
@@ -232,7 +300,7 @@ Deno.serve(async (req) => {
     // ── Writes ────────────────────────────────────────────────────────────────
     const aiTag = { slug: A.slug, name: A.name, provider: A.provider }
 
-    async function insertMessage(target: { channel_id?: string; conversation_id?: string }, opts: { text: string; html?: string; title?: string; author_name?: string; parent?: string }) {
+    async function insertMessage(target: { channel_id?: string; conversation_id?: string }, opts: { text: string; html?: string; title?: string; author_name?: string; parent?: string; items?: InAttachment[] }) {
       const metadata: Record<string, unknown> = {
         via_api: true, ai_agent: aiTag, author_name: opts.author_name || A.name,
         ...(opts.html ? { format: 'html', html: opts.html, card_title: opts.title } : {}),
@@ -241,7 +309,10 @@ Deno.serve(async (req) => {
         .insert({ ...target, user_id: BOT_ID, body: opts.text, parent_message_id: opts.parent ?? null, metadata })
         .select('id').single()
       if (error) throw error
-      return data.id as string
+      const id = data.id as string
+      let attachments: { saved: number; skipped: number } | undefined
+      if (opts.items?.length) attachments = await saveAttachments(admin, { message_id: id, channel_id: target.channel_id ?? null, conversation_id: target.conversation_id ?? null, uploader_id: BOT_ID }, opts.items)
+      return { id, attachments }
     }
 
     // Sensitive-action gate: queue for human approval instead of executing.
@@ -257,14 +328,16 @@ Deno.serve(async (req) => {
       if (!ch) return deny('Channel not found', 404)
       if (!(await canPost(ch))) return deny('This agent may not post to that channel.')
       const html = typeof body.html === 'string' && body.html.trim() ? body.html : undefined
-      const text = String(body.text ?? body.message ?? (html ? htmlToText(html) : '')).trim()
-      if (!text) return deny('Provide "text" or "html"', 400)
+      const items = parseJsonAttachments(body.attachments ?? body.files)
+      let text = String(body.text ?? body.message ?? (html ? htmlToText(html) : '')).trim()
+      if (!text && items.length) text = items.length === 1 ? '📎 Attachment' : `📎 ${items.length} attachments`
+      if (!text) return deny('Provide "text", "html", or "attachments"', 400)
       if (A.require_approval_for.includes('post_message'))
         return await queueApproval({ channel_id: ch.id, text, author_name: body.author_name }, `Post to #${ch.slug}: ${text.slice(0, 140)}`)
-      const id = await insertMessage({ channel_id: ch.id }, { text, html, title: body.title, author_name: body.author_name })
+      const { id, attachments } = await insertMessage({ channel_id: ch.id }, { text, html, title: body.title, author_name: body.author_name, items })
       await admin.from('ai_agents').update({ last_used_at: new Date().toISOString() }).eq('id', A.id)
-      await audit('ok', true, { message_id: id, channel: ch.slug }, ch.id)
-      return json({ ok: true, message_id: id, channel_id: ch.id, correlation_id: correlationId })
+      await audit('ok', true, { message_id: id, channel: ch.slug, attachments }, ch.id)
+      return json({ ok: true, message_id: id, channel_id: ch.id, attachments, correlation_id: correlationId })
     }
 
     if (action === 'reply_thread') {
@@ -274,20 +347,24 @@ Deno.serve(async (req) => {
       if (!parent || !parent.channel_id) return deny('Parent message not found (or is a DM).', 404)
       const ch = await resolveChannel(parent.channel_id)
       if (!ch || !(await canPost(ch))) return deny('This agent may not reply in that channel.')
-      const text = String(body.text ?? body.message ?? '').trim()
-      if (!text) return deny('Provide "text"', 400)
+      const items = parseJsonAttachments(body.attachments ?? body.files)
+      let text = String(body.text ?? body.message ?? '').trim()
+      if (!text && items.length) text = items.length === 1 ? '📎 Attachment' : `📎 ${items.length} attachments`
+      if (!text) return deny('Provide "text" or "attachments"', 400)
       if (A.require_approval_for.includes('reply_thread'))
         return await queueApproval({ channel_id: ch.id, parent_message_id: parentId, text }, `Reply in #${ch.slug}: ${text.slice(0, 140)}`)
-      const id = await insertMessage({ channel_id: ch.id }, { text, parent: parentId })
-      await audit('ok', true, { message_id: id, parent: parentId }, ch.id)
-      return json({ ok: true, message_id: id, parent_message_id: parentId, correlation_id: correlationId })
+      const { id, attachments } = await insertMessage({ channel_id: ch.id }, { text, parent: parentId, items })
+      await audit('ok', true, { message_id: id, parent: parentId, attachments }, ch.id)
+      return json({ ok: true, message_id: id, parent_message_id: parentId, attachments, correlation_id: correlationId })
     }
 
     if (action === 'send_dm') {
       if (!A.allow_dms) return deny('This agent is not permitted to send direct messages.')
       const email = String(body.to_email ?? '').trim()
-      const text = String(body.text ?? body.message ?? '').trim()
-      if (!email || !text) return deny('Provide "to_email" and "text"', 400)
+      const items = parseJsonAttachments(body.attachments ?? body.files)
+      let text = String(body.text ?? body.message ?? '').trim()
+      if (!text && items.length) text = items.length === 1 ? '📎 Attachment' : `📎 ${items.length} attachments`
+      if (!email || !text) return deny('Provide "to_email" and "text" (or "attachments")', 400)
       const { data: user } = await admin.from('profiles').select('id').ilike('email', email).maybeSingle()
       if (!user) return deny(`No user with email ${email}`, 404)
       const memberKey = [BOT_ID, user.id].sort().join(':')
@@ -300,9 +377,9 @@ Deno.serve(async (req) => {
         convId = conv.id
         await admin.from('direct_conversation_members').insert([{ conversation_id: convId, user_id: BOT_ID }, { conversation_id: convId, user_id: user.id }])
       }
-      const id = await insertMessage({ conversation_id: convId }, { text, author_name: body.author_name })
-      await audit('ok', true, { message_id: id, conversation_id: convId })
-      return json({ ok: true, message_id: id, conversation_id: convId, correlation_id: correlationId })
+      const { id, attachments } = await insertMessage({ conversation_id: convId }, { text, author_name: body.author_name, items })
+      await audit('ok', true, { message_id: id, conversation_id: convId, attachments })
+      return json({ ok: true, message_id: id, conversation_id: convId, attachments, correlation_id: correlationId })
     }
 
     if (action === 'create_task') {
