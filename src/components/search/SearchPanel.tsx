@@ -37,54 +37,45 @@ export function SearchPanel({ onNavigate }: { onNavigate?: () => void }) {
 
   const runRef = useRef(
     debounce(async (term: string, filters: { senderId: string; dateFrom: string }) => {
-      const tokens = term.trim().split(/\s+/).filter(Boolean)
-      const hasQuery = tokens.length > 0
+      const query = term.trim()
+      const hasQuery = query.length > 0
+      const sender = filters.senderId || null
+      const from = filters.dateFrom || null
 
-      // Links: any message containing a URL — browsable even with no search term. Every token
-      // must appear (multi-word AND), plus the sender/date filters.
-      let lq = supabase
-        .from('messages')
-        .select('*')
-        .eq('is_deleted', false)
-        .ilike('body', '%http%')
-        .order('created_at', { ascending: false })
-        .limit(40)
-      for (const t of tokens) lq = lq.ilike('body', `%${t}%`)
-      if (filters.senderId) lq = lq.eq('user_id', filters.senderId)
-      if (filters.dateFrom) lq = lq.gte('created_at', filters.dateFrom)
+      // Each source is independent — one failing/slow query must never blank the others.
+      const rows = async (p: any): Promise<any[]> => {
+        try { return (await p).data ?? [] } catch { return [] }
+      }
+
+      // Messages + links go through the search_messages RPC. Searching the messages table directly
+      // from the client hit RLS, which injected per-row security functions, forced a full sequential
+      // scan (~16s on 30k+ messages) and blew past the 8s statement timeout — so every search came
+      // back empty. The RPC runs the trigram search inside a SECURITY DEFINER function (index is
+      // used, ~70ms) while still enforcing the same channel/DM visibility.
+      const linksP = rows(
+        supabase.rpc('search_messages', { p_query: query, p_limit: 40, p_sender: sender, p_from: from, p_links_only: true }),
+      )
 
       if (!hasQuery) {
-        const l = await lq
-        setResults({ ...EMPTY, links: (l.data as MessageRow[]) ?? [] })
+        setResults({ ...EMPTY, links: (await linksP) as MessageRow[] })
         setLoading(false)
         return
       }
 
-      // Messages: every token must appear in the body (AND), newest first.
-      let mq = supabase
-        .from('messages')
-        .select('*')
-        .eq('is_deleted', false)
-        .order('created_at', { ascending: false })
-        .limit(50)
-      for (const t of tokens) mq = mq.ilike('body', `%${t}%`)
-      if (filters.senderId) mq = mq.eq('user_id', filters.senderId)
-      if (filters.dateFrom) mq = mq.gte('created_at', filters.dateFrom)
-
-      const like = `%${tokens[0]}%` // names are short — match the first token
-      const [m, c, f, p, l] = await Promise.all([
-        mq,
-        supabase.from('channels').select('*').or(`name.ilike.${like},description.ilike.${like}`).limit(20),
-        supabase.from('files').select('*').ilike('name', like).order('created_at', { ascending: false }).limit(20),
-        supabase.from('profiles').select('*').or(`full_name.ilike.${like},display_name.ilike.${like},title.ilike.${like}`).limit(20),
-        lq,
+      const like = `%${query.split(/\s+/)[0]}%` // names are short — match the first word
+      const [messages, links, channels, files, people] = await Promise.all([
+        rows(supabase.rpc('search_messages', { p_query: query, p_limit: 50, p_sender: sender, p_from: from, p_links_only: false })),
+        linksP,
+        rows(supabase.from('channels').select('*').or(`name.ilike.${like},description.ilike.${like}`).limit(20)),
+        rows(supabase.from('files').select('*').ilike('name', like).order('created_at', { ascending: false }).limit(20)),
+        rows(supabase.from('profiles').select('*').or(`full_name.ilike.${like},display_name.ilike.${like},title.ilike.${like}`).limit(20)),
       ])
       setResults({
-        messages: (m.data as MessageRow[]) ?? [],
-        links: (l.data as MessageRow[]) ?? [],
-        channels: (c.data as ChannelRow[]) ?? [],
-        files: (f.data as FileRow[]) ?? [],
-        people: (p.data as Profile[]) ?? [],
+        messages: messages as MessageRow[],
+        links: links as MessageRow[],
+        channels: channels as ChannelRow[],
+        files: files as FileRow[],
+        people: people as Profile[],
       })
       setLoading(false)
     }, 300),

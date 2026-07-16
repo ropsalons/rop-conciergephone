@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.12.0'
+export const APP_VERSION = '1.12.1'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.12.1',
+    date: '2026-07-16',
+    time: '2:40 PM ET',
+    title: 'Search works again (and is fast)',
+    changes: [
+      'Fixed search coming back empty for everything. The search was scanning every message the slow way and getting cut off by a time limit, so it returned nothing. It now uses a proper index and returns results in a fraction of a second — across messages, links, files, channels and people.',
+      'One slow or failing part of a search no longer blanks the whole results screen.',
+    ],
+  },
   {
     version: '1.12.0',
     date: '2026-07-16',

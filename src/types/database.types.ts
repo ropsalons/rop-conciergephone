@@ -336,7 +336,10 @@ export type Database = {
       mark_channel_read: { Args: { cid: string }; Returns: undefined }
       mark_conversation_read: { Args: { convid: string }; Returns: undefined }
       get_unread_summary: { Args: Record<string, never>; Returns: UnreadSummary }
-      search_messages: { Args: { q: string; max_rows?: number }; Returns: MessageRow[] }
+      search_messages: {
+        Args: { p_query: string; p_limit?: number; p_sender?: string | null; p_from?: string | null; p_links_only?: boolean }
+        Returns: MessageRow[]
+      }
       mark_all_notifications_read: { Args: Record<string, never>; Returns: undefined }
     }
     Enums: Record<string, never>
