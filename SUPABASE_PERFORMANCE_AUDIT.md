@@ -167,6 +167,34 @@ continuously-growing subscription count is immediately visible in development.
 
 ---
 
+## Production verification (MEASURED post-deploy, 2026-07-16 21:13–21:18 UTC)
+
+Confirmed: files committed (`f458045`); both CI deploys `success`; production serving `v1.13.2`.
+`pg_stat_statements` was reset at 21:13:29 UTC and a clean **3.84-minute** window measured:
+
+| Metric | Before (measured) | After (measured) | Change |
+| --- | --- | --- | --- |
+| All PostgREST data queries | **~2,645/min (44/sec)** (live delta 21:01–21:02) | **~66/min (1.1/sec)** (252 in 3.84 min) | **↓ ~97.5%** |
+| `channel_activity()` | continuous (589k cum, 46 ms ea) | **0 calls** | ↓ ~100% |
+| `profiles` (all, ORDER BY full_name) | continuous (590k cum) | **0 calls** | ↓ ~100% |
+| `get_unread_summary()` | continuous (587k cum) | **0 calls** | ↓ ~100% |
+| `channel_members (channels(*))` | continuous, **189 ms** mean | **9 calls (2.3/min), 58 ms** | ↓ ~95% + faster |
+| `direct_conversation_members` | continuous (586–588k cum) | **6 calls (1.6/min)** | ↓ ~100% |
+| Realtime subscription-setup calls | ~1.77M cumulative (constant churn) | **3 in the window** | ↓ ~100% (stable subs) |
+| Top statement by calls (since reset) | (loop) | 180 (PostgREST `set_config`) — nothing climbing | no runaway |
+
+- **CPU:** was ~91% (Nano). Not directly readable via SQL, but the two heaviest statements
+  (`channel_members` 189 ms × continuous, `channel_activity()` 46 ms × continuous) are now ~zero and
+  `channel_members` mean fell 189 ms → 58 ms as contention cleared — so CPU should fall to a small
+  fraction. Confirm the downward trend in Supabase → Reports → Database → CPU over the next hour.
+- **Request rate:** ~2,645/min → ~66/min (**≈97.5% reduction**).
+- **Subscriptions:** were 2/client **recreated every loop iteration** (≈1.77M setup calls in the prior
+  window) → 2/client **created once per login** (3 setup calls in the measured window).
+- **Estimated cost savings:** eliminates the need to upsize compute (Nano → Small/Medium would be
+  ~$15–75+/mo) and cuts Disk IO proportionally; the app now uses ~2–3% of its prior DB query volume.
+- **Runaway check (rule 8):** none. No query exceeds expectations; the loop-signature queries are at
+  zero while real clients are active. No further optimization required.
+
 ## How to verify the improvement in Supabase
 
 Run this any time to see the top statements by call count (the bootstrap-cluster queries should stop
