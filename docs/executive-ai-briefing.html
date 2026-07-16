@@ -1,0 +1,735 @@
+<style>
+  :root {
+    --paper: #F6F4EF;
+    --surface: #FCFBF8;
+    --surface-2: #F1EEE6;
+    --ink: #14202E;
+    --muted: #5C6672;
+    --navy: #13294B;
+    --navy-soft: #EAEEF4;
+    --gold: #A9812A;
+    --gold-ink: #8A6A1E;
+    --gold-soft: #EEE2C4;
+    --line: #E4DFD5;
+    --line-strong: #D3CCBD;
+    --good: #2E7A57;
+    --good-bg: #E4F0E9;
+    --warn: #9A6E18;
+    --warn-bg: #F3E9CF;
+    --plan: #536477;
+    --plan-bg: #E7EBF0;
+    --shadow: 0 1px 2px rgba(20,32,46,.05), 0 8px 28px rgba(20,32,46,.06);
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #0A131E;
+      --surface: #0F1D2B;
+      --surface-2: #13202F;
+      --ink: #E9ECF1;
+      --muted: #96A2B2;
+      --navy: #7FA8DE;
+      --navy-soft: #16273A;
+      --gold: #D6AC52;
+      --gold-ink: #E4BE6A;
+      --gold-soft: #2A2314;
+      --line: #21313F;
+      --line-strong: #2B3D4E;
+      --good: #57BC90;
+      --good-bg: #12271E;
+      --warn: #D6AC52;
+      --warn-bg: #2A2314;
+      --plan: #93A6BB;
+      --plan-bg: #17242F;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 34px rgba(0,0,0,.34);
+    }
+  }
+  :root[data-theme="light"] {
+    --paper: #F6F4EF; --surface: #FCFBF8; --surface-2: #F1EEE6; --ink: #14202E; --muted: #5C6672;
+    --navy: #13294B; --navy-soft: #EAEEF4; --gold: #A9812A; --gold-ink: #8A6A1E; --gold-soft: #EEE2C4;
+    --line: #E4DFD5; --line-strong: #D3CCBD; --good: #2E7A57; --good-bg: #E4F0E9; --warn: #9A6E18;
+    --warn-bg: #F3E9CF; --plan: #536477; --plan-bg: #E7EBF0;
+    --shadow: 0 1px 2px rgba(20,32,46,.05), 0 8px 28px rgba(20,32,46,.06);
+  }
+  :root[data-theme="dark"] {
+    --paper: #0A131E; --surface: #0F1D2B; --surface-2: #13202F; --ink: #E9ECF1; --muted: #96A2B2;
+    --navy: #7FA8DE; --navy-soft: #16273A; --gold: #D6AC52; --gold-ink: #E4BE6A; --gold-soft: #2A2314;
+    --line: #21313F; --line-strong: #2B3D4E; --good: #57BC90; --good-bg: #12271E; --warn: #D6AC52;
+    --warn-bg: #2A2314; --plan: #93A6BB; --plan-bg: #17242F;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 34px rgba(0,0,0,.34);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    font-size: 16px;
+  }
+  .serif { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif; }
+  .mono { font-family: ui-monospace, "SF Mono", "SFMono-Regular", Menlo, monospace; }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 22px 96px; }
+  .measure { max-width: 760px; }
+
+  a { color: var(--gold-ink); text-underline-offset: 2px; }
+
+  /* ---------- Masthead ---------- */
+  .masthead {
+    border-bottom: 1px solid var(--line-strong);
+    padding: 54px 0 30px;
+    margin-bottom: 34px;
+  }
+  .eyebrow {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: .70rem; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--gold-ink); font-weight: 600; margin: 0 0 16px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .eyebrow::after { content: ""; height: 1px; flex: 1; background: var(--line-strong); }
+  h1.title {
+    font-family: Georgia, "Iowan Old Style", serif;
+    font-weight: 600;
+    font-size: clamp(2.1rem, 5.2vw, 3.25rem);
+    line-height: 1.08;
+    letter-spacing: -.015em;
+    text-wrap: balance;
+    margin: 0 0 18px;
+    color: var(--ink);
+  }
+  h1.title em { color: var(--gold-ink); font-style: italic; }
+  .dek { font-size: 1.1rem; color: var(--muted); max-width: 640px; margin: 0 0 26px; }
+  .metarow {
+    display: flex; flex-wrap: wrap; gap: 12px 40px;
+    padding-top: 22px; border-top: 1px solid var(--line);
+  }
+  .meta-item { display: flex; flex-direction: column; gap: 3px; }
+  .meta-k { font-family: ui-monospace, Menlo, monospace; font-size: .66rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+  .meta-v { font-size: .95rem; font-weight: 600; color: var(--ink); }
+
+  /* ---------- Section scaffolding ---------- */
+  section { scroll-margin-top: 20px; }
+  .section-head { margin: 64px 0 26px; }
+  .section-num {
+    font-family: ui-monospace, Menlo, monospace; font-size: .72rem; letter-spacing: .2em;
+    text-transform: uppercase; color: var(--gold-ink); font-weight: 600;
+  }
+  h2.section-title {
+    font-family: Georgia, serif; font-weight: 600;
+    font-size: clamp(1.55rem, 3.4vw, 2.15rem); line-height: 1.14;
+    letter-spacing: -.01em; text-wrap: balance; margin: 8px 0 10px; color: var(--ink);
+  }
+  .section-sub { color: var(--muted); max-width: 680px; margin: 0; font-size: 1rem; }
+
+  h3.sub { font-family: Georgia, serif; font-size: 1.28rem; font-weight: 600; margin: 40px 0 14px; letter-spacing: -.005em; }
+
+  p { margin: 0 0 15px; }
+  p.measure, ul.measure { max-width: 760px; }
+
+  /* ---------- Pills / tags ---------- */
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: ui-monospace, Menlo, monospace; font-size: .66rem; font-weight: 600;
+    letter-spacing: .06em; text-transform: uppercase;
+    padding: 3px 9px; border-radius: 999px; white-space: nowrap;
+    border: 1px solid transparent;
+  }
+  .pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .pill.live { color: var(--good); background: var(--good-bg); border-color: color-mix(in srgb, var(--good) 26%, transparent); }
+  .pill.dev  { color: var(--warn); background: var(--warn-bg); border-color: color-mix(in srgb, var(--warn) 30%, transparent); }
+  .pill.plan { color: var(--plan); background: var(--plan-bg); border-color: color-mix(in srgb, var(--plan) 26%, transparent); }
+  .tag {
+    display: inline-block; font-family: ui-monospace, Menlo, monospace; font-size: .63rem;
+    letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+    border: 1px solid var(--line-strong); border-radius: 6px; padding: 2px 7px;
+  }
+
+  /* ---------- Key / legend ---------- */
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: center;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px 18px; margin: 0 0 8px; box-shadow: var(--shadow);
+  }
+  .legend .lg { display: flex; align-items: center; gap: 8px; font-size: .82rem; color: var(--muted); }
+
+  /* ---------- Stat tiles ---------- */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin: 28px 0 8px; }
+  .tile { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px 18px; box-shadow: var(--shadow); }
+  .tile .n { font-family: Georgia, serif; font-size: 2.1rem; font-weight: 600; line-height: 1; color: var(--gold-ink); font-variant-numeric: tabular-nums; }
+  .tile .l { font-size: .82rem; color: var(--muted); margin-top: 8px; }
+
+  /* ---------- Contents ---------- */
+  .toc { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px 24px; box-shadow: var(--shadow); }
+  .toc h4 { font-family: ui-monospace, Menlo, monospace; font-size: .70rem; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); margin: 0 0 14px; font-weight: 600; }
+  .toc ol { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: 1fr; gap: 2px; counter-reset: toc; }
+  @media (min-width: 620px) { .toc ol { grid-template-columns: 1fr 1fr; column-gap: 34px; } }
+  .toc li { counter-increment: toc; }
+  .toc a { display: flex; gap: 12px; padding: 6px 4px; text-decoration: none; color: var(--ink); border-radius: 6px; font-size: .93rem; align-items: baseline; }
+  .toc a:hover { background: var(--surface-2); color: var(--gold-ink); }
+  .toc a::before { content: counter(toc, decimal-leading-zero); font-family: ui-monospace, Menlo, monospace; font-size: .74rem; color: var(--gold-ink); min-width: 22px; }
+
+  /* ---------- Briefing entries ---------- */
+  .entries { display: grid; gap: 0; margin-top: 8px; }
+  .entry { display: grid; grid-template-columns: 44px 1fr; gap: 18px; padding: 24px 0; border-top: 1px solid var(--line); }
+  .entry:first-child { border-top: none; }
+  .entry .idx { font-family: ui-monospace, Menlo, monospace; font-size: .95rem; color: var(--gold-ink); font-weight: 600; padding-top: 3px; font-variant-numeric: tabular-nums; }
+  .entry .body { min-width: 0; }
+  .entry .eh { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 12px; margin-bottom: 8px; }
+  .entry h3 { font-family: Georgia, serif; font-size: 1.24rem; font-weight: 600; margin: 0; letter-spacing: -.005em; }
+  .entry p { margin: 0 0 10px; color: var(--ink); }
+  .entry p:last-child { margin-bottom: 0; }
+  .entry .note { color: var(--muted); font-size: .95rem; }
+
+  ul.clean { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+  ul.clean li { position: relative; padding-left: 20px; color: var(--ink); }
+  ul.clean li::before { content: ""; position: absolute; left: 2px; top: .62em; width: 6px; height: 6px; border-radius: 50%; background: var(--gold); }
+  ul.clean li b { font-weight: 650; }
+
+  /* ---------- Tables ---------- */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); margin: 6px 0 4px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; min-width: 520px; font-size: .92rem; }
+  thead th { text-align: left; font-family: ui-monospace, Menlo, monospace; font-size: .66rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: 13px 16px; background: var(--surface-2); border-bottom: 1px solid var(--line-strong); }
+  tbody td { padding: 13px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody td:first-child { font-weight: 600; }
+  tbody tr:hover td { background: var(--surface-2); }
+
+  /* ---------- Callouts ---------- */
+  .callout { border: 1px solid var(--line-strong); border-left: 3px solid var(--gold); background: var(--surface); border-radius: 10px; padding: 16px 20px; margin: 22px 0; box-shadow: var(--shadow); }
+  .callout .lab { font-family: ui-monospace, Menlo, monospace; font-size: .66rem; letter-spacing: .12em; text-transform: uppercase; color: var(--gold-ink); font-weight: 600; margin-bottom: 6px; }
+  .callout p { margin: 0; color: var(--ink); }
+
+  .honesty { background: var(--navy-soft); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px 24px; margin: 26px 0; }
+  .honesty .lab { font-family: ui-monospace, Menlo, monospace; font-size: .68rem; letter-spacing: .14em; text-transform: uppercase; color: var(--gold-ink); font-weight: 600; margin-bottom: 10px; }
+  .honesty p { margin: 0 0 10px; font-size: .96rem; }
+  .honesty p:last-child { margin-bottom: 0; }
+
+  /* ---------- Playbook cards (Section 2) ---------- */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-top: 8px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 10px; }
+  .card h3 { font-family: Georgia, serif; font-size: 1.12rem; font-weight: 600; margin: 0; }
+  .card .k { font-family: ui-monospace, Menlo, monospace; font-size: .64rem; letter-spacing: .1em; text-transform: uppercase; color: var(--gold-ink); font-weight: 600; }
+  .card p { margin: 0; font-size: .92rem; color: var(--muted); }
+  .prompt { font-family: ui-monospace, Menlo, monospace; font-size: .82rem; line-height: 1.5; color: var(--ink); background: var(--surface-2); border: 1px solid var(--line); border-left: 2px solid var(--gold); border-radius: 8px; padding: 11px 13px; }
+
+  /* ---------- Roadmap ---------- */
+  .road { display: grid; gap: 16px; grid-template-columns: 1fr; margin-top: 8px; }
+  @media (min-width: 760px) { .road { grid-template-columns: repeat(3, 1fr); } }
+  .road .col { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow); }
+  .road .col h4 { font-family: Georgia, serif; font-size: 1.15rem; margin: 0 0 4px; }
+  .road .col .win { font-family: ui-monospace, Menlo, monospace; font-size: .66rem; letter-spacing: .12em; text-transform: uppercase; color: var(--gold-ink); font-weight: 600; margin-bottom: 14px; }
+
+  /* ---------- Narrative (Section 3) ---------- */
+  .narrative { max-width: 720px; }
+  .narrative p { font-size: 1.07rem; line-height: 1.72; margin: 0 0 20px; }
+  .narrative p .lead { }
+  .dropcap::first-letter { font-family: Georgia, serif; font-size: 3.4rem; line-height: .82; float: left; padding: 6px 12px 0 0; color: var(--gold-ink); font-weight: 600; }
+  .narrative h3 { font-family: Georgia, serif; font-size: 1.35rem; font-weight: 600; margin: 34px 0 12px; }
+  .pullquote { font-family: Georgia, serif; font-style: italic; font-size: 1.5rem; line-height: 1.35; color: var(--ink); border-top: 1px solid var(--line-strong); border-bottom: 1px solid var(--line-strong); padding: 26px 0; margin: 34px 0; text-wrap: balance; }
+  .pullquote b { color: var(--gold-ink); font-style: normal; font-weight: 600; }
+
+  footer { margin-top: 70px; padding-top: 24px; border-top: 1px solid var(--line-strong); color: var(--muted); font-size: .85rem; }
+
+  .rule { height: 1px; background: var(--line); border: none; margin: 40px 0; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .reveal { opacity: 0; transform: translateY(12px); animation: rise .7s cubic-bezier(.2,.7,.3,1) forwards; }
+    @keyframes rise { to { opacity: 1; transform: none; } }
+  }
+  :focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 4px; }
+  html { scroll-behavior: smooth; }
+</style>
+
+<div class="wrap">
+
+  <!-- ===================== MASTHEAD ===================== -->
+  <header class="masthead reveal">
+    <p class="eyebrow">Confidential · Internal Leadership Briefing</p>
+    <h1 class="title serif">The State of <em>AI &amp; Technology</em> at Robert of Philadelphia</h1>
+    <p class="dek">A complete, honest picture of what we've built across AI, automation, dashboards and infrastructure — what's live today, what's in progress, and where marketing can move first.</p>
+    <div class="metarow">
+      <div class="meta-item"><span class="meta-k">Prepared for</span><span class="meta-v">Rob DiLella</span></div>
+      <div class="meta-item"><span class="meta-k">Meeting</span><span class="meta-v">Alexi — Marketing &amp; Communications</span></div>
+      <div class="meta-item"><span class="meta-k">Date</span><span class="meta-v">July 16, 2026</span></div>
+      <div class="meta-item"><span class="meta-k">Scope</span><span class="meta-v">3 locations · ~60 staff</span></div>
+    </div>
+  </header>
+
+  <!-- Honesty note -->
+  <div class="honesty reveal">
+    <div class="lab">How to read this — two things kept separate</div>
+    <p><b>ROP Chat / ROP Connect</b> — our internal team app, live at <span class="mono">rop-connect.netlify.app</span> — is fully built and running. Everything about it here is verified against the live code.</p>
+    <p><b>The Command Center project</b> — the separate analytics initiative that houses On&nbsp;The&nbsp;Clock and the Guest&nbsp;Experience / Retention / Cancellation dashboards — is a <b>separate codebase</b>. It's described from our shared design work and clearly marked <span class="tag">Companion project</span>, not verified line-by-line. That distinction is what keeps the briefing credible.</p>
+  </div>
+
+  <!-- Legend -->
+  <div class="legend reveal">
+    <span class="lg"><span class="pill live">Live</span> in production today</span>
+    <span class="lg"><span class="pill dev">In development</span> being built now</span>
+    <span class="lg"><span class="pill plan">Planned</span> designed / next up</span>
+    <span class="lg"><span class="tag">Companion project</span> separate Command Center codebase</span>
+  </div>
+
+  <!-- At a glance -->
+  <div class="tiles reveal">
+    <div class="tile"><div class="n">3</div><div class="l">AI systems live: two-way gateway, auto-responder, daily briefing</div></div>
+    <div class="tile"><div class="n">8</div><div class="l">Automated data feeds posting from Boulevard + Snowflake</div></div>
+    <div class="tile"><div class="n">2</div><div class="l">Send channels ready: Resend email + Twilio SMS</div></div>
+    <div class="tile"><div class="n">100%</div><div class="l">Slack replaced — history imported, running as a PWA</div></div>
+  </div>
+
+  <!-- Contents -->
+  <div class="section-head"><span class="section-num">Contents</span></div>
+  <nav class="toc reveal" aria-label="Contents">
+    <h4>Section 1 — Executive Summary (24 points)</h4>
+    <ol>
+      <li><a href="#s1">Major AI projects underway</a></li>
+      <li><a href="#s2">Every dashboard, existing &amp; developing</a></li>
+      <li><a href="#s3">Development status of each</a></li>
+      <li><a href="#s4">Features completed</a></li>
+      <li><a href="#s5">Features being built</a></li>
+      <li><a href="#s6">Features planned</a></li>
+      <li><a href="#s7">Marketing improvements via AI</a></li>
+      <li><a href="#s8">Automation improvements via AI</a></li>
+      <li><a href="#s9">Claude Code accomplishments</a></li>
+      <li><a href="#s10">Cowork workflows in operations</a></li>
+      <li><a href="#s11">ROP Chat &amp; Slack progress</a></li>
+      <li><a href="#s12">On The Clock progress</a></li>
+      <li><a href="#s13">Guest Experience Dashboard</a></li>
+      <li><a href="#s14">Retention Dashboard</a></li>
+      <li><a href="#s15">Concierge tools</a></li>
+      <li><a href="#s16">Cancellation dashboard</a></li>
+      <li><a href="#s17">Snowflake integration</a></li>
+      <li><a href="#s18">Boulevard integration</a></li>
+      <li><a href="#s19">Supabase architecture</a></li>
+      <li><a href="#s20">Netlify deployment</a></li>
+      <li><a href="#s21">Key technical decisions</a></li>
+      <li><a href="#s22">Unresolved issues &amp; blockers</a></li>
+      <li><a href="#s23">Immediate marketing opportunities</a></li>
+      <li><a href="#s24">30 / 60 / 90-day recommendations</a></li>
+    </ol>
+  </nav>
+
+  <!-- ===================== SECTION 1 ===================== -->
+  <div class="section-head">
+    <span class="section-num">Section 1</span>
+    <h2 class="section-title serif">Executive Summary</h2>
+    <p class="section-sub">The full landscape across AI, automation, dashboards and infrastructure — answered point by point.</p>
+  </div>
+
+  <div class="entries">
+
+    <!-- 1 -->
+    <article class="entry" id="s1">
+      <div class="idx">01</div>
+      <div class="body">
+        <div class="eh"><h3 class="serif">Major AI projects currently underway</h3></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Project</th><th>What it is</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td>Two-way AI integration</td><td>Secure, permissioned, audited gateway letting approved AI read &amp; write ROP Chat</td><td><span class="pill live">Live</span></td></tr>
+              <tr><td>AI auto-responder</td><td>Always-on assistant answering staff in <span class="mono">#ask-ai</span> and by DM</td><td><span class="pill live">Live</span></td></tr>
+              <tr><td>Daily AI briefing</td><td>Claude recaps the last 24h into <span class="mono">#daily-briefing</span> each morning</td><td><span class="pill live">Live</span></td></tr>
+              <tr><td>Automated data feeds</td><td>8 scheduled jobs posting live numbers from Boulevard + Snowflake</td><td><span class="pill live">Live</span></td></tr>
+              <tr><td>AI-built engineering (Claude Code)</td><td>The app itself is built &amp; maintained by an AI engineering loop</td><td><span class="pill live">Ongoing</span></td></tr>
+              <tr><td>Command Center dashboards</td><td>On The Clock, Guest Experience, Retention, Cancellation, concierge analytics</td><td><span class="pill dev">In development</span></td></tr>
+              <tr><td>Cross-project comms toolkit</td><td>Reusable Resend + Twilio send capability for any ROP app</td><td><span class="pill live">Live</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </article>
+
+    <!-- 2 -->
+    <article class="entry" id="s2">
+      <div class="idx">02</div>
+      <div class="body">
+        <div class="eh"><h3 class="serif">Every dashboard — existing &amp; developing</h3></div>
+        <p class="note">Live inside ROP Chat, each dashboard is an auto-updating card posted into the channel leadership already reads:</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Dashboard</th><th>What it shows</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td>ROP Scorecard</td><td>Company / by-salon / by-stylist — guests, new guests, prebook %, RPG, LUX %, new-request %. Windows: Today (live), Yesterday, WTD, MTD, YTD</td><td><span class="pill live">Live</span></td></tr>
+              <tr><td>Bookings by Booker</td><td>Bookings + new guests per person who booked, across 8 time windows, tabbed</td><td><span class="pill live">Live</span></td></tr>
+              <tr><td>Daily Numbers</td><td>Yesterday's guests, appts, new clients, RPG by location — auto-posted each morning</td><td><span class="pill live">Live</span></td></tr>
+              <tr><td>Live Booking Feed</td><td>Every Boulevard booking within ~10 min — guest, new/repeat, stylist, who booked</td><td><span class="pill live">Live</span></td></tr>
+              <tr><td>Victories Feed</td><td>Celebrates each guest win at checkout (prebooks, new-guest prebooks)</td><td><span class="pill live">Live</span></td></tr>
+              <tr><td>Company Calendar</td><td>Auto-updating 14-day upcoming-events card</td><td><span class="pill live">Live</span></td></tr>
+              <tr><td>Admin: Activity &amp; Presence</td><td>Who's logging in, who's online now (green dots), storage &amp; backups</td><td><span class="pill live">Live</span></td></tr>
+              <tr><td>On The Clock <span class="tag">Companion</span></td><td>Real-time staff / time visibility</td><td><span class="pill dev">In development</span></td></tr>
+              <tr><td>Guest Experience <span class="tag">Companion</span></td><td>Service quality &amp; satisfaction trends</td><td><span class="pill dev">In development</span></td></tr>
+              <tr><td>Retention <span class="tag">Companion</span></td><td>Rebooking / return-rate cohorts</td><td><span class="pill dev">In development</span></td></tr>
+              <tr><td>Cancellation <span class="tag">Companion</span></td><td>Cancellations &amp; no-shows</td><td><span class="pill dev">In development</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </article>
+
+    <!-- 3 -->
+    <article class="entry" id="s3">
+      <div class="idx">03</div>
+      <div class="body">
+        <div class="eh"><h3 class="serif">Current development status of each project</h3></div>
+        <ul class="clean">
+          <li><b>ROP Chat core app</b> — <span class="pill live">Live</span> Production. Daily use, installable on phones, push working.</li>
+          <li><b>ROP Chat AI layer</b> (gateway, responder, briefing, audit, kill-switch) — <span class="pill live">Live</span> Production.</li>
+          <li><b>Automated feeds</b> — <span class="pill live">Live</span> Running on schedule, every ~1–10 min to daily.</li>
+          <li><b>Command Center dashboards</b> — <span class="pill dev">In development</span> in the separate project; the data pipeline that feeds them is live.</li>
+          <li><b>Cross-project email/SMS toolkit</b> — <span class="pill live">Live</span> Done &amp; documented.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- 4 -->
+    <article class="entry" id="s4">
+      <div class="idx">04</div>
+      <div class="body">
+        <div class="eh"><h3 class="serif">Features completed</h3></div>
+        <ul class="clean">
+          <li>Realtime channels, DMs, threads, reactions, file uploads with drag-and-drop, full-text search.</li>
+          <li>Announcements &amp; urgent alerts with "I saw this" acknowledgements + escalation reporting.</li>
+          <li>Daily huddles, shoutouts, guest-recovery workflow, education posts, scheduling / shift coverage.</li>
+          <li>Admin: users &amp; roles, channels, ack reports, <b>audit log</b>, storage, CSV export, <b>usage log + live presence</b>, <b>14-day rolling backups</b>.</li>
+          <li>PWA install + <b>push notifications</b> with per-channel mute and <b>deep-linking</b> (tap → exact message).</li>
+          <li>The full <b>two-way AI integration</b> — agents, permissions, approval queue, audit, kill-switch, MCP server, 🤖 AI badge.</li>
+          <li><b>AI auto-responder</b> and <b>daily AI briefing</b> — both live on Claude.</li>
+          <li>Eight automated data feeds; Slack history import; email-in bridge &amp; webhook ingest; Resend + Twilio send.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- 5 -->
+    <article class="entry" id="s5">
+      <div class="idx">05</div>
+      <div class="body">
+        <div class="eh"><h3 class="serif">Features currently being built</h3></div>
+        <ul class="clean">
+          <li><b>Command Center dashboards</b> — On The Clock, Guest Experience, Retention, Cancellation, concierge analytics.</li>
+          <li><b>Slack-parity polish</b> — quick-switcher (⌘/Ctrl-K), typing indicators, swipe-to-reply, custom status, save/bookmark, scheduled send, per-channel drafts, <span class="mono">@channel</span>/<span class="mono">@here</span>, full emoji picker.</li>
+          <li><b>Staff adoption push</b> — ~40 team members have not yet signed in.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- 6 -->
+    <article class="entry" id="s6">
+      <div class="idx">06</div>
+      <div class="body">
+        <div class="eh"><h3 class="serif">Features planned for the future</h3></div>
+        <ul class="clean">
+          <li><b>Outbound AI webhooks</b> — today AI <i>pulls</i> from ROP Chat; next it <i>pushes</i> events in real time (e.g. a complaint → a workflow). <span class="pill plan">Planned</span></li>
+          <li><b>Semantic / vector search</b> across chat history. <span class="pill plan">Planned</span></li>
+          <li><b>Richer approval auto-execution</b> for more sensitive AI actions. <span class="pill plan">Planned</span></li>
+          <li><b>Marketing automations</b> on data we already hold — birthdays, anniversaries, prebook gaps. <span class="pill plan">Planned</span></li>
+          <li><b>Boulevard write-backs</b> — today we mostly read; writing back (e.g. tagging guests) is a future option. <span class="pill plan">Planned</span></li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- 7 -->
+    <article class="entry" id="s7">
+      <div class="idx">07</div>
+      <div class="body">
+        <div class="eh"><h3 class="serif">Marketing improvements made through AI</h3></div>
+        <ul class="clean">
+          <li>A dedicated <span class="mono">#marketing</span> channel with the AI assistant reachable for instant copy, brainstorming &amp; campaign help.</li>
+          <li><b>Victories feed</b> = a continuous stream of real guest wins — ready-made social proof and content fuel.</li>
+          <li><b>Staff data enriched</b> — 52 active staff with birthdays &amp; hire dates for milestone marketing.</li>
+          <li><b>Reusable Resend email</b> from the verified <span class="mono">rop2020.com</span> domain, triggerable from any app.</li>
+          <li><b>Reusable Twilio SMS</b> from <span class="mono">+1 239-880-8681</span> — one person or a whole list.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- 8 -->
+    <article class="entry" id="s8">
+      <div class="idx">08</div>
+      <div class="body">
+        <div class="eh"><h3 class="serif">Automation improvements made through AI</h3></div>
+        <ul class="clean">
+          <li><b>No more manual daily numbers</b> — the morning scorecard is a self-contained scheduled job now.</li>
+          <li><b>Live operational awareness</b> — bookings, victories, scorecard update themselves from Boulevard/Snowflake.</li>
+          <li><b>Auto-responder</b> handles routine questions without a human.</li>
+          <li><b>Daily briefing</b> turns 24h of activity into one readable recap automatically.</li>
+          <li><b>Automated backups</b> (14-day rolling) and staff text/email reminders from the admin tools.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- 9 -->
+    <article class="entry" id="s9">
+      <div class="idx">09</div>
+      <div class="body">
+        <div class="eh"><h3 class="serif">Claude Code accomplishments</h3></div>
+        <p class="note">Claude Code is the AI engineering system that builds and maintains ROP Chat. It has:</p>
+        <ul class="clean">
+          <li>Built the entire app from scaffold to production — database, security, realtime, PWA, admin.</li>
+          <li>Imported the full Slack history (all channels, all years) so the switch lost nothing.</li>
+          <li>Built &amp; deployed all 8 feeds and the entire AI integration layer.</li>
+          <li>Root-caused hard bugs (a thread-crash from realtime reuse; week-to-date missing "today"; notification deep-linking).</li>
+          <li>Diagnosed app slowness evidence-first (proved the DB ran in ~0.1&nbsp;ms, fixed the real client cause) and wrote it up as a reusable prompt.</li>
+          <li>Wrote the operational docs and ships through Netlify CI on every push.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- 10 -->
+    <article class="entry" id="s10">
+      <div class="idx">10</div>
+      <div class="body">
+        <div class="eh"><h3 class="serif">Cowork workflows &amp; how they fit operations</h3></div>
+        <p>Cowork is the collaborative AI workspace where you — and, going forward, Alexi — direct AI to do real work over the same secure connection Claude Code uses. Three fits:</p>
+        <ul class="clean">
+          <li><b>Talk to ROP Chat from AI</b> — read channels, search history, post updates, DM people, file action items, all permissioned and audited.</li>
+          <li><b>Marketing execution</b> — draft campaigns, generate copy &amp; images, brainstorm, plan; push results to <span class="mono">#marketing</span> or out by email/SMS.</li>
+          <li><b>Operational assist</b> — pull a number, summarize a channel, draft an announcement, no code.</li>
+        </ul>
+        <div class="callout"><div class="lab">Guardrail</div><p>Every AI system is a named agent with an explicit scope, a rate limit, an audit trail, and a global kill-switch. Nothing an agent isn't allowed to see is ever returned.</p></div>
+      </div>
+    </article>
+
+    <!-- 11 -->
+    <article class="entry" id="s11">
+      <div class="idx">11</div>
+      <div class="body">
+        <div class="eh"><h3 class="serif">ROP Chat &amp; Slack integration progress</h3></div>
+        <ul class="clean">
+          <li><b>ROP Chat has replaced paid Slack</b> — ROP-branded, legally distinct, built for ~60 staff across 3 locations.</li>
+          <li><b>Full Slack history imported</b> — channels &amp; messages mapped to staff, nothing lost.</li>
+          <li><b>Feature parity high &amp; climbing</b> — the beta wishlist tracks remaining niceties.</li>
+          <li><b>Cost</b> — replaces Slack's per-seat subscription with our own infrastructure.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- 12 -->
+    <article class="entry" id="s12">
+      <div class="idx">12</div>
+      <div class="body">
+        <div class="eh"><h3 class="serif">On The Clock — implementation progress</h3><span class="tag">Companion project</span></div>
+        <p>Real-time staff/time visibility. The <b>data foundation is live</b> — Boulevard feeds Snowflake, and ROP Chat already proves we can post live cards from it. The dedicated dashboard is proceeding in the Command Center project. <span class="note">I don't have that codebase in this session, so I can't quote a line-level status — recommend pulling its current build state directly if Alexi needs specifics.</span></p>
+      </div>
+    </article>
+
+    <!-- 13 -->
+    <article class="entry" id="s13">
+      <div class="idx">13</div>
+      <div class="body">
+        <div class="eh"><h3 class="serif">Guest Experience Dashboard — progress</h3></div>
+        <ul class="clean">
+          <li><b>In ROP Chat (live):</b> a <span class="mono">#guest-experience</span> channel + a Guest Recovery workflow (log an issue, track New → In Progress → Waiting → Resolved). The "act now" surface.</li>
+          <li><b>In Command Center (in development):</b> the analytical dashboard — quality/satisfaction trends. Its quality data already powers LUX %, prebook % and new-request % on the live scorecard.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- 14 -->
+    <article class="entry" id="s14">
+      <div class="idx">14</div>
+      <div class="body">
+        <div class="eh"><h3 class="serif">Retention Dashboard — progress</h3><span class="tag">Companion project</span></div>
+        <p>Retention = are guests coming back. The <b>leading indicators already flow today</b>: prebook % and new-guest prebook % are on the live scorecard, and the Victories feed celebrates each prebook as it happens. The dedicated cohort/return-rate view is being built in Command Center on the same Snowflake data.</p>
+      </div>
+    </article>
+
+    <!-- 15 -->
+    <article class="entry" id="s15">
+      <div class="idx">15</div>
+      <div class="body">
+        <div class="eh"><h3 class="serif">Concierge tools</h3></div>
+        <ul class="clean">
+          <li><b>In ROP Chat (live):</b> "Concierge" is a defined role; front-desk staff use channels, DMs, guest recovery, the live booking feed and text reminders.</li>
+          <li><b>Bookings-by-Booker</b> is effectively a live concierge/front-desk performance view — bookings &amp; new guests per booker across 8 windows.</li>
+          <li><b>In Command Center:</b> deeper concierge analytics (conversion, follow-up) in development.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- 16 -->
+    <article class="entry" id="s16">
+      <div class="idx">16</div>
+      <div class="body">
+        <div class="eh"><h3 class="serif">Cancellation dashboard</h3><span class="tag">Companion project</span></div>
+        <p>Cancellations / no-shows view. The raw appointment data (including status changes) comes from <b>Boulevard</b>, which we already pull, so the source is ready. Honest status: <span class="pill dev">In development</span> on the Command Center roadmap — <b>not yet live</b>.</p>
+      </div>
+    </article>
+
+    <!-- 17 -->
+    <article class="entry" id="s17">
+      <div class="idx">17</div>
+      <div class="body">
+        <div class="eh"><h3 class="serif">Snowflake integration</h3><span class="pill live">Live</span></div>
+        <p><b>Central to everything.</b> Snowflake is our analytics warehouse; Boulevard's data lands there and we read curated marts (<span class="mono">STYLIST_DAILY</span>, <span class="mono">STYLIST_QUALITY_DAILY</span>, <span class="mono">BOOKINGS_CREATED</span>, <span class="mono">VICTORIES_TODAY</span>). It powers the Scorecard, Bookings-by-Booker and Victories feeds, and is the foundation the Command Center dashboards build on. Access token restored &amp; secured, read server-side only.</p>
+      </div>
+    </article>
+
+    <!-- 18 -->
+    <article class="entry" id="s18">
+      <div class="idx">18</div>
+      <div class="body">
+        <div class="eh"><h3 class="serif">Boulevard integration</h3><span class="pill live">Live</span></div>
+        <p><b>The source of truth</b> for appointments, guests, retail and prebooks. We integrate two ways: <b>(a)</b> directly via the Boulevard Admin API (the live booking feed within ~10 min, and the morning daily-numbers card), and <b>(b)</b> via Boulevard's data share into Snowflake for richer analytics. Everything downstream traces back to Boulevard.</p>
+      </div>
+    </article>
+
+    <!-- 19 -->
+    <article class="entry" id="s19">
+      <div class="idx">19</div>
+      <div class="body">
+        <div class="eh"><h3 class="serif">Supabase architecture</h3><span class="pill live">Live</span></div>
+        <ul class="clean">
+          <li><b>The backend</b> for ROP Chat: Postgres, Row-Level Security on every table, Realtime, Storage, and Edge Functions (the jobs behind every feed, the AI gateway, responder, briefing, email/SMS).</li>
+          <li><b>Security:</b> the browser only holds a public key; all access rules live in the database. The powerful service key never reaches the browser; the AI gateway re-checks each agent's scope in code.</li>
+          <li><b>Scheduling:</b> <span class="mono">pg_cron</span> runs timed jobs; <span class="mono">pg_net</span> makes secure outbound calls. 19 versioned migrations define the whole schema, security and AI layer.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- 20 -->
+    <article class="entry" id="s20">
+      <div class="idx">20</div>
+      <div class="body">
+        <div class="eh"><h3 class="serif">Netlify deployment status</h3><span class="pill live">Live</span></div>
+        <p>Live in production at <span class="mono">rop-connect.netlify.app</span>. <b>Continuous deployment:</b> every push triggers a fresh build + deploy, verified against the live site. Installs to phones as a PWA with an offline app shell.</p>
+      </div>
+    </article>
+
+    <!-- 21 -->
+    <article class="entry" id="s21">
+      <div class="idx">21</div>
+      <div class="body">
+        <div class="eh"><h3 class="serif">Important technical decisions we've made</h3></div>
+        <ul class="clean">
+          <li><b>Own our stack, not rent Slack</b> — Supabase + Netlify for control, lower cost, salon-specific features.</li>
+          <li><b>Security-first AI</b> — every agent scoped, rate-limited, audited, killable in one button; AI messages visibly badged.</li>
+          <li><b>Server-side secrets only</b> — no keys in the browser; RLS enforces access; secrets never committed.</li>
+          <li><b>Automate the recurring, schedule it in the database</b> — the numbers don't depend on a person or a live session.</li>
+          <li><b>Boulevard + Snowflake as the data spine</b> — one source of truth, curated marts, reused everywhere.</li>
+          <li><b>Evidence-first performance</b> — measure before changing; fixed the real cause, codified the method.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- 22 -->
+    <article class="entry" id="s22">
+      <div class="idx">22</div>
+      <div class="body">
+        <div class="eh"><h3 class="serif">Unresolved issues &amp; blockers</h3></div>
+        <ul class="clean">
+          <li><b>Adoption gap</b> — ~40 staff have never signed in. The single biggest limiter on the app's value; a change-management task, not a technical one.</li>
+          <li><b>iOS push fragility</b> — Apple occasionally drops a phone's push subscription on app update; fix is re-enabling in Profile.</li>
+          <li><b>AI is pull, not push</b> — external AI reads on demand but isn't yet notified in real time. Outbound webhooks are next.</li>
+          <li><b>Idempotency edge case</b> — two truly simultaneous identical AI writes can create two messages (documented; retries are safe).</li>
+          <li><b>Connector auth</b> — Twilio &amp; GoDaddy AI connectors need a one-time authorization (the wrapped SMS path works today).</li>
+          <li><b>Command Center visibility</b> — its dashboards live in a separate codebase; open that project directly for exact status.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- 23 -->
+    <article class="entry" id="s23">
+      <div class="idx">23</div>
+      <div class="body">
+        <div class="eh"><h3 class="serif">Immediate opportunities — where marketing can leverage AI now</h3></div>
+        <ul class="clean">
+          <li><b>Turn Victories into content</b> — a live stream of real guest wins → social posts, testimonials, "why guests rebook" stories. <b>The fastest win.</b></li>
+          <li><b>Birthday &amp; anniversary marketing</b> — we already hold the dates; AI drafts and Resend/Twilio sends on schedule.</li>
+          <li><b>Prebook-gap campaigns</b> — the scorecard shows where prebook % is low; AI drafts the re-engagement, we send it.</li>
+          <li><b>On-brand copy in seconds</b> — emails, captions, ad copy, landing pages drafted instantly in <span class="mono">#marketing</span>.</li>
+          <li><b>One email/SMS engine</b> — Resend + Twilio set up, verified, documented; sends go out from any tool.</li>
+          <li><b>Data-driven creative</b> — the numbers tell us what's working by location &amp; stylist; AI turns that into targeted promotion.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- 24 -->
+    <article class="entry" id="s24">
+      <div class="idx">24</div>
+      <div class="body">
+        <div class="eh"><h3 class="serif">Recommendations — next 30 / 60 / 90 days</h3></div>
+        <div class="road">
+          <div class="col">
+            <div class="win">Days 0–30 · Adopt &amp; activate</div>
+            <h4 class="serif">Get everyone on, prove the model</h4>
+            <ul class="clean">
+              <li>Close the adoption gap — get the ~40 non-users signed in (manager-led, in person).</li>
+              <li>Give Alexi a Cowork seat + the <span class="mono">#marketing</span> workflow; ship one AI content stream from Victories.</li>
+              <li>Stand up the birthday/anniversary send on a schedule.</li>
+            </ul>
+          </div>
+          <div class="col">
+            <div class="win">Days 30–60 · Dashboards &amp; campaigns</div>
+            <h4 class="serif">Surface the numbers, run a campaign</h4>
+            <ul class="clean">
+              <li>Bring the Command Center dashboards to a reviewable state; wire key numbers into ROP Chat cards.</li>
+              <li>Launch a first prebook-gap re-engagement campaign from scorecard data.</li>
+              <li>Add top wishlist items (quick-switcher, typing, scheduled send) to keep adoption sticky.</li>
+            </ul>
+          </div>
+          <div class="col">
+            <div class="win">Days 60–90 · Scale &amp; push</div>
+            <h4 class="serif">Make AI proactive</h4>
+            <ul class="clean">
+              <li>Build outbound AI webhooks so events trigger automated responses in real time.</li>
+              <li>Establish a monthly "State of AI" review to keep leadership aligned.</li>
+              <li>Evaluate Boulevard write-backs and semantic search once the above delivers.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </article>
+
+  </div>
+
+  <!-- ===================== SECTION 2 ===================== -->
+  <div class="section-head" id="playbook">
+    <span class="section-num">Section 2</span>
+    <h2 class="section-title serif">How Alexi Can Leverage AI Every Day</h2>
+    <p class="section-sub">Practical, repeatable workflows she can start today. "The assistant" = Claude, via Cowork or the <span class="mono">#marketing</span> channel. Two things make these real for us: the assistant can read our live data through the secure gateway, and it can send through Resend (email) and Twilio (SMS) — so "draft it" and "send it" are the same afternoon.</p>
+  </div>
+
+  <div class="cards">
+    <div class="card"><span class="k">Social media</span><h3 class="serif">A week of posts in one prompt</h3><p>Content calendars, caption sets, reply drafts, trend adaptation.</p><div class="prompt">"Plan next week's IG + FB: 2 education, 2 social proof, 1 promo, 1 team spotlight — captions, hashtags, image idea for each."</div></div>
+    <div class="card"><span class="k">Social proof</span><h3 class="serif">Victories → content</h3><p>Turn the live wins feed into captions, testimonials and stories.</p><div class="prompt">"Here are today's guest victories: [paste]. Write 3 Instagram captions + 1 Facebook post, warm and on-brand for a luxury salon."</div></div>
+    <div class="card"><span class="k">Email campaigns</span><h3 class="serif">Full draft, ready to send</h3><p>Subject lines, preview text, body, CTA — then send via Resend.</p><div class="prompt">"Write a re-engagement email to guests who haven't rebooked in 90 days — subject options, preview, body, clear CTA. Premium, not pushy."</div></div>
+    <div class="card"><span class="k">Landing pages</span><h3 class="serif">Page from scratch</h3><p>Hero, benefit blocks, social proof, FAQ, CTA copy — or conversion polish on an existing page.</p><div class="prompt">"Write a landing page for a summer color package: hero headline, 3 benefit blocks, social-proof section, FAQ, CTA button copy."</div></div>
+    <div class="card"><span class="k">Facebook ads</span><h3 class="serif">Creative sets that comply</h3><p>Variations of primary text, headline, description + image concepts.</p><div class="prompt">"Give me 3 FB ad variations for a new-guest offer (primary text, headline, description) + the image concept for each."</div></div>
+    <div class="card"><span class="k">Google ads</span><h3 class="serif">Search copy + keywords</h3><p>Headlines, descriptions, keyword groups and negatives.</p><div class="prompt">"10 RSA headlines (≤30 chars) + 4 descriptions (≤90) for 'balayage Naples FL' and 'luxury salon Bonita', plus a negative-keyword list."</div></div>
+    <div class="card"><span class="k">Canva</span><h3 class="serif">Briefs &amp; copy that fit the frame</h3><p>Layout briefs in our navy/gold brand, plus copy sized to the design.</p><div class="prompt">"Canva brief for a birthday-offer graphic — layout, text hierarchy, our navy/gold brand, and the exact copy to drop in."</div></div>
+    <div class="card"><span class="k">Image generation</span><h3 class="serif">Concepts + prompts</h3><p>Mood/lighting/composition prompts; keep a saved brand look to prepend.</p><div class="prompt">"Write 5 image-generation prompts for a luxury-salon summer campaign — mood, lighting, composition."</div></div>
+    <div class="card"><span class="k">Content creation</span><h3 class="serif">Batch a month, expand long-form</h3><p>20 ideas with hooks; turn outlines into blog posts.</p><div class="prompt">"20 content ideas for next month across education, social proof, promos, culture — one-line hook for each."</div></div>
+    <div class="card"><span class="k">Brainstorming</span><h3 class="serif">Diverge, then pressure-test</h3><p>Rapid idea generation and a devil's-advocate pass before spend.</p><div class="prompt">"15 promo concepts for a slow August, ranked by likely ROI, with a one-line reason for the top 3. Then poke holes in #1."</div></div>
+    <div class="card"><span class="k">Copywriting</span><h3 class="serif">Lock our voice</h3><p>Match past best copy; tighten/warm/elevate on command.</p><div class="prompt">"This is our voice: [paste 2–3 samples]. Match it for everything I give you today. Then: make this 30% shorter and more premium."</div></div>
+    <div class="card"><span class="k">Campaign planning</span><h3 class="serif">End-to-end plan</h3><p>Goals, audience, channels, calendar, copy, measurement — pushed to the team.</p><div class="prompt">"Plan a 4-week win-back campaign for lapsed guests: goals, audience, email+SMS+social, week-by-week calendar, copy per touch, how we measure. Post the plan to #marketing."</div></div>
+  </div>
+
+  <!-- ===================== SECTION 3 ===================== -->
+  <div class="section-head">
+    <span class="section-num">Section 3</span>
+    <h2 class="section-title serif">A One-Page State of AI</h2>
+    <p class="section-sub">For a marketing leader stepping in fresh: where things stand, why it matters, and where we're headed.</p>
+  </div>
+
+  <div class="narrative">
+    <p class="dropcap">Over the past several months, Robert of Philadelphia has quietly built a modern, AI-powered technology backbone — without hiring an engineering team, by directing AI to do the building. The centerpiece, <b>ROP Chat</b>, is a private, salon-specific team app that replaced paid Slack and now runs in production on every staff member's phone. On top of it sits something genuinely differentiated: <b>the business now reports on itself.</b> Numbers that used to require someone to pull them — sales, guests, new clients, prebooks, retail-per-guest, quality, who's booking — post themselves automatically, throughout the day, straight from Boulevard and Snowflake, into the channels leadership already reads. Guest wins are celebrated the moment they happen. A daily AI briefing summarizes the last 24 hours in plain English. Staff can ask an always-on assistant a question and get an answer in seconds.</p>
+
+    <p><b>Why it matters — three reasons a marketing leader should care immediately.</b> First, we have a live, structured picture of the business — by location, by stylist, by booker, by time window — which is the raw material for targeted marketing instead of guesswork. Second, we have a content engine hiding in plain sight: the Victories feed is a daily stream of real guest wins that becomes social proof, testimonials and campaigns. Third, the "draft it" and "send it" gap is already closed — email (Resend, verified domain) and SMS (Twilio, our number) are set up and documented, so a campaign conceived in the morning can reach guests the same day.</p>
+
+    <div class="pullquote">Boulevard captures what happens → Snowflake organizes it → ROP Chat surfaces it → <b>AI acts on it</b> → guests hear from us at the right moment.</div>
+
+    <p><b>What's still in motion.</b> The companion Command Center project is bringing deeper dashboards online — Retention, Cancellations, Guest Experience, On The Clock — on the same trusted data spine. Inside ROP Chat we're closing the last gaps with Slack and, more importantly, closing the adoption gap: the app's value compounds as the last ~40 staff come on board. The next real frontier is making AI <i>proactive</i> — not just answering when asked, but noticing when something happens (a complaint, a spike in cancellations, a low-prebook day) and starting the right response automatically.</p>
+
+    <p><b>Where we're headed over the next year.</b> For marketing specifically, the direction is always-on, data-grounded, on-brand campaigns produced in a fraction of the time and cost — birthday and anniversary touches, win-back flows for lapsed guests, prebook-gap nudges, and a steady drumbeat of authentic social proof — with a human (Alexi) directing taste, judgment and brand, and AI doing the volume. We've built the hard part: the data, the plumbing, the security, and the send capability. The next year is about pointing it at growth.</p>
+  </div>
+
+  <footer>
+    Prepared by your AI project system for Robert of Philadelphia Salons. ROP Chat items are verified against the live codebase; Command Center items reflect our shared design and are maintained in a separate project. Confidential — internal leadership use.
+  </footer>
+
+</div>
