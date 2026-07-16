@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.13.4'
+export const APP_VERSION = '1.13.5'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.13.5',
+    date: '2026-07-16',
+    time: '8:40 PM ET',
+    title: 'Updates no longer turn your notifications off',
+    changes: [
+      'Fixed the big one: every app update was quietly switching phone notifications back off, so everyone had to go re-enable them. The update process was throwing away each phone’s notification registration. It no longer does that — your notifications stay on through updates.',
+      'Added a safety net: whenever you open the app, if you’ve allowed notifications but the registration went missing for any reason, the app now quietly re-registers it in the background — no prompt, nothing to tap. Anyone whose notifications got switched off by a past update will be fixed automatically the next time they open ROP Chat (as long as they didn’t turn notifications off in their phone settings).',
+    ],
+  },
   {
     version: '1.13.4',
     date: '2026-07-16',

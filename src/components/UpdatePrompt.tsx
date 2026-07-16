@@ -17,10 +17,14 @@ export function UpdatePrompt() {
 
   if (!show) return null
 
-  // Force the newest build, reliably, on every platform: let any waiting worker take over, then
-  // clear the caches and the service worker and reload from the network with a cache-buster. This
-  // is deliberately heavy-handed — a plain reload (or the PWA library's updateSW) was not reliably
-  // swapping in the new version, which is why tapping Refresh appeared to do nothing.
+  // Swap in the newest build without destroying anything the user set up. We tell the waiting
+  // service worker to activate (SKIP_WAITING) and reload once it takes control, then clear the
+  // Workbox *page* caches with a cache-busting reload as a fallback.
+  //
+  // IMPORTANT: we deliberately do NOT call registration.unregister() here. Unregistering a service
+  // worker also deletes its push subscription, which was turning everyone's notifications back off
+  // on every update. skipWaiting + clientsClaim (set in the Workbox config) reliably activate the
+  // new build on their own, so the heavy-handed unregister is unnecessary as well as harmful.
   const refresh = async () => {
     if (busy) return
     setBusy(true)
@@ -28,9 +32,8 @@ export function UpdatePrompt() {
       if ('serviceWorker' in navigator) {
         const regs = await navigator.serviceWorker.getRegistrations()
         for (const r of regs) {
-          try { r.waiting?.postMessage({ type: 'SKIP_WAITING' }) } catch { /* ignore */ }
+          try { (r.waiting ?? r.installing)?.postMessage({ type: 'SKIP_WAITING' }) } catch { /* ignore */ }
         }
-        await Promise.all(regs.map((r) => r.unregister().catch(() => false)))
       }
       if ('caches' in window) {
         const keys = await caches.keys()

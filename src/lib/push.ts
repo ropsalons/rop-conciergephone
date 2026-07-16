@@ -88,13 +88,32 @@ export async function getPushStatus(): Promise<PushStatus> {
   return sub ? 'subscribed' : 'off'
 }
 
-// Runs quietly on app load: if this browser already has a push subscription but it never
-// made it into the DB, save it now. Self-heals a half-finished enable. Never prompts.
+// Runs quietly on app load. If this browser still has notification permission granted, make
+// sure a live push subscription exists and is saved to the DB — RE-CREATING it if it was lost.
+//
+// This is what keeps notifications ON across app updates. A service-worker update (or the
+// browser expiring an old subscription) can silently drop the PushManager subscription; without
+// this, the user would have to open Settings and tap "Turn on notifications" again every time.
+// Because permission is already 'granted', re-subscribing here never shows a prompt — it's
+// completely invisible to the user. Never prompts, never throws.
 export async function syncExistingSubscription(userId: string): Promise<void> {
   try {
     if (!isPushSupported() || Notification.permission !== 'granted') return
     const r = await getReg()
-    const sub = r ? await r.pushManager.getSubscription() : null
+    if (!r) return
+    let sub = await r.pushManager.getSubscription()
+    if (!sub) {
+      // Permission is still granted but there's no subscription (e.g. an update unregistered the
+      // old service worker, or the push service rotated it). Re-create it silently.
+      try {
+        sub = await r.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        })
+      } catch {
+        return
+      }
+    }
     if (sub) await saveSubscription(userId, sub)
   } catch {
     /* ignore */
