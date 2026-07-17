@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.16.1'
+export const APP_VERSION = '1.16.2'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.16.2',
+    date: '2026-07-17',
+    time: '2:20 PM ET',
+    title: 'Unarchiving a channel brings it right back',
+    changes: [
+      'Fixed: when you unarchive a channel it now reappears in your sidebar immediately (and archiving one drops it off) — no more needing to reload the app to see the change.',
+      'Behind the scenes: the Product Shipping channel is wired to receive Shopify order & shipping updates (see your DM for the one setup step in Shopify).',
+    ],
+  },
   {
     version: '1.16.1',
     date: '2026-07-17',

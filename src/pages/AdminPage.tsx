@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
 import { useDirectoryStore } from '@/stores/directoryStore'
 import { useUIStore } from '@/stores/uiStore'
+import { useChatStore } from '@/stores/chatStore'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Avatar } from '@/components/ui/Avatar'
 import { Modal } from '@/components/ui/Modal'
@@ -1189,6 +1190,9 @@ function ChannelsTab({ me, logAudit }: { me: string; logAudit: LogAudit }) {
     })
     toast({ kind: 'success', title: c.is_archived ? 'Channel unarchived' : 'Channel archived' })
     void fetchChannels()
+    // Refresh the sidebar so an unarchived channel reappears (and an archived one drops off)
+    // without needing a full app reload.
+    void useChatStore.getState().loadSidebar()
   }
 
   async function removeChannel(c: ChannelRow) {
@@ -1343,6 +1347,8 @@ function EditChannelModal({
     if (error || !data) return toast({ kind: 'error', title: 'Save failed', body: error?.message })
     toast({ kind: 'success', title: 'Channel updated', body: `#${trimmed}` })
     void onSaved(data as ChannelRow)
+    // Reflect rename / archive changes in the sidebar immediately.
+    void useChatStore.getState().loadSidebar()
   }
 
   return (
