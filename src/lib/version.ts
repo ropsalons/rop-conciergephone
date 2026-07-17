@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.13.6'
+export const APP_VERSION = '1.13.7'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,15 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.13.7',
+    date: '2026-07-16',
+    time: '9:25 PM ET',
+    title: 'Fix: “invalid DM target” on your own profile',
+    changes: [
+      'Your own card in the People directory showed a “Message” button, and tapping it threw “Could not open conversation — invalid DM target” (you can’t message yourself). Your card now shows a small “You” label instead of a Message button, so that error is gone.',
+    ],
+  },
   {
     version: '1.13.6',
     date: '2026-07-16',

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
+import { useAuthStore } from '@/stores/authStore'
 import { useDirectoryStore } from '@/stores/directoryStore'
 import { useUIStore } from '@/stores/uiStore'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -15,6 +16,7 @@ import type { Profile } from '@/types'
 
 export function DirectoryPage() {
   const navigate = useNavigate()
+  const me = useAuthStore((s) => s.user?.id)
   const toast = useUIStore((s) => s.toast)
   const profiles = useDirectoryStore((s) => s.profiles)
   const locations = useDirectoryStore((s) => s.locations)
@@ -77,6 +79,7 @@ export function DirectoryPage() {
   }, [filtered, sort])
 
   async function message(p: Profile) {
+    if (p.id === me) return // you can't DM yourself
     setBusy(true)
     try {
       const { data, error } = await supabase.rpc('get_or_create_dm', { other_user: p.id })
@@ -160,15 +163,21 @@ export function DirectoryPage() {
                     </p>
                   </div>
                 </button>
-                <button
-                  onClick={() => void message(p)}
-                  disabled={busy}
-                  title={`Message ${displayName(p)}`}
-                  aria-label={`Message ${displayName(p)}`}
-                  className="btn-primary shrink-0 gap-1 px-2.5 py-1.5 text-xs"
-                >
-                  <MessageSquare className="h-4 w-4" /> Message
-                </button>
+                {p.id === me ? (
+                  <span className="shrink-0 rounded-lg bg-white/10 px-2.5 py-1.5 text-xs font-medium text-slate-400">
+                    You
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => void message(p)}
+                    disabled={busy}
+                    title={`Message ${displayName(p)}`}
+                    aria-label={`Message ${displayName(p)}`}
+                    className="btn-primary shrink-0 gap-1 px-2.5 py-1.5 text-xs"
+                  >
+                    <MessageSquare className="h-4 w-4" /> Message
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -183,9 +192,11 @@ export function DirectoryPage() {
           selected ? (
             <>
               <button className="btn-ghost" onClick={() => setSelected(null)}>Close</button>
-              <button className="btn-primary" disabled={busy} onClick={() => message(selected)}>
-                <MessageSquare className="h-4 w-4" /> Message
-              </button>
+              {selected.id !== me && (
+                <button className="btn-primary" disabled={busy} onClick={() => message(selected)}>
+                  <MessageSquare className="h-4 w-4" /> Message
+                </button>
+              )}
             </>
           ) : undefined
         }
