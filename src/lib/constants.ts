@@ -74,6 +74,22 @@ export const EDUCATION_CATEGORIES = [
   { key: 'general', label: 'General' },
 ] as const
 
+export const EVENT_CATEGORIES = [
+  { key: 'team_meeting', label: 'Team Meeting', emoji: '👥' },
+  { key: 'workshop', label: 'Workshop', emoji: '🎓' },
+  { key: 'class', label: 'Class', emoji: '📚' },
+  { key: 'training', label: 'Training', emoji: '💪' },
+  { key: 'community', label: 'Community', emoji: '🤝' },
+  { key: 'social', label: 'Social', emoji: '🎉' },
+  { key: 'other', label: 'Other', emoji: '📅' },
+] as const
+
+export const RSVP_OPTIONS = [
+  { key: 'going', label: 'Going', emoji: '✅', tone: 'emerald' },
+  { key: 'interested', label: 'Interested', emoji: '⭐', tone: 'amber' },
+  { key: 'cant_go', label: "Can't Go", emoji: '🚫', tone: 'slate' },
+] as const
+
 export const QUICK_EMOJIS = ['👍', '❤️', '🎉', '🙌', '🔥', '💈', '✨', '😂', '👏', '✅']
 
 export const MAX_FILE_BYTES = 25 * 1024 * 1024 // 25MB — matches the storage bucket cap

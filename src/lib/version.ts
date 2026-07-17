@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.13.7'
+export const APP_VERSION = '1.14.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,20 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.14.0',
+    date: '2026-07-17',
+    time: '9:45 AM ET',
+    title: 'Events — RSVP, invite, and track attendance',
+    changes: [
+      'New Events tab (in the menu and on Home): browse Upcoming and Past events. Tap any event to see the full details — when, where, organizer, price, description and a map link.',
+      'RSVP to any event with Going / Interested / Can’t Go, and see a live scoreboard of who’s coming, who’s interested, and who can’t make it.',
+      'Anyone can post an event (tap “Post event”). Pick who’s invited — everyone, a location (e.g. just Bayfront), a department, or hand-picked people — set the date/time, and you’re done.',
+      'Managers can flip on “Notify everyone invited now” when posting, which sends each person a push + in-app notification with a link straight to the event asking them to respond. There’s also a “Send reminder” button to nudge anyone who hasn’t answered, plus an automatic reminder a couple days before.',
+      'Tap the bell on an event to be notified if its time or place changes. Share any event with the link button.',
+      'Imported your current events from Salon Symphony (the staff meetings, Business Building, Back to School Haircuts, Behind The Chair Show and Model Day) so they’re ready to RSVP to.',
+    ],
+  },
   {
     version: '1.13.7',
     date: '2026-07-16',

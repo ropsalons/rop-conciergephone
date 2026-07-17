@@ -80,6 +80,12 @@ export const Image = (p: P) => (
 export const Camera = (p: P) => (
   <svg {...base(p)}><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" /><circle cx="12" cy="13" r="3" /></svg>
 )
+export const MapPin = (p: P) => (
+  <svg {...base(p)}><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z" /><circle cx="12" cy="10" r="3" /></svg>
+)
+export const Clock = (p: P) => (
+  <svg {...base(p)}><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
+)
 export const ChevronDown = (p: P) => (
   <svg {...base(p)}><path d="m6 9 6 6 6-6" /></svg>
 )

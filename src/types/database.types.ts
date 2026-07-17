@@ -298,6 +298,44 @@ export type AuditLogRow = {
   created_at: string
 }
 
+export type EventAudience = 'all' | 'location' | 'department' | 'users'
+export type EventFormat = 'in_person' | 'virtual'
+export type EventCategory = 'team_meeting' | 'workshop' | 'community' | 'training' | 'social' | 'class' | 'other'
+export type RsvpResponse = 'going' | 'interested' | 'cant_go'
+export type EventRow = {
+  id: string
+  title: string
+  description: string | null
+  category: EventCategory
+  format: EventFormat
+  location: string | null
+  location_url: string | null
+  starts_at: string
+  ends_at: string | null
+  timezone: string
+  organizer: string | null
+  price: string | null
+  cover_url: string | null
+  audience: EventAudience
+  location_id: string | null
+  department_id: string | null
+  target_user_ids: string[] | null
+  created_by: string | null
+  is_cancelled: boolean
+  reminder_sent_at: string | null
+  created_at: string
+  updated_at: string
+}
+export type EventRsvpRow = {
+  event_id: string
+  user_id: string
+  response: RsvpResponse
+  created_at: string
+  updated_at: string
+}
+export type EventViewRow = { event_id: string; user_id: string; viewed_at: string }
+export type EventSubscriptionRow = { event_id: string; user_id: string; created_at: string }
+
 type TableFor<Row> = { Row: Row; Insert: Partial<Row>; Update: Partial<Row>; Relationships: [] }
 
 export type Database = {
@@ -327,6 +365,10 @@ export type Database = {
       education_updates: TableFor<EducationUpdateRow>
       education_acknowledgements: TableFor<EducationAckRow>
       scheduling_posts: TableFor<SchedulingPostRow>
+      events: TableFor<EventRow>
+      event_rsvps: TableFor<EventRsvpRow>
+      event_views: TableFor<EventViewRow>
+      event_subscriptions: TableFor<EventSubscriptionRow>
       audit_logs: TableFor<AuditLogRow>
     }
     Views: Record<string, never>
@@ -342,6 +384,11 @@ export type Database = {
       }
       mark_all_notifications_read: { Args: Record<string, never>; Returns: undefined }
       report_app_problem: { Args: { p_message: string; p_context?: string | null }; Returns: string }
+      set_event_rsvp: { Args: { p_event_id: string; p_response: string }; Returns: undefined }
+      clear_event_rsvp: { Args: { p_event_id: string }; Returns: undefined }
+      mark_event_viewed: { Args: { p_event_id: string }; Returns: undefined }
+      set_event_subscription: { Args: { p_event_id: string; p_on: boolean }; Returns: undefined }
+      notify_event: { Args: { p_event_id: string; p_kind?: string }; Returns: number }
     }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>

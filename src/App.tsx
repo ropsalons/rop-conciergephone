@@ -24,6 +24,8 @@ import { ShoutoutsPage } from '@/pages/ShoutoutsPage'
 import { GuestRecoveryPage } from '@/pages/GuestRecoveryPage'
 import { EducationPage } from '@/pages/EducationPage'
 import { SchedulingPage } from '@/pages/SchedulingPage'
+import { EventsPage } from '@/pages/EventsPage'
+import { EventDetailPage } from '@/pages/EventDetailPage'
 import { AdminPage } from '@/pages/AdminPage'
 import { DeactivatedPage } from '@/pages/DeactivatedPage'
 
@@ -84,6 +86,8 @@ export default function App() {
           <Route path="recovery" element={<GuestRecoveryPage />} />
           <Route path="education" element={<EducationPage />} />
           <Route path="scheduling" element={<SchedulingPage />} />
+          <Route path="events" element={<EventsPage />} />
+          <Route path="events/:eventId" element={<EventDetailPage />} />
           <Route path="admin" element={<AdminPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
