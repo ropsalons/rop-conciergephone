@@ -4,7 +4,7 @@ import { useDirectoryStore } from '@/stores/directoryStore'
 import { useUIStore } from '@/stores/uiStore'
 import { Avatar } from '@/components/ui/Avatar'
 import { Spinner } from '@/components/ui/Feedback'
-import { Send, Paperclip, Smile, X, Code } from '@/components/ui/Icons'
+import { Send, Paperclip, Smile, X, Code, Image, Camera } from '@/components/ui/Icons'
 import { QUICK_EMOJIS } from '@/lib/constants'
 import { cn, displayName, extractMentionQuery } from '@/lib/utils'
 import { uploadAttachment, type PendingFile } from '@/lib/files'
@@ -27,12 +27,15 @@ export function MessageComposer({ onSend, placeholder = 'Write a message…', di
   const [uploading, setUploading] = useState(0)
   const [mentionQuery, setMentionQuery] = useState<string | null>(null)
   const [emojiOpen, setEmojiOpen] = useState(false)
+  const [attachOpen, setAttachOpen] = useState(false)
   const [htmlMode, setHtmlMode] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const mentionsRef = useRef<Array<{ token: string; id: string }>>([])
   const dragDepth = useRef(0) // dragenter/leave fire on children too — count depth to avoid flicker
   const taRef = useRef<HTMLTextAreaElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const galleryRef = useRef<HTMLInputElement>(null)
+  const cameraRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const ta = taRef.current
@@ -191,13 +194,53 @@ export function MessageComposer({ onSend, placeholder = 'Write a message…', di
       )}
 
       <div className="flex items-end gap-2 rounded-xl border border-white/10 bg-brand-900 px-2 py-1.5">
-        <button
-          onClick={() => fileRef.current?.click()}
-          className="rounded-lg p-2 text-slate-400 hover:bg-white/10 hover:text-white"
-          title="Attach file"
-        >
-          {uploading > 0 ? <Spinner className="h-4 w-4" /> : <Paperclip className="h-5 w-5" />}
-        </button>
+        <div className="relative shrink-0">
+          <button
+            onClick={() => setAttachOpen((v) => !v)}
+            aria-haspopup="menu"
+            aria-expanded={attachOpen}
+            className="rounded-lg p-2 text-slate-400 hover:bg-white/10 hover:text-white"
+            title="Attach"
+          >
+            {uploading > 0 ? <Spinner className="h-4 w-4" /> : <Paperclip className="h-5 w-5" />}
+          </button>
+          {attachOpen && (
+            <>
+              {/* Tap-away backdrop so the menu closes when you tap elsewhere. */}
+              <button
+                aria-hidden
+                tabIndex={-1}
+                onClick={() => setAttachOpen(false)}
+                className="fixed inset-0 z-20 cursor-default"
+              />
+              <div className="absolute bottom-full left-0 z-30 mb-2 w-52 overflow-hidden rounded-xl border border-white/10 bg-brand-800 py-1 shadow-2xl">
+                <button
+                  onClick={() => { setAttachOpen(false); galleryRef.current?.click() }}
+                  className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm text-slate-100 hover:bg-white/10"
+                >
+                  <Image className="h-5 w-5 text-brand-300" /> Photo or video
+                </button>
+                <button
+                  onClick={() => { setAttachOpen(false); cameraRef.current?.click() }}
+                  className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm text-slate-100 hover:bg-white/10"
+                >
+                  <Camera className="h-5 w-5 text-brand-300" /> Take photo or video
+                </button>
+                <button
+                  onClick={() => { setAttachOpen(false); fileRef.current?.click() }}
+                  className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm text-slate-100 hover:bg-white/10"
+                >
+                  <Paperclip className="h-5 w-5 text-brand-300" /> File
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+        {/* Photo/video from the phone's gallery (no `capture`, so it opens the library, not the camera). */}
+        <input ref={galleryRef} type="file" accept="image/*,video/*" multiple hidden onChange={onPickFiles} />
+        {/* `capture` opens the camera directly to take a new photo/video. */}
+        <input ref={cameraRef} type="file" accept="image/*,video/*" capture="environment" hidden onChange={onPickFiles} />
+        {/* Any file type (PDFs, docs, etc.). */}
         <input ref={fileRef} type="file" multiple hidden onChange={onPickFiles} />
         <button
           onClick={() => setHtmlMode((v) => !v)}

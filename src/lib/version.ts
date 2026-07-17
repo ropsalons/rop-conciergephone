@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.13.5'
+export const APP_VERSION = '1.13.6'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.13.6',
+    date: '2026-07-16',
+    time: '9:10 PM ET',
+    title: 'Attach photos & videos from your gallery',
+    changes: [
+      'Tapping the paperclip now gives you a clear choice: Photo or video (from your phone’s gallery), Take photo or video (opens the camera), or File. Before, on some phones it only offered the file browser or the camera — never the photo gallery. Now the gallery is one tap away.',
+      'Works the same in channels, direct messages and threads.',
+    ],
+  },
   {
     version: '1.13.5',
     date: '2026-07-16',

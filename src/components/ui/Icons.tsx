@@ -74,6 +74,12 @@ export const Smile = (p: P) => (
 export const Paperclip = (p: P) => (
   <svg {...base(p)}><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
 )
+export const Image = (p: P) => (
+  <svg {...base(p)}><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" /></svg>
+)
+export const Camera = (p: P) => (
+  <svg {...base(p)}><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" /><circle cx="12" cy="13" r="3" /></svg>
+)
 export const ChevronDown = (p: P) => (
   <svg {...base(p)}><path d="m6 9 6 6 6-6" /></svg>
 )
