@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.16.0'
+export const APP_VERSION = '1.16.1'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,15 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.16.1',
+    date: '2026-07-17',
+    time: '1:05 PM ET',
+    title: 'Urgent Alerts now has a permanent home',
+    changes: [
+      'Added “Urgent Alerts” to the menu and to the Salon actions on Home, so you can always get there — to send a new alert or to open any past alert and see exactly who acknowledged it. (Previously it only appeared when you had an unread alert.)',
+    ],
+  },
   {
     version: '1.16.0',
     date: '2026-07-17',

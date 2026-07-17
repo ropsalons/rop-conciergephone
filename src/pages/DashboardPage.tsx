@@ -30,6 +30,7 @@ const CATEGORY_EMOJI: Record<string, string> = Object.fromEntries(
 )
 
 const QUICK_ACTIONS = [
+  { key: 'alerts', label: 'Urgent Alerts', to: '/alerts', Icon: AlertTriangle, tint: 'text-red-400' },
   { key: 'events', label: 'Events', to: '/events', Icon: Calendar, tint: 'text-sky-300' },
   { key: 'shoutout', label: 'New Shoutout', to: '/shoutouts', Icon: Star, tint: 'text-gold-300' },
   { key: 'recovery', label: 'Guest Recovery', to: '/recovery', Icon: LifeBuoy, tint: 'text-emerald-300' },
@@ -252,7 +253,7 @@ export function DashboardPage() {
 
           {/* Salon quick actions */}
           <SectionCard title="Salon actions">
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
               {QUICK_ACTIONS.map(({ key, label, to, Icon, tint }) => (
                 <button
                   key={key}
