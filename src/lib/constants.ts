@@ -90,6 +90,14 @@ export const RSVP_OPTIONS = [
   { key: 'cant_go', label: "Can't Go", emoji: '🚫', tone: 'slate' },
 ] as const
 
+export const RESOURCE_CATEGORIES = [
+  { key: 'dashboard', label: 'Dashboards', emoji: '📊' },
+  { key: 'guide', label: 'Guides & How-Tos', emoji: '📖' },
+  { key: 'link', label: 'Links', emoji: '🔗' },
+  { key: 'form', label: 'Forms & Checklists', emoji: '📝' },
+  { key: 'other', label: 'Other', emoji: '📁' },
+] as const
+
 export const QUICK_EMOJIS = ['👍', '❤️', '🎉', '🙌', '🔥', '💈', '✨', '😂', '👏', '✅']
 
 export const MAX_FILE_BYTES = 25 * 1024 * 1024 // 25MB — matches the storage bucket cap

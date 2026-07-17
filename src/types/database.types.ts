@@ -336,6 +336,20 @@ export type EventRsvpRow = {
 export type EventViewRow = { event_id: string; user_id: string; viewed_at: string }
 export type EventSubscriptionRow = { event_id: string; user_id: string; created_at: string }
 
+export type ResourceCategory = 'dashboard' | 'guide' | 'link' | 'form' | 'other'
+export type ResourceRow = {
+  id: string
+  title: string
+  url: string | null
+  description: string | null
+  category: ResourceCategory
+  emoji: string | null
+  sort: number
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
 type TableFor<Row> = { Row: Row; Insert: Partial<Row>; Update: Partial<Row>; Relationships: [] }
 
 export type Database = {
@@ -369,6 +383,7 @@ export type Database = {
       event_rsvps: TableFor<EventRsvpRow>
       event_views: TableFor<EventViewRow>
       event_subscriptions: TableFor<EventSubscriptionRow>
+      resources: TableFor<ResourceRow>
       audit_logs: TableFor<AuditLogRow>
     }
     Views: Record<string, never>

@@ -16,7 +16,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { UnreadBadge } from '@/components/ui/Badge'
 import {
   Hash, Lock, Megaphone, Home, MessageSquare, Users, Search, Bell, Plus,
-  Star, LifeBuoy, Shield, Settings, Calendar,
+  Star, LifeBuoy, Shield, Settings, Calendar, Link as LinkIcon,
   Eye, EyeOff, ArrowUpDown, GripVertical,
 } from '@/components/ui/Icons'
 import { conversationName, otherMembers } from '@/lib/dm'
@@ -233,6 +233,9 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           </NavLink>
           <NavLink to="/events" onClick={go} className={({ isActive }) => cn(NAV_LINK, isActive ? active : idle)}>
             <Calendar className="h-4 w-4" /> Events
+          </NavLink>
+          <NavLink to="/resources" onClick={go} className={({ isActive }) => cn(NAV_LINK, isActive ? active : idle)}>
+            <LinkIcon className="h-4 w-4" /> Resources
           </NavLink>
           <button onClick={() => { setHelpOpen(true); go() }} className={cn(NAV_LINK, idle, 'w-full')}>
             <LifeBuoy className="h-4 w-4" /> Help &amp; Guide

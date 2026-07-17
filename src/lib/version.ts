@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.14.0'
+export const APP_VERSION = '1.15.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.15.0',
+    date: '2026-07-17',
+    time: '11:30 AM ET',
+    title: 'Big channel cleanup + new Resources hub',
+    changes: [
+      'Cleaned up the channels. We went from ~90 channels (most of them old, empty, or leftover from the Slack import) down to a focused set of about 20 that are actually used — grouped into Company, Front Desk & Phones, Stylists & Education, Locations, Teams, and Automated Feeds. Nothing was deleted; the old channels are archived (history kept) and can be restored anytime.',
+      'Renamed a few for clarity: the busy desk↔phones channel is now “Front Desk & Phones,” “rop-docs-hub” is now the “Resources Hub,” and “Victories” is now “Wins.” Added a new “Stylists” channel for all-stylist communication.',
+      'New Resources tab (in the menu): one place for dashboards, guides, key links and forms — no more hunting. Managers can add resources with the “Add resource” button. The matching #resources-hub channel has a pinned index too.',
+    ],
+  },
   {
     version: '1.14.0',
     date: '2026-07-17',
