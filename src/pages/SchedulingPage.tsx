@@ -96,6 +96,8 @@ export function SchedulingPage() {
   return (
     <div className="flex h-full flex-col">
       <PageHeader
+        backTo="/"
+        backAlways
         icon={<Calendar className="h-5 w-5" />}
         title="Scheduling"
         subtitle="Open shifts & coverage"

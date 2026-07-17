@@ -18,7 +18,9 @@ import {
   Hash,
   MessageSquare,
   ChevronLeft,
+  Check,
 } from '@/components/ui/Icons'
+import { RichText } from '@/components/messages/RichText'
 import { SHOUTOUT_CATEGORIES } from '@/lib/constants'
 import { displayName, timeAgo, cn } from '@/lib/utils'
 import type { UrgentAlertRow, AnnouncementRow, ShoutoutRow } from '@/types'
@@ -76,6 +78,7 @@ export function DashboardPage() {
   const unreadByConversation = useChatStore((s) => s.unreadByConversation)
 
   const [alerts, setAlerts] = useState<UrgentAlertRow[]>([])
+  const [ackedAlerts, setAckedAlerts] = useState<Set<string>>(new Set())
   const [announcements, setAnnouncements] = useState<AnnouncementRow[]>([])
   const [shoutouts, setShoutouts] = useState<ShoutoutRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -119,8 +122,21 @@ export function DashboardPage() {
 
       const [alertsRes, annRes, shoutRes] = await Promise.all([alertsQ, announcementsQ, shoutoutsQ])
 
+      // Which of these alerts has THIS user already acknowledged? Acknowledged ones drop off Home.
+      const alertRows = (alertsRes.data as UrgentAlertRow[]) ?? []
+      let ackSet = new Set<string>()
+      if (profile?.id && alertRows.length) {
+        const { data: ackData } = await supabase
+          .from('urgent_alert_acknowledgements')
+          .select('alert_id')
+          .eq('user_id', profile.id)
+          .in('alert_id', alertRows.map((r) => r.id))
+        ackSet = new Set((ackData ?? []).map((r) => r.alert_id))
+      }
+
       if (!active) return
-      setAlerts((alertsRes.data as UrgentAlertRow[]) ?? [])
+      setAckedAlerts(ackSet)
+      setAlerts(alertRows)
       setAnnouncements((annRes.data as AnnouncementRow[]) ?? [])
       setShoutouts((shoutRes.data as ShoutoutRow[]) ?? [])
       setLoading(false)
@@ -149,6 +165,21 @@ export function DashboardPage() {
   )
   const hasUnread = totalUnreadDMs + totalUnreadChannels > 0
 
+  // Only alerts this user hasn't cleared yet show on Home, so they don't blare forever.
+  const unackedAlerts = useMemo(
+    () => alerts.filter((a) => !ackedAlerts.has(a.id)),
+    [alerts, ackedAlerts],
+  )
+  // "I saw it" records an acknowledgement and drops the alert off Home (still on the Alerts page).
+  async function dismissAlert(a: UrgentAlertRow) {
+    if (!profile?.id) return
+    setAckedAlerts((prev) => new Set(prev).add(a.id))
+    await supabase
+      .from('urgent_alert_acknowledgements')
+      .insert({ alert_id: a.id, user_id: profile.id })
+      .then(() => {}, () => {}) // ignore duplicate/permission errors — the UI already updated
+  }
+
   if (loading) return <FullPageLoader label="Loading your day…" />
 
   return (
@@ -176,30 +207,44 @@ export function DashboardPage() {
             </div>
           </div>
 
-          {/* Urgent alerts */}
-          {alerts.length > 0 && (
+          {/* Urgent alerts — only ones you haven't cleared yet, dismissible right here. */}
+          {unackedAlerts.length > 0 && (
             <SectionCard
               title="Urgent alerts"
               icon={<AlertTriangle className="h-4 w-4 text-red-400" />}
               onSeeAll={() => navigate('/alerts')}
+              seeAllLabel="History"
             >
               <div className="space-y-2">
-                {alerts.map((a) => (
-                  <button
+                {unackedAlerts.map((a) => (
+                  <div
                     key={a.id}
-                    onClick={() => navigate('/alerts')}
-                    className="flex w-full items-start gap-3 rounded-xl border border-red-500/50 bg-red-950/40 p-3 text-left transition hover:bg-red-900/40"
+                    className="rounded-xl border border-red-500/50 bg-red-950/40 p-3"
                   >
-                    <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-400" />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="truncate text-sm font-semibold text-white">{a.title}</p>
-                        {a.severity === 'critical' && <Tag tone="red">Critical</Tag>}
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-400" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-white">{a.title}</p>
+                          {a.severity === 'critical' && <Tag tone="red">Critical</Tag>}
+                        </div>
+                        {a.body && (
+                          <div className="mt-1 text-xs leading-relaxed text-red-100/90">
+                            <RichText text={a.body} />
+                          </div>
+                        )}
+                        <p className="mt-1 text-[11px] text-red-200/60">{timeAgo(a.created_at)}</p>
                       </div>
-                      {a.body && <p className="mt-0.5 line-clamp-2 text-xs text-red-100/80">{a.body}</p>}
-                      <p className="mt-1 text-[11px] text-red-200/60">{timeAgo(a.created_at)}</p>
                     </div>
-                  </button>
+                    <div className="mt-2 flex justify-end">
+                      <button
+                        onClick={() => dismissAlert(a)}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20"
+                      >
+                        <Check className="h-3.5 w-3.5" /> I saw it
+                      </button>
+                    </div>
+                  </div>
                 ))}
               </div>
             </SectionCard>

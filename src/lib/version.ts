@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.15.0'
+export const APP_VERSION = '1.16.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,18 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.16.0',
+    date: '2026-07-17',
+    time: '12:40 PM ET',
+    title: 'Urgent alerts you can clear + easier navigation',
+    changes: [
+      'Urgent alerts on your Home page now have an “I saw it” button — tap it and the alert clears off your Home (it’s still on the Alerts page under “History” if you need it). No more alerts blaring at you forever.',
+      'Added a back arrow (←) to the top of every workflow page — Alerts, Events, Resources, Guest Recovery, Shoutouts, Scheduling, Announcements and more — so you can always get back to Home in one tap, on desktop and phone.',
+      'Your three salons are now ROP Bayfront, ROP Village and ROP Promenade, pinned to the top of the channel list (along with Announcements) so they’re always right there.',
+      'Restored the Concierge-Support channel, and added two new channels: Product Shipping (for Shopify order/shipping status) and Featured Products.',
+    ],
+  },
   {
     version: '1.15.0',
     date: '2026-07-17',

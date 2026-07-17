@@ -72,6 +72,8 @@ export function EducationPage() {
   return (
     <div className="flex h-full flex-col">
       <PageHeader
+        backTo="/"
+        backAlways
         icon={<GraduationCap className="h-5 w-5" />}
         title="Education"
         subtitle="Updates & required reading"

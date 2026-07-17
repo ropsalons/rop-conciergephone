@@ -85,6 +85,8 @@ export function UrgentAlertsPage() {
   return (
     <div className="flex h-full flex-col">
       <PageHeader
+        backTo="/"
+        backAlways
         icon={<AlertTriangle className="h-5 w-5 text-red-400" />}
         title="Urgent Alerts"
         subtitle="Time-sensitive, high-priority notices"

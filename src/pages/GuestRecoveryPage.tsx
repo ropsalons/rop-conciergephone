@@ -58,6 +58,8 @@ export function GuestRecoveryPage() {
   return (
     <div className="flex h-full flex-col">
       <PageHeader
+        backTo="/"
+        backAlways
         icon={<LifeBuoy className="h-5 w-5" />}
         title="Guest Recovery"
         subtitle={`${items.length} issue${items.length === 1 ? '' : 's'} tracked`}

@@ -54,6 +54,8 @@ export function EventsPage() {
   return (
     <div className="flex h-full flex-col">
       <PageHeader
+        backTo="/"
+        backAlways
         icon={<Calendar className="h-5 w-5" />}
         title="Events"
         subtitle={`${upcoming.length} upcoming`}

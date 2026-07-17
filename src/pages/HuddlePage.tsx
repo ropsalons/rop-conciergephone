@@ -213,6 +213,8 @@ export function HuddlePage() {
   return (
     <div className="flex h-full flex-col">
       <PageHeader
+        backTo="/"
+        backAlways
         icon={<ClipboardList className="h-5 w-5" />}
         title="Daily Huddle"
         subtitle="Start the day aligned"

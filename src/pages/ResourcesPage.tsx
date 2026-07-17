@@ -44,6 +44,8 @@ export function ResourcesPage() {
   return (
     <div className="flex h-full flex-col">
       <PageHeader
+        backTo="/"
+        backAlways
         icon={<LinkIcon className="h-5 w-5" />}
         title="Resources"
         subtitle="Dashboards, guides, links & forms"

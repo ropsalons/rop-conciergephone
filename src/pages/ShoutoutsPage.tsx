@@ -118,6 +118,8 @@ export function ShoutoutsPage() {
   return (
     <div className="flex h-full flex-col">
       <PageHeader
+        backTo="/"
+        backAlways
         icon={<Star className="h-5 w-5 text-gold-300" />}
         title="Shoutouts"
         subtitle="Celebrate the team"

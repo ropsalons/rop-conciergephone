@@ -114,6 +114,8 @@ export function AnnouncementsPage() {
   return (
     <div className="flex h-full flex-col">
       <PageHeader
+        backTo="/"
+        backAlways
         icon={<Megaphone className="h-5 w-5" />}
         title="Announcements"
         subtitle="Company-wide news and updates"
