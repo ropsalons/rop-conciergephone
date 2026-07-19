@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.22.0'
+export const APP_VERSION = '1.22.1'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,15 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.22.1',
+    date: '2026-07-19',
+    time: '2:45 AM ET',
+    title: 'Back arrow always returns you Home',
+    changes: [
+      'The ← back arrow at the top of a channel or a direct message now takes you straight to Home, instead of dropping you on the channel list or DM list. One tap, you’re home.',
+    ],
+  },
   {
     version: '1.22.0',
     date: '2026-07-19',

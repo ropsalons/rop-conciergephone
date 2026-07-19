@@ -119,7 +119,7 @@ export function ChannelPage() {
   return (
     <div className="flex h-full flex-col">
       <PageHeader
-        backTo="/channels"
+        backTo="/"
         icon={<Icon className="h-5 w-5" />}
         title={channel.name}
         subtitle={channel.topic || channel.description || `${members.length} members`}
