@@ -10,7 +10,7 @@
 //   Headers: { "Authorization": "Bearer rop_ai_…", "Content-Type": "application/json" }
 //   Body:    { "action": "<action>", ...params, "idempotency_key"?: "<uuid>" }
 //
-// Actions: list_channels · read_channel_messages · read_thread · search_messages ·
+// Actions: list_channels · list_users · read_channel_messages · read_thread · search_messages ·
 //          post_message · reply_thread · send_dm · send_group_dm · create_task · update_task ·
 //          register_webhook · request_approval · list_approvals
 //
@@ -305,6 +305,34 @@ Deno.serve(async (req) => {
       return json({ ok: true, results, correlation_id: correlationId })
     }
 
+    if (action === 'list_users') {
+      // The staff directory, so projects can match people by NAME and route by ROP Chat's own
+      // identity (id/email) instead of depending on an external system's email.
+      const q = String(body.query ?? '').trim().toLowerCase()
+      const includeInactive = body.include_inactive === true
+      const limit = Math.min(Math.max(Number(body.limit) || 200, 1), 500)
+      let sel = admin.from('profiles').select('id,display_name,full_name,email,phone,role,secondary_role,access_level,location_id,department_id,is_active').order('full_name')
+      if (!includeInactive) sel = sel.eq('is_active', true)
+      const { data } = await sel.limit(500)
+      const [{ data: locs }, { data: deps }] = await Promise.all([
+        admin.from('locations').select('id,name'),
+        admin.from('departments').select('id,name'),
+      ])
+      const locName = new Map((locs ?? []).map((l: any) => [l.id, l.name]))
+      const depName = new Map((deps ?? []).map((d: any) => [d.id, d.name]))
+      let rows = ((data ?? []) as any[]).map((p) => ({
+        id: p.id, display_name: p.display_name, full_name: p.full_name, email: p.email, phone: p.phone,
+        role: p.role, secondary_role: p.secondary_role, access_level: p.access_level,
+        location: p.location_id ? locName.get(p.location_id) ?? null : null,
+        department: p.department_id ? depName.get(p.department_id) ?? null : null,
+        is_active: p.is_active,
+      }))
+      if (q) rows = rows.filter((p) => `${p.full_name ?? ''} ${p.display_name ?? ''} ${p.email ?? ''}`.toLowerCase().includes(q))
+      rows = rows.slice(0, limit)
+      await audit('ok', true, { count: rows.length })
+      return json({ ok: true, users: rows, correlation_id: correlationId })
+    }
+
     // ── Writes ────────────────────────────────────────────────────────────────
     const aiTag = { slug: A.slug, name: A.name, provider: A.provider }
 
@@ -368,13 +396,23 @@ Deno.serve(async (req) => {
 
     if (action === 'send_dm') {
       if (!A.allow_dms) return deny('This agent is not permitted to send direct messages.')
-      const email = String(body.to_email ?? '').trim()
       const items = parseJsonAttachments(body.attachments ?? body.files)
       let text = String(body.text ?? body.message ?? '').trim()
       if (!text && items.length) text = items.length === 1 ? '📎 Attachment' : `📎 ${items.length} attachments`
-      if (!email || !text) return deny('Provide "to_email" and "text" (or "attachments")', 400)
-      const { data: user } = await admin.from('profiles').select('id').ilike('email', email).maybeSingle()
-      if (!user) return deny(`No user with email ${email}`, 404)
+      // Resolve the recipient by ROP Chat id (preferred — no email dependency) or by email.
+      let user: { id: string } | null = null
+      if (uuidRe.test(String(body.to_user_id ?? ''))) {
+        const { data } = await admin.from('profiles').select('id').eq('id', String(body.to_user_id)).maybeSingle()
+        if (!data) return deny('No user with that id', 404)
+        user = data
+      } else {
+        const email = String(body.to_email ?? '').trim()
+        if (!email) return deny('Provide "to_user_id" or "to_email"', 400)
+        const { data } = await admin.from('profiles').select('id').ilike('email', email).maybeSingle()
+        if (!data) return deny(`No user with email ${email}`, 404)
+        user = data
+      }
+      if (!text) return deny('Provide "text" or "attachments"', 400)
       const memberKey = [BOT_ID, user.id].sort().join(':')
       let convId: string
       const { data: existing } = await admin.from('direct_conversations').select('id').eq('is_group', false).eq('member_key', memberKey).maybeSingle()
@@ -398,9 +436,16 @@ Deno.serve(async (req) => {
       const items = parseJsonAttachments(body.attachments ?? body.files)
       let text = String(body.text ?? body.message ?? '').trim()
       if (!text && items.length) text = items.length === 1 ? '📎 Attachment' : `📎 ${items.length} attachments`
-      if (emails.length < 1 || !text) return deny('Provide "to_emails" (array or comma list) and "text" (or "attachments")', 400)
+      // Recipients by ROP Chat id (preferred) or by email.
+      const userIds: string[] = Array.isArray(body.to_user_ids) ? body.to_user_ids.map((x: unknown) => String(x)).filter((x: string) => uuidRe.test(x)) : []
+      if (userIds.length < 1 && emails.length < 1) return deny('Provide "to_user_ids" or "to_emails", plus "text" (or "attachments")', 400)
+      if (!text) return deny('Provide "text" or "attachments"', 400)
       const memberIds: string[] = []
       const notFound: string[] = []
+      for (const uid of userIds) {
+        const { data: u } = await admin.from('profiles').select('id').eq('id', uid).maybeSingle()
+        if (u) memberIds.push(u.id); else notFound.push(uid)
+      }
       for (const em of emails) {
         const { data: u } = await admin.from('profiles').select('id').ilike('email', em).maybeSingle()
         if (u) memberIds.push(u.id); else notFound.push(em)

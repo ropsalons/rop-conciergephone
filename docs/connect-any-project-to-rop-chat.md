@@ -56,6 +56,7 @@ the same key returns the original result instead of double-posting.
 | Action | Params |
 | --- | --- |
 | `list_channels` | — |
+| `list_users` | `query?` (name/email filter), `include_inactive?`, `limit?` — the staff directory: `id`, `display_name`, `full_name`, `email`, `phone`, `role`, `access_level`, `location`, `department`. **Match people by NAME here and use their ROP Chat `id` to route** — don't depend on an external system's email. |
 | `read_channel_messages` | `channel` (slug/name/id), `limit?` (≤100), `before?` (ISO) |
 | `read_thread` | `message_id` |
 | `search_messages` | `query`, `channel?`, `limit?` (≤50) |
@@ -66,8 +67,8 @@ the same key returns the original result instead of double-posting.
 | --- | --- |
 | `post_message` | `channel`, `text` **or** `html`, `title?`, `author_name?`, `attachments?` |
 | `reply_thread` | `message_id`, `text`, `attachments?` |
-| `send_dm` | `to_email`, `text`, `author_name?`, `attachments?` — DM one person |
-| `send_group_dm` | `to_emails` (array or comma list), `text`, `title?`, `author_name?`, `attachments?` — DM a group |
+| `send_dm` | `to_user_id` **or** `to_email`, `text`, `author_name?`, `attachments?` — DM one person (prefer `to_user_id` from `list_users`) |
+| `send_group_dm` | `to_user_ids` **or** `to_emails`, `text`, `title?`, `author_name?`, `attachments?` — DM a group |
 | `create_task` | `title`, `body?`, `channel?`, `assignee_email?`, `external_ref?` |
 | `update_task` | `task_id`, `status?` (`open`/`in_progress`/`done`/`cancelled`), `title?`, `body?` |
 | `register_webhook` | `project_name`, `url`, `secret?`, `events?` — self-register your return-path webhook (see §4) |
