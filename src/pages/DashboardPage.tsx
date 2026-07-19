@@ -19,6 +19,7 @@ import {
   MessageSquare,
   ChevronLeft,
   Check,
+  Sparkles,
 } from '@/components/ui/Icons'
 import { RichText } from '@/components/messages/RichText'
 import { SHOUTOUT_CATEGORIES } from '@/lib/constants'
@@ -152,6 +153,10 @@ export function DashboardPage() {
     () => channels.filter((c) => (unreadByChannel[c.id] ?? 0) > 0 && !c.is_muted),
     [channels, unreadByChannel],
   )
+  const commandConsoles = useMemo(
+    () => channels.filter((c) => c.category === 'AI Command Consoles' && !c.is_archived).sort((a, b) => a.name.localeCompare(b.name)),
+    [channels],
+  )
   const unreadConversations = useMemo(
     () => conversations.filter((c) => (unreadByConversation[c.id] ?? 0) > 0 && !c.is_muted),
     [conversations, unreadByConversation],
@@ -266,6 +271,26 @@ export function DashboardPage() {
               ))}
             </div>
           </SectionCard>
+
+          {/* AI Command Consoles */}
+          {commandConsoles.length > 0 && (
+            <SectionCard title="AI Command Consoles" icon={<Sparkles className="h-4 w-4 text-gold-300" />}>
+              <div className="space-y-1">
+                {commandConsoles.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => navigate(`/channel/${c.id}`)}
+                    className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-white/5"
+                  >
+                    <Sparkles className="h-4 w-4 text-gold-300/80" />
+                    <span className="min-w-0 flex-1 truncate text-sm text-slate-200">{c.name}</span>
+                    <UnreadBadge count={c.is_muted ? 0 : unreadByChannel[c.id]} />
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1 px-2 text-[11px] text-slate-500">Type an instruction in one of these to command that project.</p>
+            </SectionCard>
+          )}
 
           {/* Announcements */}
           {announcements.length > 0 && (

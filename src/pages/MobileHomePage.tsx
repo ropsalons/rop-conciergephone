@@ -89,11 +89,15 @@ export function MobileHomePage() {
   const restChannels = useMemo(
     () =>
       channels
-        .filter((c) => !c.is_favorite)
+        .filter((c) => !c.is_favorite && c.category !== 'AI Command Consoles')
         .sort((a, b) => {
           const cmp = (b.last_message_at ?? '').localeCompare(a.last_message_at ?? '')
           return cmp !== 0 ? cmp : (a.name ?? '').localeCompare(b.name ?? '')
         }),
+    [channels],
+  )
+  const consoles = useMemo(
+    () => channels.filter((c) => c.category === 'AI Command Consoles').sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '')),
     [channels],
   )
   const dms = useMemo(
@@ -193,6 +197,12 @@ export function MobileHomePage() {
         <Section id="channels" title="Channels" count={restChannels.length} unread={channelUnreadTotal}>
           {restChannels.length > 0 ? restChannels.map(ChannelRow) : <p className="px-3 py-1 text-sm text-slate-500">No channels yet.</p>}
         </Section>
+
+        {consoles.length > 0 && (
+          <Section id="consoles" title="AI Command Consoles" count={consoles.length}>
+            {consoles.map(ChannelRow)}
+          </Section>
+        )}
       </div>
     </div>
   )

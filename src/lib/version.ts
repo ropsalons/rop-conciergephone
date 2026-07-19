@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.22.1'
+export const APP_VERSION = '1.22.2'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,15 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.22.2',
+    date: '2026-07-19',
+    time: '3:00 AM ET',
+    title: 'AI Command Consoles now on the Home screen',
+    changes: [
+      'Your AI Command Consoles now show as their own section on Home (both desktop and phone), not just in the sidebar — so you can jump into any project’s command channel right from the home screen.',
+    ],
+  },
   {
     version: '1.22.1',
     date: '2026-07-19',
