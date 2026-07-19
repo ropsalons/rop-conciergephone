@@ -3,46 +3,33 @@
 export const APP_NAME = 'ROP Chat (Slack)'
 export const COMPANY_NAME = 'Robert of Philadelphia Salons'
 
+// Job TITLES (a person's designation / comms group). Someone can have two (dual role).
+// These are separate from ACCESS LEVEL (below), which is what governs permissions.
 export const ROLE_LABELS: Record<string, string> = {
-  owner: 'Owner / Admin',
-  admin: 'Administrator',
   leadership: 'Leadership',
-  manager: 'Manager',
-  operations: 'Operations',
   marketing: 'Marketing',
-  education: 'Education',
-  hr: 'Human Resources',
   concierge: 'Concierge',
   stylist: 'Stylist',
   associate: 'Associate',
+  specialist: 'Specialist',
 }
+export const TITLE_OPTIONS = ['concierge', 'stylist', 'associate', 'specialist', 'leadership', 'marketing'] as const
 
-export const ROLE_RANK: Record<string, number> = {
-  owner: 100,
-  admin: 90,
-  leadership: 40,
-  manager: 30,
-  operations: 20,
-  marketing: 20,
-  education: 20,
-  hr: 20,
-  concierge: 10,
-  stylist: 10,
-  associate: 10,
+// ACCESS LEVELS — what a person can do. Owner/Admin = full control ("god mode"); Leader can
+// post urgent alerts & moderate; Member is the default. Shown as a small badge (A / L).
+export const ACCESS_LABELS: Record<string, string> = {
+  owner: 'Owner',
+  admin: 'Admin',
+  leader: 'Leader',
+  member: 'Member',
 }
+export const ACCESS_RANK: Record<string, number> = { owner: 100, admin: 90, leader: 40, member: 10 }
+export const ACCESS_OPTIONS = ['member', 'leader', 'admin', 'owner'] as const
+// Short badge shown next to a name/title. Members get no badge.
+export const ACCESS_BADGE: Record<string, string> = { owner: 'Owner', admin: 'A', leader: 'L' }
 
-// Roles offered in the sign-up dropdown (owner/admin are assigned, not self-selected).
-export const SIGNUP_ROLES = [
-  'leadership',
-  'manager',
-  'stylist',
-  'associate',
-  'concierge',
-  'education',
-  'marketing',
-  'operations',
-  'hr',
-] as const
+// Titles offered in the sign-up dropdown (access level is assigned by an admin, not self-selected).
+export const SIGNUP_ROLES = ['stylist', 'associate', 'concierge', 'specialist', 'leadership', 'marketing'] as const
 
 export const SHOUTOUT_CATEGORIES = [
   { key: 'guest_experience', label: 'Guest Experience', emoji: '✨' },
@@ -102,15 +89,39 @@ export const QUICK_EMOJIS = ['👍', '❤️', '🎉', '🙌', '🔥', '💈', '
 
 export const MAX_FILE_BYTES = 25 * 1024 * 1024 // 25MB — matches the storage bucket cap
 
-export function canModerate(role?: string | null) {
-  return (ROLE_RANK[role ?? ''] ?? 0) >= 40
+// All permission checks take a person's ACCESS LEVEL (owner/admin/leader/member).
+export function accessRank(access?: string | null) {
+  return ACCESS_RANK[access ?? ''] ?? 10
 }
-export function canManage(role?: string | null) {
-  return (ROLE_RANK[role ?? ''] ?? 0) >= 30
+export function isOwner(access?: string | null) {
+  return accessRank(access) >= 100
 }
-export function isAdmin(role?: string | null) {
-  return (ROLE_RANK[role ?? ''] ?? 0) >= 90
+export function isAdmin(access?: string | null) {
+  return accessRank(access) >= 90 // owner + admin ("god mode")
 }
-export function canPostEducation(role?: string | null) {
-  return canManage(role) || role === 'education'
+export function canModerate(access?: string | null) {
+  return accessRank(access) >= 40 // leader + admin + owner (urgent alerts, moderation)
+}
+export function canManage(access?: string | null) {
+  return accessRank(access) >= 40 // leader and up
+}
+export function canPostEducation(access?: string | null) {
+  return canManage(access)
+}
+// Short access badge (A / L / Owner) for a person; null for regular members.
+export function accessBadge(access?: string | null): string | null {
+  return ACCESS_BADGE[access ?? ''] ?? null
+}
+
+// Pretty-print a single title key (falls back to a capitalized version of the raw key).
+export function oneTitle(key?: string | null): string {
+  if (!key) return ''
+  return ROLE_LABELS[key] ?? key.charAt(0).toUpperCase() + key.slice(1)
+}
+// Combined title label — "Concierge" or "Associate + Stylist" when a person has a dual role.
+export function titleLabel(role?: string | null, secondary?: string | null): string {
+  const primary = oneTitle(role)
+  const sec = oneTitle(secondary)
+  if (primary && sec && sec !== primary) return `${primary} + ${sec}`
+  return primary || sec
 }

@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.17.1'
+export const APP_VERSION = '1.18.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,21 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.18.0',
+    date: '2026-07-19',
+    time: '1:30 PM ET',
+    title: 'Access levels, dual job titles & two-location staff',
+    changes: [
+      'Your job title and your access level are now two separate things. Someone can stay a Concierge (so they keep getting concierge messages) and ALSO be an Admin — they’ll show as “Concierge” with a small “A” badge. Access levels are Owner, Admin, Leader and Member.',
+      'Admin = full control (“god mode”). Leader (shown as an “L”) can send Urgent Alerts. Everyone can post to Announcements now — Urgent Alerts are reserved for Leaders and up.',
+      'Dual job titles: people promoted into a second role now show both, e.g. “Associate + Stylist.” Set on the person’s card in Admin → Users (Title + Second title). Pulled from Gusto for Elizabeth, Dori, Andy, Lizelle and Katie to start.',
+      'Two-location staff: you can now give someone a Second location in Admin → Users. They’ll be added to both salon channels and get location announcements/urgent alerts for both.',
+      'Admin → Users redesigned: each person now has Title, Second title, Access level, Department, Location and Second location — plus the A/L badge right on the card.',
+      'Cleaned up the pickers: titles are now Concierge, Stylist, Associate, Specialist, Leadership and Marketing. Departments are Styling, Concierge and Marketing. (Removed the old Administrator/Manager/Operations/Education/HR/Guest Experience/Leadership entries.)',
+      'Updated the Help guide (the ? button) to explain access levels, dual titles and two-location staff.',
+    ],
+  },
   {
     version: '1.17.1',
     date: '2026-07-18',

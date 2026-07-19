@@ -59,7 +59,10 @@ export type ProfileRow = {
   display_name: string | null
   avatar_url: string | null
   role: string
+  secondary_role: string | null
+  access_level: string
   location_id: string | null
+  secondary_location_id: string | null
   department_id: string | null
   title: string | null
   phone: string | null

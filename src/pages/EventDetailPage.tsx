@@ -24,7 +24,7 @@ export function EventDetailPage() {
   const { eventId } = useParams()
   const navigate = useNavigate()
   const me = useAuthStore((s) => s.user?.id)
-  const role = useAuthStore((s) => s.profile?.role)
+  const access = useAuthStore((s) => s.profile?.access_level)
   const profiles = useDirectoryStore((s) => s.profiles)
   const profilesById = useDirectoryStore((s) => s.profilesById)
   const toast = useUIStore((s) => s.toast)
@@ -71,7 +71,7 @@ export function EventDetailPage() {
     return recipients.filter((p) => !responded.has(p.id)).length
   }, [recipients, rsvps])
 
-  const canEdit = !!event && (canManage(role) || event.created_by === me)
+  const canEdit = !!event && (canManage(access) || event.created_by === me)
 
   async function setRsvp(resp: RsvpResponse) {
     if (!eventId || !me) return

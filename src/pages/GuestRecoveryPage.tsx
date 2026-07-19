@@ -22,7 +22,7 @@ const URGENCY_LABEL: Record<Urgency, string> = { low: 'Low', medium: 'Medium', h
 
 export function GuestRecoveryPage() {
   const me = useAuthStore((s) => s.user?.id)
-  const role = useAuthStore((s) => s.profile?.role)
+  const access = useAuthStore((s) => s.profile?.access_level)
   const { profilesById, locations } = useDirectoryStore()
   const people = useDirectoryStore((s) => s.profiles)
   const toast = useUIStore((s) => s.toast)
@@ -161,7 +161,7 @@ export function GuestRecoveryPage() {
         <DetailModal
           item={active}
           me={me}
-          canEdit={canManage(role) || active.owner_id === me || active.created_by === me}
+          canEdit={canManage(access) || active.owner_id === me || active.created_by === me}
           people={activeProfiles}
           locationName={locationName(active.location_id)}
           onClose={() => setActive(null)}

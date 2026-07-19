@@ -40,7 +40,7 @@ function formatShiftDate(date: string | null): string | null {
 
 export function SchedulingPage() {
   const me = useAuthStore((s) => s.user?.id)
-  const role = useAuthStore((s) => s.profile?.role)
+  const access = useAuthStore((s) => s.profile?.access_level)
   const { profilesById } = useDirectoryStore()
   const locations = useDirectoryStore((s) => s.locations)
   const toast = useUIStore((s) => s.toast)
@@ -171,7 +171,7 @@ export function SchedulingPage() {
               const author = p.author_id ? profilesById[p.author_id] : null
               const claimer = p.claimed_by ? profilesById[p.claimed_by] : null
               const isAuthor = p.author_id === me
-              const canManagePost = isAuthor || canManage(role)
+              const canManagePost = isAuthor || canManage(access)
               const busy = busyId === p.id
               return (
                 <article key={p.id} className="card p-4">

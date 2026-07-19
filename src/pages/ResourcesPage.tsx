@@ -12,9 +12,9 @@ import type { ResourceRow, ResourceCategory } from '@/types'
 
 export function ResourcesPage() {
   const me = useAuthStore((s) => s.user?.id)
-  const role = useAuthStore((s) => s.profile?.role)
+  const access = useAuthStore((s) => s.profile?.access_level)
   const toast = useUIStore((s) => s.toast)
-  const manage = canManage(role)
+  const manage = canManage(access)
 
   const [items, setItems] = useState<ResourceRow[]>([])
   const [loading, setLoading] = useState(true)

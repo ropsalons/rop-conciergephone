@@ -24,7 +24,7 @@ interface Props {
 
 export function MessageItem({ message, grouped, showThread = true, onReact, onReply, onEdit, onDelete, onTogglePin }: Props) {
   const me = useAuthStore((s) => s.user?.id)
-  const myRole = useAuthStore((s) => s.profile?.role)
+  const myAccess = useAuthStore((s) => s.profile?.access_level)
   const profilesById = useDirectoryStore((s) => s.profilesById)
   const toast = useUIStore((s) => s.toast)
   const [showEmoji, setShowEmoji] = useState(false)
@@ -55,7 +55,7 @@ export function MessageItem({ message, grouped, showThread = true, onReact, onRe
   }, [])
 
   const isMine = message.user_id === me
-  const canModerate = isMine || canManage(myRole)
+  const canModerate = isMine || canManage(myAccess)
   const isTemp = message.id.startsWith('temp-')
 
   // A shareable deep link to THIS message — open it (or text it to someone) and the app jumps to the
@@ -283,7 +283,7 @@ export function MessageItem({ message, grouped, showThread = true, onReact, onRe
           <button onClick={() => shareLink()} className="rounded p-1.5 text-slate-300 hover:bg-white/10" title="Copy link to this message">
             <LinkIcon className="h-4 w-4" />
           </button>
-          {onTogglePin && canManage(myRole) && (
+          {onTogglePin && canManage(myAccess) && (
             <button onClick={() => onTogglePin(!message.is_pinned)} className="rounded p-1.5 text-slate-300 hover:bg-white/10" title={message.is_pinned ? 'Unpin' : 'Pin'}>
               <Pin className={cn('h-4 w-4', message.is_pinned && 'text-gold-400')} />
             </button>
@@ -331,7 +331,7 @@ export function MessageItem({ message, grouped, showThread = true, onReact, onRe
               {showThread && onReply && (
                 <SheetItem icon={<Reply className="h-5 w-5" />} label="Reply in thread" onClick={() => { onReply(); setSheetOpen(false) }} />
               )}
-              {onTogglePin && canManage(myRole) && (
+              {onTogglePin && canManage(myAccess) && (
                 <SheetItem
                   icon={<Pin className={cn('h-5 w-5', message.is_pinned && 'text-gold-400')} />}
                   label={message.is_pinned ? 'Unpin message' : 'Pin message'}

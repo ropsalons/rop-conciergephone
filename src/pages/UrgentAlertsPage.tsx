@@ -22,7 +22,7 @@ export function UrgentAlertsPage() {
   const locations = useDirectoryStore((s) => s.locations)
   const departments = useDirectoryStore((s) => s.departments)
   const toast = useUIStore((s) => s.toast)
-  const isLeader = canModerate(profile?.role)
+  const isLeader = canModerate(profile?.access_level)
 
   const [items, setItems] = useState<UrgentAlertRow[]>([])
   const [loading, setLoading] = useState(true)

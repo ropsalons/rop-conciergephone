@@ -10,7 +10,16 @@ import { Modal } from '@/components/ui/Modal'
 import { Tag } from '@/components/ui/Badge'
 import { EmptyState, FullPageLoader, Spinner } from '@/components/ui/Feedback'
 import { Shield, Plus, Trash, Archive, Search, Hash, Users, ClipboardList, Edit } from '@/components/ui/Icons'
-import { isAdmin, ROLE_LABELS } from '@/lib/constants'
+import {
+  isAdmin,
+  isOwner,
+  ROLE_LABELS,
+  TITLE_OPTIONS,
+  ACCESS_OPTIONS,
+  ACCESS_LABELS,
+  accessBadge,
+  titleLabel,
+} from '@/lib/constants'
 import { cn, displayName, formatBytes, timeAgo } from '@/lib/utils'
 import type {
   Profile,
@@ -67,7 +76,7 @@ export function AdminPage() {
     [me],
   )
 
-  if (!isAdmin(profile?.role)) {
+  if (!isAdmin(profile?.access_level)) {
     return (
       <div className="flex h-full flex-col">
         <PageHeader title="Admin Panel" icon={<Shield className="h-5 w-5" />} />
@@ -883,7 +892,7 @@ function SmsTab({ logAudit }: { logAudit: LogAudit }) {
 
 function UsersTab({ logAudit }: { logAudit: LogAudit }) {
   const profiles = useDirectoryStore((s) => s.profiles)
-  const roles = useDirectoryStore((s) => s.roles)
+  const myAccess = useAuthStore((s) => s.profile?.access_level)
   const locations = useDirectoryStore((s) => s.locations)
   const departments = useDirectoryStore((s) => s.departments)
   const reload = useDirectoryStore((s) => s.load)
@@ -920,9 +929,8 @@ function UsersTab({ logAudit }: { logAudit: LogAudit }) {
     setEditing(null)
   }
 
-  const roleOptions = roles.length
-    ? roles.map((r) => ({ value: r.key, label: r.label }))
-    : Object.entries(ROLE_LABELS).map(([value, label]) => ({ value, label }))
+  const titleOptions = TITLE_OPTIONS.map((value) => ({ value, label: ROLE_LABELS[value] ?? value }))
+  const canSetOwner = isOwner(myAccess)
 
   const q = search.trim().toLowerCase()
   // Terminated / deactivated people are hidden by default so the list is just current staff.
@@ -1002,15 +1010,34 @@ function UsersTab({ logAudit }: { logAudit: LogAudit }) {
               <div className="flex items-center gap-3">
                 <Avatar profile={p} size="md" />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-white">{displayName(p)}</p>
-                  <p className="truncate text-xs text-slate-400">{p.email ?? 'No email'}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="truncate text-sm font-semibold text-white">{displayName(p)}</p>
+                    {accessBadge(p.access_level) && (
+                      <span
+                        className={cn(
+                          'shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold leading-none',
+                          p.access_level === 'owner'
+                            ? 'bg-gold-500/20 text-gold-300'
+                            : p.access_level === 'admin'
+                              ? 'bg-brand-500/25 text-brand-200'
+                              : 'bg-white/10 text-slate-200',
+                        )}
+                        title={ACCESS_LABELS[p.access_level] ?? ''}
+                      >
+                        {accessBadge(p.access_level)}
+                      </span>
+                    )}
+                  </div>
+                  <p className="truncate text-xs text-slate-400">
+                    {titleLabel(p.role, p.secondary_role) || 'No title'} · {p.email ?? 'No email'}
+                  </p>
                 </div>
                 <Tag tone={p.is_active ? 'green' : 'red'}>{p.is_active ? 'Active' : 'Inactive'}</Tag>
               </div>
 
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <label className="block">
-                  <span className="label">Role</span>
+                  <span className="label">Title</span>
                   <select
                     className="input"
                     value={p.role}
@@ -1022,9 +1049,79 @@ function UsersTab({ logAudit }: { logAudit: LogAudit }) {
                       })
                     }
                   >
-                    {roleOptions.map((r) => (
+                    {titleOptions.map((r) => (
                       <option key={r.value} value={r.value}>
                         {r.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="block">
+                  <span className="label">Second title (dual role)</span>
+                  <select
+                    className="input"
+                    value={p.secondary_role ?? ''}
+                    disabled={busyId === p.id}
+                    onChange={(e) =>
+                      patchUser(
+                        p,
+                        { secondary_role: e.target.value || null },
+                        'change_secondary_role',
+                        { secondary_role: e.target.value || null },
+                      )
+                    }
+                  >
+                    <option value="">None</option>
+                    {titleOptions.map((r) => (
+                      <option key={r.value} value={r.value}>
+                        {r.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="block">
+                  <span className="label">Access level</span>
+                  <select
+                    className="input"
+                    value={p.access_level}
+                    disabled={busyId === p.id}
+                    onChange={(e) =>
+                      patchUser(p, { access_level: e.target.value }, 'change_access', {
+                        from: p.access_level,
+                        to: e.target.value,
+                      })
+                    }
+                  >
+                    {ACCESS_OPTIONS.map((a) => (
+                      <option key={a} value={a} disabled={a === 'owner' && !canSetOwner}>
+                        {ACCESS_LABELS[a]}
+                        {a === 'admin' ? ' (full control)' : a === 'leader' ? ' (urgent alerts)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="block">
+                  <span className="label">Department</span>
+                  <select
+                    className="input"
+                    value={p.department_id ?? ''}
+                    disabled={busyId === p.id}
+                    onChange={(e) =>
+                      patchUser(
+                        p,
+                        { department_id: e.target.value || null },
+                        'change_department',
+                        { department_id: e.target.value || null },
+                      )
+                    }
+                  >
+                    <option value="">No department</option>
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}
                       </option>
                     ))}
                   </select>
@@ -1055,24 +1152,24 @@ function UsersTab({ logAudit }: { logAudit: LogAudit }) {
                 </label>
 
                 <label className="block">
-                  <span className="label">Department</span>
+                  <span className="label">Second location (dual site)</span>
                   <select
                     className="input"
-                    value={p.department_id ?? ''}
+                    value={p.secondary_location_id ?? ''}
                     disabled={busyId === p.id}
                     onChange={(e) =>
                       patchUser(
                         p,
-                        { department_id: e.target.value || null },
-                        'change_department',
-                        { department_id: e.target.value || null },
+                        { secondary_location_id: e.target.value || null },
+                        'change_secondary_location',
+                        { secondary_location_id: e.target.value || null },
                       )
                     }
                   >
-                    <option value="">No department</option>
-                    {departments.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.name}
+                    <option value="">None</option>
+                    {locations.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name}
                       </option>
                     ))}
                   </select>
@@ -1137,7 +1234,7 @@ function UsersTab({ logAudit }: { logAudit: LogAudit }) {
             <input className="input" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
           </label>
           <p className="text-xs text-slate-400">
-            Role, location, department and active status are changed on the card behind this dialog.
+            Title, access level, location, department and active status are changed on the card behind this dialog.
           </p>
         </div>
       </Modal>

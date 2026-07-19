@@ -6,8 +6,9 @@ import { supabase } from '@/lib/supabase'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Avatar } from '@/components/ui/Avatar'
 import { Spinner } from '@/components/ui/Feedback'
+import { AccessBadge } from '@/components/ui/Badge'
 import { Bell, LogOut } from '@/components/ui/Icons'
-import { ROLE_LABELS } from '@/lib/constants'
+import { ROLE_LABELS, titleLabel, ACCESS_LABELS } from '@/lib/constants'
 import { cn, uuid } from '@/lib/utils'
 import { disablePush, enablePush, getPushStatus, type PushStatus } from '@/lib/push'
 import type { NotificationPrefs, Presence, Profile } from '@/types'
@@ -174,11 +175,12 @@ export function ProfilePage() {
             <div className="flex items-center gap-4">
               <Avatar profile={profile} size="xl" showPresence />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-lg font-semibold text-white">
-                  {profile.display_name || profile.full_name}
+                <p className="flex items-center gap-1.5 truncate text-lg font-semibold text-white">
+                  <span className="truncate">{profile.display_name || profile.full_name}</span>
+                  <AccessBadge access={profile.access_level} />
                 </p>
                 <p className="truncate text-sm text-slate-400">
-                  {profile.title || ROLE_LABELS[profile.role] || profile.role}
+                  {profile.title || titleLabel(profile.role, profile.secondary_role) || profile.role}
                 </p>
                 <div className="mt-2">
                   <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onAvatarChange} />
@@ -272,7 +274,8 @@ export function ProfilePage() {
           <section className="card space-y-2 p-4">
             <h2 className="text-sm font-semibold text-white">Organization</h2>
             <p className="text-xs text-slate-500">Managed by an administrator.</p>
-            <ReadOnlyRow label="Role" value={ROLE_LABELS[profile.role] ?? profile.role} />
+            <ReadOnlyRow label="Title" value={titleLabel(profile.role, profile.secondary_role) || ROLE_LABELS[profile.role] || profile.role} />
+            <ReadOnlyRow label="Access level" value={ACCESS_LABELS[profile.access_level] ?? 'Member'} />
             <ReadOnlyRow label="Location" value={locationName} />
             <ReadOnlyRow label="Department" value={departmentName} />
           </section>

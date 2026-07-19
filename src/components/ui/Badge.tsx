@@ -39,3 +39,25 @@ export function Tag({
 }) {
   return <span className={cn('chip', TONES[tone], className)}>{children}</span>
 }
+
+import { accessBadge, ACCESS_LABELS } from '@/lib/constants'
+
+// Small A / L / Owner badge shown beside a name. Renders nothing for regular members.
+export function AccessBadge({ access, className }: { access?: string | null; className?: string }) {
+  const label = accessBadge(access)
+  if (!label) return null
+  const tone =
+    access === 'owner'
+      ? 'bg-gold-500/20 text-gold-300'
+      : access === 'admin'
+        ? 'bg-brand-500/25 text-brand-200'
+        : 'bg-white/10 text-slate-200'
+  return (
+    <span
+      className={cn('shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold leading-none', tone, className)}
+      title={ACCESS_LABELS[access ?? ''] ?? ''}
+    >
+      {label}
+    </span>
+  )
+}

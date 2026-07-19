@@ -24,7 +24,7 @@ const categoryLabel = (key: string) => EDUCATION_CATEGORIES.find((c) => c.key ==
 
 export function EducationPage() {
   const me = useAuthStore((s) => s.user?.id)
-  const role = useAuthStore((s) => s.profile?.role)
+  const access = useAuthStore((s) => s.profile?.access_level)
   const { profilesById } = useDirectoryStore()
   const locations = useDirectoryStore((s) => s.locations)
   const people = useDirectoryStore((s) => s.profiles)
@@ -37,7 +37,7 @@ export function EducationPage() {
   const [showNew, setShowNew] = useState(false)
   const [reportFor, setReportFor] = useState<EducationUpdateRow | null>(null)
 
-  const canPost = canPostEducation(role)
+  const canPost = canPostEducation(access)
 
   async function load() {
     const [updatesRes, acksRes] = await Promise.all([

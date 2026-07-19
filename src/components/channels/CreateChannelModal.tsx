@@ -89,7 +89,7 @@ export function CreateChannelModal({ open, onClose }: { open: boolean; onClose: 
             {type === 'public' ? 'Anyone in the workspace can find and join.' : 'Only invited members can see this channel.'}
           </p>
         </div>
-        {!canManage(profile?.role) && (
+        {!canManage(profile?.access_level) && (
           <p className="text-[11px] text-slate-500">
             Location, department and announcement channels are managed by leadership in the Admin panel.
           </p>

@@ -22,7 +22,7 @@ export function DMPage() {
   const [searchParams] = useSearchParams()
   const highlightId = searchParams.get('m') ?? undefined
   const me = useAuthStore((s) => s.user?.id)
-  const myRole = useAuthStore((s) => s.profile?.role)
+  const myAccess = useAuthStore((s) => s.profile?.access_level)
   const markConversationRead = useChatStore((s) => s.markConversationRead)
   const openThread = useUIStore((s) => s.openThread)
   const [conv, setConv] = useState<ConversationWithMeta | null>(null)
@@ -72,7 +72,7 @@ export function DMPage() {
         }
         actions={
           // Admins can nudge a 1:1 recipient by text ("you have a message waiting in ROP Chat").
-          !conv.is_group && lead && isAdmin(myRole) ? (
+          !conv.is_group && lead && isAdmin(myAccess) ? (
             <button
               onClick={() => setReminderOpen(true)}
               title={`Text ${conversationName(conv, me)} a reminder`}

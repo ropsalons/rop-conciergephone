@@ -7,10 +7,10 @@ import { useUIStore } from '@/stores/uiStore'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Avatar } from '@/components/ui/Avatar'
 import { Modal } from '@/components/ui/Modal'
-import { Tag } from '@/components/ui/Badge'
+import { Tag, AccessBadge } from '@/components/ui/Badge'
 import { FullPageLoader, EmptyState } from '@/components/ui/Feedback'
 import { Search, Users, MessageSquare } from '@/components/ui/Icons'
-import { ROLE_LABELS } from '@/lib/constants'
+import { ROLE_LABELS, titleLabel } from '@/lib/constants'
 import { displayName } from '@/lib/utils'
 import type { Profile } from '@/types'
 
@@ -151,11 +151,12 @@ export function DirectoryPage() {
                 <button onClick={() => setSelected(p)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
                   <Avatar profile={p} size="md" showPresence />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-white">
-                      {displayName(p)}
-                      {startYear(p) && <span className="ml-1.5 text-[11px] font-medium text-gold-300/90">· since {startYear(p)}</span>}
+                    <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-white">
+                      <span className="truncate">{displayName(p)}</span>
+                      <AccessBadge access={p.access_level} />
+                      {startYear(p) && <span className="text-[11px] font-medium text-gold-300/90">· since {startYear(p)}</span>}
                     </p>
-                    <p className="truncate text-xs text-slate-400">{p.title || ROLE_LABELS[p.role] || p.role}</p>
+                    <p className="truncate text-xs text-slate-400">{p.title || titleLabel(p.role, p.secondary_role) || p.role}</p>
                     <p className="truncate text-[11px] text-slate-500">
                       {[p.location_id ? locationName[p.location_id] : null, p.department_id ? departmentName[p.department_id] : null]
                         .filter(Boolean)
@@ -206,10 +207,13 @@ export function DirectoryPage() {
             <div className="flex items-center gap-4">
               <Avatar profile={selected} size="xl" showPresence />
               <div className="min-w-0">
-                <p className="truncate text-lg font-semibold text-white">{displayName(selected)}</p>
-                <p className="truncate text-sm text-slate-400">{selected.title || ROLE_LABELS[selected.role] || selected.role}</p>
+                <p className="flex items-center gap-1.5 truncate text-lg font-semibold text-white">
+                  <span className="truncate">{displayName(selected)}</span>
+                  <AccessBadge access={selected.access_level} />
+                </p>
+                <p className="truncate text-sm text-slate-400">{selected.title || titleLabel(selected.role, selected.secondary_role) || selected.role}</p>
                 <div className="mt-1 flex flex-wrap gap-1">
-                  <Tag tone="brand">{ROLE_LABELS[selected.role] ?? selected.role}</Tag>
+                  <Tag tone="brand">{titleLabel(selected.role, selected.secondary_role) || ROLE_LABELS[selected.role] || selected.role}</Tag>
                   <Tag tone={selected.presence === 'online' ? 'green' : selected.presence === 'away' ? 'amber' : 'slate'}>
                     {selected.presence}
                   </Tag>

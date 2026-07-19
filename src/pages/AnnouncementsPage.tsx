@@ -24,7 +24,7 @@ export function AnnouncementsPage() {
   const locations = useDirectoryStore((s) => s.locations)
   const departments = useDirectoryStore((s) => s.departments)
   const toast = useUIStore((s) => s.toast)
-  const isLeader = canModerate(profile?.role)
+  const isLeader = canModerate(profile?.access_level)
 
   const [items, setItems] = useState<AnnouncementRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -120,11 +120,9 @@ export function AnnouncementsPage() {
         title="Announcements"
         subtitle="Company-wide news and updates"
         actions={
-          isLeader ? (
-            <button onClick={() => setShowCompose(true)} className="btn-primary px-3 py-1.5 text-sm">
-              <Plus className="h-4 w-4" /> New announcement
-            </button>
-          ) : undefined
+          <button onClick={() => setShowCompose(true)} className="btn-primary px-3 py-1.5 text-sm">
+            <Plus className="h-4 w-4" /> New announcement
+          </button>
         }
       />
 
@@ -135,13 +133,11 @@ export function AnnouncementsPage() {
           <EmptyState
             icon={<Megaphone className="h-8 w-8" />}
             title="No announcements yet"
-            body={isLeader ? 'Post the first announcement for your team.' : 'Check back soon for company news.'}
+            body="Post the first announcement for your team."
             action={
-              isLeader ? (
-                <button onClick={() => setShowCompose(true)} className="btn-primary mt-2">
-                  New announcement
-                </button>
-              ) : undefined
+              <button onClick={() => setShowCompose(true)} className="btn-primary mt-2">
+                New announcement
+              </button>
             }
           />
         ) : (
@@ -235,16 +231,15 @@ export function AnnouncementsPage() {
         )}
       </div>
 
-      {isLeader && (
-        <ComposeModal
-          open={showCompose}
-          onClose={() => setShowCompose(false)}
-          onCreated={() => {
-            setShowCompose(false)
-            void load()
-          }}
-        />
-      )}
+      <ComposeModal
+        open={showCompose}
+        canModerate={isLeader}
+        onClose={() => setShowCompose(false)}
+        onCreated={() => {
+          setShowCompose(false)
+          void load()
+        }}
+      />
 
       {isLeader && reportFor && (
         <AckReportModal
@@ -259,10 +254,12 @@ export function AnnouncementsPage() {
 
 function ComposeModal({
   open,
+  canModerate,
   onClose,
   onCreated,
 }: {
   open: boolean
+  canModerate: boolean
   onClose: () => void
   onCreated: () => void
 }) {
@@ -385,14 +382,18 @@ function ComposeModal({
           <label className="label">Expiration (optional)</label>
           <input type="date" className="input" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} />
         </div>
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-200">
-          <input type="checkbox" className="h-4 w-4 accent-brand-500" checked={isPinned} onChange={(e) => setIsPinned(e.target.checked)} />
-          Pin to top
-        </label>
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-200">
-          <input type="checkbox" className="h-4 w-4 accent-brand-500" checked={requiresAck} onChange={(e) => setRequiresAck(e.target.checked)} />
-          Require acknowledgement
-        </label>
+        {canModerate && (
+          <>
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-200">
+              <input type="checkbox" className="h-4 w-4 accent-brand-500" checked={isPinned} onChange={(e) => setIsPinned(e.target.checked)} />
+              Pin to top
+            </label>
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-200">
+              <input type="checkbox" className="h-4 w-4 accent-brand-500" checked={requiresAck} onChange={(e) => setRequiresAck(e.target.checked)} />
+              Require acknowledgement
+            </label>
+          </>
+        )}
       </div>
     </Modal>
   )

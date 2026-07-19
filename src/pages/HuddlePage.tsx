@@ -57,7 +57,7 @@ export function HuddlePage() {
   const { locations, profiles, profilesById, load, loaded } = useDirectoryStore()
   const toast = useUIStore((s) => s.toast)
 
-  const manager = canManage(profile?.role)
+  const manager = canManage(profile?.access_level)
 
   const [locationId, setLocationId] = useState('')
   const [date, setDate] = useState(todayStr())

@@ -159,11 +159,11 @@ export function HelpModal() {
                 <>A <K>+ Show N quiet channels</K> link appears at the bottom of the list — tap it (or the <EyeOff className="inline h-3.5 w-3.5" /> button) to bring them all back.</>,
               ]} />
               <p className="text-xs text-slate-400">Your sort and hide choices are remembered on this device (they don&apos;t change what anyone else sees).</p>
-              <p className="text-xs text-slate-400"><Lock className="inline h-3 w-3" /> = private/admin channel · <Megaphone className="inline h-3 w-3" /> = announcement channel (only leadership can post) · <Hash className="inline h-3 w-3" /> = normal channel.</p>
+              <p className="text-xs text-slate-400"><Lock className="inline h-3 w-3" /> = private/admin channel · <Megaphone className="inline h-3 w-3" /> = announcement channel (everyone can post) · <Hash className="inline h-3 w-3" /> = normal channel.</p>
             </Topic>
 
             <Topic icon={<Plus className="h-4 w-4" />} title="Adding & removing other people in a channel">
-              <p>Owners, admins and managers can add or remove other people from a channel.</p>
+              <p>Owners, admins and leaders can add or remove other people from a channel.</p>
               <p className="font-semibold text-white">Add people:</p>
               <Steps items={[
                 <>Open the channel → tap the <b>Members</b> button (<Users className="inline h-3.5 w-3.5" />) top-right.</>,
@@ -173,7 +173,7 @@ export function HelpModal() {
               <Steps items={[
                 <>In the same <b>Members</b> list, tap the <K>Remove</K> (✕) next to a person&apos;s name.</>,
               ]} />
-              <p className="text-xs text-slate-400">Don&apos;t see these options? You need a manager, admin or owner role — ask an admin, or manage membership from the Admin Panel.</p>
+              <p className="text-xs text-slate-400">Don&apos;t see these options? You need Leader access or higher — ask an admin, or manage membership from the Admin Panel.</p>
             </Topic>
 
             <Topic icon={<MessageSquare className="h-4 w-4" />} title="Direct & group messages (DMs)">
@@ -204,8 +204,8 @@ export function HelpModal() {
 
             <Topic icon={<Star className="h-4 w-4" />} title="Salon workflows">
               <ul className="ml-4 list-disc space-y-1 marker:text-slate-500">
-                <li><Megaphone className="inline h-3.5 w-3.5" /> <b>Announcements</b> — company news.</li>
-                <li><AlertTriangle className="inline h-3.5 w-3.5" /> <b>Urgent Alerts</b> — time-sensitive; tap <b>“I saw this”</b> to acknowledge. Leadership can see who hasn&apos;t.</li>
+                <li><Megaphone className="inline h-3.5 w-3.5" /> <b>Announcements</b> — company news. <b>Anyone</b> can post one.</li>
+                <li><AlertTriangle className="inline h-3.5 w-3.5" /> <b>Urgent Alerts</b> — time-sensitive; tap <b>“I saw this”</b> to acknowledge. Sent by <b>Leaders &amp; Admins</b>; they can see who hasn&apos;t acknowledged.</li>
                 <li><ClipboardList className="inline h-3.5 w-3.5" /> <b>Daily Huddle</b> — the day&apos;s focus and goals.</li>
                 <li><Star className="inline h-3.5 w-3.5" /> <b>Shoutouts</b> — recognize a teammate.</li>
                 <li><LifeBuoy className="inline h-3.5 w-3.5" /> <b>Guest Recovery</b> — log and follow up on guest issues.</li>
@@ -217,7 +217,7 @@ export function HelpModal() {
             <Topic icon={<Shield className="h-4 w-4" />} title="Admin area (owners & admins)">
               <p>Open the <b>Admin Panel</b> <Shield className="inline h-3.5 w-3.5" /> at the bottom of the sidebar (visible to admins/owners only). Tabs:</p>
               <ul className="ml-4 list-disc space-y-1 marker:text-slate-500">
-                <li><b>Users</b> — change a member&apos;s role, location, department, or deactivate/reactivate them. Tap <b>Edit details</b> on a person to change their full name, display name (nickname), title or phone.</li>
+                <li><b>Users</b> — on each person&apos;s card set their <b>Title</b>, a <b>Second title</b> (dual role, shows as “Associate + Stylist”), <b>Access level</b> (Owner / Admin / Leader / Member), <b>Department</b>, <b>Location</b> and a <b>Second location</b> for two-salon staff. You can also deactivate/reactivate them. Tap <b>Edit details</b> to change their full name, display name (nickname), free-text title or phone. Terminated people are hidden until you tick <b>“Show inactive / terminated.”</b></li>
                 <li><b>Channels</b> — create channels, and tap the <b>✏️ Edit</b> button on any channel to <b>rename</b> it or change its <b>type</b> (public / private / announcement / location / department), <b>topic</b>, description, default-join, or <b>archived</b> status. Archive old ones or delete them here too.</li>
                 <li><b>Acknowledgements</b> — see who has/hasn&apos;t acknowledged urgent alerts &amp; announcements.</li>
                 <li><b>Audit Log</b> — record of admin actions.</li>
@@ -226,13 +226,30 @@ export function HelpModal() {
               <p className="text-xs text-slate-400">To add someone to a specific channel, you can either use the channel&apos;s <b>Members → Add people</b> (above), or manage it here.</p>
             </Topic>
 
-            <Topic icon={<Users className="h-4 w-4" />} title="Accounts, roles & the imported history">
+            <Topic icon={<Users className="h-4 w-4" />} title="Accounts, the imported history">
               <ul className="ml-4 list-disc space-y-1 marker:text-slate-500">
                 <li><b>Sign in</b> with your work email. New staff first-time password is provided by an admin — change it in <b>Profile</b>.</li>
                 <li><b>Edit your own name/photo</b> — tap your name (bottom-left) → <b>Profile</b> → set your <b>Display name</b> (e.g. “Rob” instead of “Robert”), title, phone, bio and photo, then <b>Save</b>.</li>
-                <li><b>Roles</b> set what you can do: everyone can chat &amp; DM; managers moderate channels &amp; run huddles; leadership posts announcements &amp; urgent alerts; owner/admin can do everything.</li>
                 <li><b>Old Slack history</b> appears in the channels labelled with each message&apos;s original author and an <b>“archived”</b> tag — it was imported from the company&apos;s previous Slack.</li>
               </ul>
+            </Topic>
+
+            <Topic icon={<Shield className="h-4 w-4" />} title="Access levels, job titles & two-location staff">
+              <p>Your <b>job title</b> and your <b>access level</b> are two separate things — that&apos;s on purpose.</p>
+              <p className="font-semibold text-white">Job title (your comms group)</p>
+              <p>Your title — Concierge, Stylist, Associate, Specialist, Leadership or Marketing — decides which team conversations you belong to. It never changes just because you get more app permissions. So a Concierge who&apos;s also an admin still shows as a <b>Concierge</b> and stays in all concierge messages.</p>
+              <p className="font-semibold text-white">Dual titles (“Associate + Stylist”)</p>
+              <p>Been promoted but still doing your first role? You can carry <b>two titles</b>. They show together, e.g. <b>Associate + Stylist</b>, and you stay in both groups. An admin sets the second title in <b>Admin → Users</b>.</p>
+              <p className="font-semibold text-white">Access level — what you can do</p>
+              <ul className="ml-4 list-disc space-y-1 marker:text-slate-500">
+                <li><b>Member</b> — everyone. Chat, DM, react, and <b>post to Announcements</b>.</li>
+                <li><b>Leader</b> (shown as an <b>L</b> badge) — everything a Member can do, plus send <b>Urgent Alerts</b>, run huddles, and add/remove people in channels.</li>
+                <li><b>Admin</b> (shown as an <b>A</b> badge) — full control (“god mode”): the whole Admin Panel, every channel, every setting.</li>
+                <li><b>Owner</b> — the top level (Rob), same powers as Admin.</li>
+              </ul>
+              <p>The little <b>A</b> / <b>L</b> / <b>Owner</b> badge next to a name shows their access level. Members have no badge.</p>
+              <p className="font-semibold text-white">Two-location staff</p>
+              <p>Work at two salons? An admin can give you a <b>Second location</b> in <b>Admin → Users</b>. You&apos;ll be added to both salon channels and get location announcements &amp; urgent alerts for both.</p>
             </Topic>
 
             <Topic icon={<Sparkles className="h-4 w-4" />} title="Automated reports & posting from other systems">

@@ -13,7 +13,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useChatStore } from '@/stores/chatStore'
 import { useUIStore } from '@/stores/uiStore'
 import { Avatar } from '@/components/ui/Avatar'
-import { UnreadBadge } from '@/components/ui/Badge'
+import { UnreadBadge, AccessBadge } from '@/components/ui/Badge'
 import {
   Hash, Lock, Megaphone, Home, MessageSquare, Users, Search, Bell, Plus,
   Star, LifeBuoy, Shield, Settings, Calendar, Link as LinkIcon, AlertTriangle,
@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/Icons'
 import { conversationName, otherMembers } from '@/lib/dm'
 import { cn } from '@/lib/utils'
-import { APP_NAME, isAdmin } from '@/lib/constants'
+import { APP_NAME, isAdmin, titleLabel } from '@/lib/constants'
 import { APP_VERSION } from '@/lib/version'
 import { CreateChannelModal } from '@/components/channels/CreateChannelModal'
 import { BrowseChannelsModal } from '@/components/channels/BrowseChannelsModal'
@@ -344,7 +344,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           </div>
         </div>
 
-        {isAdmin(profile?.role) && (
+        {isAdmin(profile?.access_level) && (
           <NavLink to="/admin" onClick={go} className={({ isActive }) => cn(NAV_LINK, isActive ? active : idle)}>
             <Shield className="h-4 w-4" /> Admin Panel
           </NavLink>
@@ -364,8 +364,11 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         <button onClick={() => { navigate('/profile'); go() }} className="flex min-w-0 flex-1 items-center gap-2 rounded-lg p-1 hover:bg-white/5">
           <Avatar profile={profile} size="sm" showPresence />
           <div className="min-w-0 text-left">
-            <p className="truncate text-sm font-semibold text-white">{profile?.display_name || profile?.full_name}</p>
-            <p className="truncate text-[11px] capitalize text-slate-400">{profile?.role}</p>
+            <p className="flex items-center gap-1 truncate text-sm font-semibold text-white">
+              <span className="truncate">{profile?.display_name || profile?.full_name}</span>
+              <AccessBadge access={profile?.access_level} />
+            </p>
+            <p className="truncate text-[11px] text-slate-400">{titleLabel(profile?.role, profile?.secondary_role)}</p>
           </div>
         </button>
         <button title="Profile & settings" onClick={() => { navigate('/profile'); go() }} className="rounded-lg p-2 text-slate-400 hover:bg-white/10 hover:text-white">

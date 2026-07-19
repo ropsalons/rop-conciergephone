@@ -23,7 +23,7 @@ export function EventFormModal({
   onSaved: (row: EventRow, notified: number) => void
 }) {
   const me = useAuthStore((s) => s.user?.id)
-  const role = useAuthStore((s) => s.profile?.role)
+  const access = useAuthStore((s) => s.profile?.access_level)
   const locations = useDirectoryStore((s) => s.locations)
   const departments = useDirectoryStore((s) => s.departments)
   const profiles = useDirectoryStore((s) => s.profiles)
@@ -47,7 +47,7 @@ export function EventFormModal({
   const [notify, setNotify] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  const canBlast = canManage(role) || (editing && existing?.created_by === me)
+  const canBlast = canManage(access) || (editing && existing?.created_by === me)
 
   const people = useMemo(() => profiles.filter((p) => p.is_active && p.id !== me), [profiles, me])
   const shownPeople = useMemo(() => {

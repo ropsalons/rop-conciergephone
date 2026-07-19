@@ -20,7 +20,7 @@ export function ShoutoutsPage() {
   const { profiles, profilesById, locations, load, loaded } = useDirectoryStore()
   const toast = useUIStore((s) => s.toast)
 
-  const admin = isAdmin(profile?.role)
+  const admin = isAdmin(profile?.access_level)
 
   const [shoutouts, setShoutouts] = useState<ShoutoutRow[]>([])
   const [loading, setLoading] = useState(true)

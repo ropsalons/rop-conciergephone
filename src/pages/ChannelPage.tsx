@@ -12,11 +12,12 @@ import { MessageComposer } from '@/components/messages/MessageComposer'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { FullPageLoader, EmptyState } from '@/components/ui/Feedback'
 import { Avatar } from '@/components/ui/Avatar'
+import { AccessBadge } from '@/components/ui/Badge'
 import { Hash, Lock, Megaphone, Users, Pin, Plus, X, LogOut, Search, Star, Bell, BellOff, Check } from '@/components/ui/Icons'
 import { Modal } from '@/components/ui/Modal'
 import { PinnedMessagesModal } from '@/components/channels/PinnedMessagesModal'
 import { displayName, cn } from '@/lib/utils'
-import { canModerate as canModRole, canManage } from '@/lib/constants'
+import { canManage, titleLabel } from '@/lib/constants'
 
 export function ChannelPage() {
   const { channelId } = useParams()
@@ -24,7 +25,7 @@ export function ChannelPage() {
   const highlightId = searchParams.get('m') ?? undefined
   const { channel, members, isMember, loading, join, leave, loadMembers, setNotifyLevel } = useChannel(channelId)
   const me = useAuthStore((s) => s.user?.id)
-  const myRole = useAuthStore((s) => s.profile?.role)
+  const myAccess = useAuthStore((s) => s.profile?.access_level)
   const markChannelRead = useChatStore((s) => s.markChannelRead)
   const toggleFavorite = useChatStore((s) => s.toggleFavorite)
   const isFavorite = useChatStore((s) => s.channels.find((c) => c.id === channelId)?.is_favorite ?? false)
@@ -54,7 +55,7 @@ export function ChannelPage() {
     })
   }
 
-  const iCanManageMembers = canManage(myRole)
+  const iCanManageMembers = canManage(myAccess)
 
   const memberIds = useMemo(() => new Set(members.map((m) => m.user_id)), [members])
   const addable = useMemo(() => {
@@ -112,8 +113,7 @@ export function ChannelPage() {
     )
 
   const Icon = channel.type === 'private' || channel.type === 'admin' ? Lock : channel.type === 'announcement' ? Megaphone : Hash
-  const postingLocked = channel.type === 'announcement' && !canModRole(myRole)
-  const canPost = isMember && !channel.is_archived && !postingLocked
+  const canPost = isMember && !channel.is_archived
   const pinnedCount = messages.filter((m) => m.is_pinned).length
 
   return (
@@ -210,10 +210,6 @@ export function ChannelPage() {
           placeholder={`Message #${channel.name}`}
           onSend={({ body, mentions, files, html }) => send({ body, mentions, files, html })}
         />
-      ) : postingLocked && isMember ? (
-        <div className="border-t border-white/10 bg-brand-900/40 p-3 text-center text-xs text-slate-400">
-          Only leadership can post in this announcement channel.
-        </div>
       ) : !isMember && !channel.is_archived ? (
         <div className="flex items-center justify-between gap-3 border-t border-white/10 bg-brand-900/40 p-3">
           <p className="text-sm text-slate-300">You're previewing this channel.</p>
@@ -291,10 +287,12 @@ export function ChannelPage() {
             <div key={m.user_id} className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-white/5">
               <Avatar profile={m.profile} size="sm" showPresence />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-white">
-                  {displayName(m.profile)} {m.user_id === me && <span className="text-slate-500">(you)</span>}
+                <p className="flex items-center gap-1 truncate text-sm font-medium text-white">
+                  <span className="truncate">{displayName(m.profile)}</span>
+                  <AccessBadge access={m.profile?.access_level} />
+                  {m.user_id === me && <span className="text-slate-500">(you)</span>}
                 </p>
-                <p className="truncate text-[11px] capitalize text-slate-400">{m.profile?.role}</p>
+                <p className="truncate text-[11px] text-slate-400">{titleLabel(m.profile?.role, m.profile?.secondary_role)}</p>
               </div>
               {m.role === 'admin' && <span className="chip bg-gold-400/20 text-gold-200">Owner</span>}
               {iCanManageMembers && m.user_id !== me && (
