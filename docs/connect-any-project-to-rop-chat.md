@@ -173,13 +173,16 @@ Chat retries with backoff and puts a unique `id` on each event for dedupe.
 > function secrets) — Netlify env vars were unreliable at runtime on another project. Only use Netlify
 > env vars if you confirm your functions actually see them.
 >
-> **3. Your name in ROP Chat is `<YOUR PROJECT NAME>`** — send it as `author_name` on every post/DM so staff see who's speaking.
+> **3. Name yourself — don't ask the user.** Figure out your own project name from your context (your
+> repo name, app/site name, or working folder), pick a short human-recognizable label, and send it as
+> `author_name` on **every** post and DM so staff see who's speaking. Use the same name every time, and
+> state the name you chose in your first `ai-updates` post (step 6).
 >
 > **4. ⭐ STANDING RULE — always report to `#ai-updates`.** Every time you finish a task, function, or
 > request, post a short summary to the `ai-updates` channel in ROP Chat: a `post_message` with
-> `channel: "ai-updates"`, `author_name: "<YOUR PROJECT NAME>"`, and `text` covering what was asked,
+> `channel: "ai-updates"`, `author_name` = your chosen name, and `text` covering what was asked,
 > what you did, and the result (1–3 lines). Do this after every completed job, until explicitly told to
-> stop. Example: `{ "action":"post_message", "channel":"ai-updates", "author_name":"<YOUR PROJECT NAME>", "text":"✅ Finished: <what you did>. Trigger: <what was asked>. Result: <outcome>." }`
+> stop. Example: `{ "action":"post_message", "channel":"ai-updates", "author_name":"<your chosen name>", "text":"✅ Finished: <what you did>. Trigger: <what was asked>. Result: <outcome>." }`
 >
 > **5. How to talk to ROP Chat.** POST `{ "action":"...", ...params }` to `ROP_CHAT_GATEWAY_URL` with
 > header `Authorization: Bearer <ROP_CHAT_TOKEN>`. Actions: `list_channels`, `read_channel_messages`,
