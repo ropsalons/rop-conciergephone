@@ -240,7 +240,11 @@ Deno.serve(async (req) => {
     const byId = new Map((profs ?? []).map((p: any) => [p.id, p.display_name || p.full_name || 'Unknown']))
     return rows.map((r) => {
       const meta = (r.metadata ?? {}) as any
-      const author = meta.ai_agent?.name ? `${meta.ai_agent.name} (AI)` : meta.author_name || meta.slack_author || byId.get(r.user_id) || 'Unknown'
+      // Show the per-message author_name (the specific project) first, so read-backs attribute
+      // correctly even when several projects share one token.
+      const author = meta.ai_agent
+        ? `${meta.author_name || meta.ai_agent.name} (AI)`
+        : (meta.author_name || meta.slack_author || byId.get(r.user_id) || 'Unknown')
       return {
         id: r.id, author, is_ai: !!meta.ai_agent, body: r.body, created_at: r.created_at,
         parent_message_id: r.parent_message_id, reply_count: r.reply_count,
