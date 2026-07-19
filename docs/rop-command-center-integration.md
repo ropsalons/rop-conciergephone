@@ -52,9 +52,9 @@ Content-Type: application/json
 
 **This token's scope (already provisioned):**
 - Identity: `ROP Command Center` (agent), owner = Rob. Posts show a **🤖 AI · ROP Command Center** badge.
-- Channels: **all public channels** (private / location / leadership channels are excluded by default — say the word to add specific ones to its allow-list).
-- **Direct messages:** enabled (can DM any staff member by email).
-- **Actions:** all 11 (read, post, reply, DM, tasks, approvals) — see §3.
+- Channels: **all channels of any type** — public, announcements, every location, every department, and private channels — except any flagged sensitive (currently `Leadership` and `payables`).
+- **Direct messages:** enabled — DM one person (`send_dm`) or a group (`send_group_dm`) by email.
+- **Actions:** all 12 (read, post, reply, DM, group DM, tasks, approvals) — see §3.
 - **No approval gate:** actions execute immediately (not queued for human sign-off).
 - Rate limit: 120 requests/minute.
 - Revoke/rotate anytime in ROP Chat → **Admin → AI Integrations** (or ask ROP Chat to do it).
@@ -86,6 +86,7 @@ All actions are `POST` to the gateway with `{ "action": "…", ...params }`. Eve
 | `post_message` | `channel`, `text` **or** `html`, `title?`, `author_name?`, `attachments?` | `{ message_id, channel_id }` |
 | `reply_thread` | `message_id`, `text`, `attachments?` | `{ message_id, parent_message_id }` |
 | `send_dm` | `to_email`, `text`, `author_name?`, `attachments?` | `{ message_id, conversation_id }` |
+| `send_group_dm` | `to_emails` (array/comma list), `text`, `title?`, `author_name?`, `attachments?` | `{ message_id, conversation_id, members }` |
 | `create_task` | `title`, `body?`, `channel?`, `assignee_email?`, `external_ref?` | `{ task_id, status }` |
 | `update_task` | `task_id`, `status?` (`open`/`in_progress`/`done`/`cancelled`), `title?`, `body?` | `{ task_id, status }` |
 | `request_approval` | `request_action`, `preview`, `payload?` | `{ approval_id, status }` |

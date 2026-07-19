@@ -11,7 +11,7 @@
 //   Body:    { "action": "<action>", ...params, "idempotency_key"?: "<uuid>" }
 //
 // Actions: list_channels · read_channel_messages · read_thread · search_messages ·
-//          post_message · reply_thread · send_dm · create_task · update_task ·
+//          post_message · reply_thread · send_dm · send_group_dm · create_task · update_task ·
 //          request_approval · list_approvals
 //
 // The endpoint uses the service role (bypassing RLS) but ONLY after validating the agent and
@@ -38,7 +38,7 @@ interface Agent {
   slug: string
   provider: string
   is_active: boolean
-  channel_scope: 'listed' | 'all_public'
+  channel_scope: 'listed' | 'all_public' | 'all'
   allow_dms: boolean
   allowed_actions: string[]
   require_approval_for: string[]
@@ -207,6 +207,12 @@ Deno.serve(async (req) => {
     return (data as any) ?? null
   }
   async function allowedChannelIds(): Promise<string[]> {
+    // 'all' → every channel of any type (announcements, location, department, private…) that isn't
+    // archived or explicitly AI-excluded. 'all_public' → public channels only. 'listed' → allow-list.
+    if (A.channel_scope === 'all') {
+      const { data } = await admin.from('channels').select('id').eq('is_archived', false).eq('ai_excluded', false)
+      return (data ?? []).map((c: any) => c.id)
+    }
     if (A.channel_scope === 'all_public') {
       const { data } = await admin.from('channels').select('id').eq('type', 'public').eq('is_archived', false).eq('ai_excluded', false)
       return (data ?? []).map((c: any) => c.id)
@@ -215,12 +221,14 @@ Deno.serve(async (req) => {
     return (data ?? []).map((c: any) => c.channel_id)
   }
   async function canRead(ch: { id: string; type: string; is_archived: boolean; ai_excluded: boolean }): Promise<boolean> {
+    if (A.channel_scope === 'all') return !ch.is_archived && !ch.ai_excluded
     if (A.channel_scope === 'all_public') return ch.type === 'public' && !ch.is_archived && !ch.ai_excluded
     const { data } = await admin.from('ai_agent_channels').select('can_read').eq('agent_id', A.id).eq('channel_id', ch.id).maybeSingle()
     return !!data?.can_read
   }
   async function canPost(ch: { id: string; type: string; is_archived: boolean; ai_excluded: boolean }): Promise<boolean> {
     if (ch.is_archived) return false
+    if (A.channel_scope === 'all') return !ch.ai_excluded
     if (A.channel_scope === 'all_public') return ch.type === 'public' && !ch.ai_excluded
     const { data } = await admin.from('ai_agent_channels').select('can_post').eq('agent_id', A.id).eq('channel_id', ch.id).maybeSingle()
     return !!data?.can_post
@@ -380,6 +388,39 @@ Deno.serve(async (req) => {
       const { id, attachments } = await insertMessage({ conversation_id: convId }, { text, author_name: body.author_name, items })
       await audit('ok', true, { message_id: id, conversation_id: convId, attachments })
       return json({ ok: true, message_id: id, conversation_id: convId, attachments, correlation_id: correlationId })
+    }
+
+    if (action === 'send_group_dm') {
+      if (!A.allow_dms) return deny('This agent is not permitted to send direct messages.')
+      const emails: string[] = Array.isArray(body.to_emails)
+        ? body.to_emails.map((e: unknown) => String(e).trim()).filter(Boolean)
+        : (typeof body.to_emails === 'string' ? String(body.to_emails).split(',').map((e) => e.trim()).filter(Boolean) : [])
+      const items = parseJsonAttachments(body.attachments ?? body.files)
+      let text = String(body.text ?? body.message ?? '').trim()
+      if (!text && items.length) text = items.length === 1 ? '📎 Attachment' : `📎 ${items.length} attachments`
+      if (emails.length < 1 || !text) return deny('Provide "to_emails" (array or comma list) and "text" (or "attachments")', 400)
+      const memberIds: string[] = []
+      const notFound: string[] = []
+      for (const em of emails) {
+        const { data: u } = await admin.from('profiles').select('id').ilike('email', em).maybeSingle()
+        if (u) memberIds.push(u.id); else notFound.push(em)
+      }
+      if (!memberIds.length) return deny(`No matching users for: ${notFound.join(', ')}`, 404)
+      const allMembers = [...new Set([BOT_ID, ...memberIds])]
+      const memberKey = [...allMembers].sort().join(':')
+      let convId: string
+      const { data: existing } = await admin.from('direct_conversations').select('id').eq('is_group', true).eq('member_key', memberKey).maybeSingle()
+      if (existing) convId = existing.id
+      else {
+        const { data: conv, error } = await admin.from('direct_conversations')
+          .insert({ is_group: true, title: body.title ?? null, member_key: memberKey, created_by: BOT_ID }).select('id').single()
+        if (error) throw error
+        convId = conv.id
+        await admin.from('direct_conversation_members').insert(allMembers.map((uid) => ({ conversation_id: convId, user_id: uid })))
+      }
+      const { id, attachments } = await insertMessage({ conversation_id: convId }, { text, author_name: body.author_name, items })
+      await audit('ok', true, { message_id: id, conversation_id: convId, members: memberIds.length, not_found: notFound, attachments })
+      return json({ ok: true, message_id: id, conversation_id: convId, members: memberIds.length, not_found: notFound, attachments, correlation_id: correlationId })
     }
 
     if (action === 'create_task') {

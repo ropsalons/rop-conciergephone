@@ -45,7 +45,8 @@ the same key returns the original result instead of double-posting.
 | --- | --- |
 | `post_message` | `channel`, `text` **or** `html`, `title?`, `author_name?`, `attachments?` |
 | `reply_thread` | `message_id`, `text`, `attachments?` |
-| `send_dm` | `to_email`, `text`, `author_name?`, `attachments?` |
+| `send_dm` | `to_email`, `text`, `author_name?`, `attachments?` — DM one person |
+| `send_group_dm` | `to_emails` (array or comma list), `text`, `title?`, `author_name?`, `attachments?` — DM a group |
 | `create_task` | `title`, `body?`, `channel?`, `assignee_email?`, `external_ref?` |
 | `update_task` | `task_id`, `status?` (`open`/`in_progress`/`done`/`cancelled`), `title?`, `body?` |
 | `request_approval` | `request_action`, `preview`, `payload?` |
@@ -90,8 +91,10 @@ curl -X POST "$ROP_CHAT_GATEWAY_URL" \
 
 - Identity: `ROP Internal Projects` (agent), owner = Rob. Revocable/rotatable in ROP Chat →
   **Admin → AI Integrations**.
-- Channels: **all public channels** (private/location/leadership excluded unless specifically added).
-- **DMs:** enabled. **All 11 actions** enabled. **No approval gate.** Rate limit: 300/min (shared).
+- Channels: **all channels of any type** — public, announcements, every location, every department,
+  and private channels — except any flagged sensitive (currently `Leadership` and `payables`).
+- **DMs:** enabled — one person (`send_dm`) or a group (`send_group_dm`). **All 12 actions** enabled.
+  **No approval gate.** Rate limit: 300/min (shared).
 - Want a project *isolated* (its own key, its own revoke, its own audit line)? Ask ROP Chat to mint a
   dedicated token for it — same setup, separate identity.
 
@@ -151,8 +154,9 @@ Chat retries with backoff and puts a unique `id` on each event for dedupe.
 >
 > **4. To do anything, POST** `{ "action":"...", ...params }` to `ROP_CHAT_GATEWAY_URL` with header
 > `Authorization: Bearer <ROP_CHAT_TOKEN>`. Actions: `list_channels`, `read_channel_messages`,
-> `read_thread`, `search_messages`, `post_message`, `reply_thread`, `send_dm`, `create_task`,
-> `update_task`, `request_approval`, `list_approvals`. When you create a ROP Chat task from one of your
+> `read_thread`, `search_messages`, `post_message`, `reply_thread`, `send_dm`, `send_group_dm`,
+> `create_task`, `update_task`, `request_approval`, `list_approvals`. `send_dm` takes `to_email`;
+> `send_group_dm` takes `to_emails` (array). When you create a ROP Chat task from one of your
 > records, put your record id in `external_ref`. Include a UUID `idempotency_key` on writes. All times
 > are US Eastern.
 >
