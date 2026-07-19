@@ -160,37 +160,41 @@ Chat retries with backoff and puts a unique `id` on each event for dedupe.
 
 ## 7. Drop-in prompt (paste into any project)
 
-> You now have a direct, machine-to-machine connection to **ROP Chat**. Set it up and confirm it works.
+> You now have a direct, machine-to-machine connection to **ROP Chat**. Set it up, keep it running, and confirm it works.
 >
-> **1. Read the standard:** `https://raw.githubusercontent.com/ropsalons/rop-conciergephone/claude/rop-connect-messaging-app-texv5n/docs/connect-any-project-to-rop-chat.md`
+> **1. Read the standard** (full API reference): `https://raw.githubusercontent.com/ropsalons/rop-conciergephone/claude/rop-connect-messaging-app-texv5n/docs/connect-any-project-to-rop-chat.md`
 >
-> **2. Store as server-side secrets:**
+> **2. Store these as server-side secrets** (never in code or a repo):
 > ```
 > ROP_CHAT_GATEWAY_URL = https://qrigzwactbwbpuufehxo.supabase.co/functions/v1/ai-gateway
 > ROP_CHAT_TOKEN       = <paste the ROP Chat token>
 > ```
+> Prefer **Supabase** for storage (a private config/secrets table your function reads, or Supabase
+> function secrets) — Netlify env vars were unreliable at runtime on another project. Only use Netlify
+> env vars if you confirm your functions actually see them.
 >
-> **3. Your project's name in ROP Chat is:** `<YOUR PROJECT NAME>` — send it as `author_name` on every
-> post/DM so staff see who's speaking.
+> **3. Your name in ROP Chat is `<YOUR PROJECT NAME>`** — send it as `author_name` on every post/DM so staff see who's speaking.
 >
-> **4. To do anything, POST** `{ "action":"...", ...params }` to `ROP_CHAT_GATEWAY_URL` with header
-> `Authorization: Bearer <ROP_CHAT_TOKEN>`. Actions: `list_channels`, `read_channel_messages`,
-> `read_thread`, `search_messages`, `post_message`, `reply_thread`, `send_dm`, `send_group_dm`,
-> `create_task`, `update_task`, `request_approval`, `list_approvals`. `send_dm` takes `to_email`;
-> `send_group_dm` takes `to_emails` (array). When you create a ROP Chat task from one of your
-> records, put your record id in `external_ref`. Include a UUID `idempotency_key` on writes. All times
-> are US Eastern.
+> **4. ⭐ STANDING RULE — always report to `#ai-updates`.** Every time you finish a task, function, or
+> request, post a short summary to the `ai-updates` channel in ROP Chat: a `post_message` with
+> `channel: "ai-updates"`, `author_name: "<YOUR PROJECT NAME>"`, and `text` covering what was asked,
+> what you did, and the result (1–3 lines). Do this after every completed job, until explicitly told to
+> stop. Example: `{ "action":"post_message", "channel":"ai-updates", "author_name":"<YOUR PROJECT NAME>", "text":"✅ Finished: <what you did>. Trigger: <what was asked>. Result: <outcome>." }`
 >
-> **5. STANDING RULE — always report to `#ai-updates`:** every time you finish a task/function/request,
-> post a short summary (`post_message` to channel `ai-updates`, `author_name` = `<YOUR PROJECT NAME>`)
-> saying what was asked, what you did, and the result — one to three lines. Do this after every
-> completed job, from now until explicitly told to stop. This keeps one live feed of all bot activity.
+> **5. How to talk to ROP Chat.** POST `{ "action":"...", ...params }` to `ROP_CHAT_GATEWAY_URL` with
+> header `Authorization: Bearer <ROP_CHAT_TOKEN>`. Actions: `list_channels`, `read_channel_messages`,
+> `read_thread`, `search_messages`, `post_message`, `reply_thread`, `send_dm` (`to_email`),
+> `send_group_dm` (`to_emails` array), `create_task`, `update_task`, `request_approval`,
+> `list_approvals`. You can post to **any channel** and DM anyone or any group. Put your record id in
+> `external_ref` on tasks; include a UUID `idempotency_key` on writes. All times US Eastern. Use
+> `ai-updates` for status, `announcements` to reach everyone. (Don't use `announcements-rop` — dead/archived.)
 >
 > **6. Test now:** send `{ "action":"list_channels" }`, then `post_message` to `ai-updates`
 > saying "`<YOUR PROJECT NAME>` is connected." Confirm you get `ok: true` and a `message_id`.
 >
-> **7. Optional return path** — if you want ROP Chat to push events to you, expose a webhook and reply
-> with: (a) webhook URL, (b) a shared secret, (c) events wanted, (d) your expected JSON shape (or accept
-> the default), (e) your timezone. See §4 of the standard.
+> **7. Set up the return path** so ROP Chat can push events back to you. Expose a webhook, generate a
+> shared secret (store it server-side, Supabase-first), then reply with: (a) webhook URL, (b) the shared
+> secret value, (c) events wanted (`message.mention`, `dm.received`, `approval.requested`, `task.updated`),
+> (d) confirm you accept ROP Chat's default JSON envelope, (e) your timezone (America/New_York).
 >
-> **Report back:** confirm the test worked, and (if you want the return path) items a–e.
+> **Report back:** confirm the test worked, confirm you'll summarize every finished job to `#ai-updates`, and give me items (a)–(e).
