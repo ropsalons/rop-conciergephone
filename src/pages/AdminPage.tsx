@@ -889,6 +889,7 @@ function UsersTab({ logAudit }: { logAudit: LogAudit }) {
   const reload = useDirectoryStore((s) => s.load)
   const toast = useUIStore((s) => s.toast)
   const [search, setSearch] = useState('')
+  const [showInactive, setShowInactive] = useState(false)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [editing, setEditing] = useState<Profile | null>(null)
   const [form, setForm] = useState({ full_name: '', display_name: '', title: '', phone: '' })
@@ -924,14 +925,18 @@ function UsersTab({ logAudit }: { logAudit: LogAudit }) {
     : Object.entries(ROLE_LABELS).map(([value, label]) => ({ value, label }))
 
   const q = search.trim().toLowerCase()
+  // Terminated / deactivated people are hidden by default so the list is just current staff.
+  // Toggle "Show inactive" to see (and reactivate) them.
+  const base = showInactive ? profiles : profiles.filter((p) => p.is_active)
+  const inactiveCount = profiles.filter((p) => !p.is_active).length
   const filtered = q
-    ? profiles.filter(
+    ? base.filter(
         (p) =>
           p.full_name?.toLowerCase().includes(q) ||
           p.email?.toLowerCase().includes(q) ||
           p.role?.toLowerCase().includes(q),
       )
-    : profiles
+    : base
 
   async function patchUser(
     p: Profile,
@@ -982,6 +987,11 @@ function UsersTab({ logAudit }: { logAudit: LogAudit }) {
           onChange={(e) => setSearch(e.target.value)}
         />
       </div>
+
+      <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-300">
+        <input type="checkbox" className="h-4 w-4 accent-brand-500" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
+        Show inactive / terminated{inactiveCount > 0 ? ` (${inactiveCount})` : ''}
+      </label>
 
       {filtered.length === 0 ? (
         <EmptyState icon={<Users className="h-8 w-8" />} title="No users found" />

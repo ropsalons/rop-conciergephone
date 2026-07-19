@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.17.0'
+export const APP_VERSION = '1.17.1'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,15 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.17.1',
+    date: '2026-07-18',
+    time: '10:05 PM ET',
+    title: 'Admin: terminated staff hidden from the Users list',
+    changes: [
+      'In Admin → Users, people who’ve been deactivated/terminated no longer clutter the list — it shows current staff only. Tick “Show inactive / terminated” to see (and reactivate) them when you need to.',
+    ],
+  },
   {
     version: '1.17.0',
     date: '2026-07-18',
