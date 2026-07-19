@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.19.0'
+export const APP_VERSION = '1.20.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,19 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.20.0',
+    date: '2026-07-19',
+    time: '12:45 AM ET',
+    title: 'Command console channels for your connected AI projects',
+    changes: [
+      'Your connected outside projects/AI agents can now each have a dedicated “command” channel in ROP Chat — type an instruction there and (once the project’s return path is set up) it reads it as a command and replies back.',
+      'These live in a collapsible “AI Command Consoles” group in the sidebar so they stay tidy and out of the way. Tap the group header to expand/collapse; it’s remembered on your device.',
+      'By default a command channel is visible to Leaders & up, and membership tracks that automatically (promote someone to Leader and they’re added; no manual step). Change the level per-channel in Admin → Channels → “Who can see & use this channel” (Everyone / Leaders / Admins).',
+      'Admin → Channels also gained a “Sidebar group” field so you can collapse any set of channels together, not just the AI ones.',
+      'Started you off with a #command-center channel for the ROP Command Center project.',
+    ],
+  },
   {
     version: '1.19.0',
     date: '2026-07-18',

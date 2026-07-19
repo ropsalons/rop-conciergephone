@@ -1423,6 +1423,8 @@ function EditChannelModal({
   const [description, setDescription] = useState(channel.description ?? '')
   const [isDefault, setIsDefault] = useState(!!channel.is_default)
   const [isArchived, setIsArchived] = useState(!!channel.is_archived)
+  const [minRank, setMinRank] = useState<number>(channel.min_access_rank ?? 0)
+  const [category, setCategory] = useState(channel.category ?? '')
   const [saving, setSaving] = useState(false)
 
   async function save() {
@@ -1446,6 +1448,8 @@ function EditChannelModal({
         department_id: type === 'department' ? departmentId : null,
         is_default: isDefault,
         is_archived: isArchived,
+        min_access_rank: minRank,
+        category: category.trim() || null,
       })
       .eq('id', channel.id)
       .select('*')
@@ -1528,6 +1532,26 @@ function EditChannelModal({
         <label className="block">
           <span className="label">Description</span>
           <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" />
+        </label>
+
+        <label className="block">
+          <span className="label">Who can see &amp; use this channel</span>
+          <select className="input" value={minRank} onChange={(e) => setMinRank(Number(e.target.value))}>
+            <option value={0}>Everyone</option>
+            <option value={40}>Leaders &amp; up</option>
+            <option value={90}>Admins &amp; up</option>
+          </select>
+          <span className="mt-1 block text-[11px] text-slate-500">
+            Above “Everyone,” membership auto-tracks this level (e.g. all Leaders are added/removed automatically).
+          </span>
+        </label>
+
+        <label className="block">
+          <span className="label">Sidebar group <span className="text-slate-500">(optional)</span></span>
+          <input className="input" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. AI Command Consoles" />
+          <span className="mt-1 block text-[11px] text-slate-500">
+            Channels sharing a group name collapse together in the sidebar.
+          </span>
         </label>
 
         <label className="flex items-center gap-2 text-sm text-slate-300">

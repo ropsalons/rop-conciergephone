@@ -87,6 +87,8 @@ export type ChannelRow = {
   department_id: string | null
   is_default: boolean
   is_archived: boolean
+  category: string | null
+  min_access_rank: number
   created_by: string | null
   created_at: string
   updated_at: string

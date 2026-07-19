@@ -18,7 +18,7 @@ import { UnreadBadge, AccessBadge } from '@/components/ui/Badge'
 import {
   Hash, Lock, Megaphone, Home, MessageSquare, Users, Search, Bell, Plus,
   Star, LifeBuoy, Shield, Settings, Calendar, Link as LinkIcon, AlertTriangle,
-  Eye, EyeOff, ArrowUpDown, GripVertical, Bookmark,
+  Eye, EyeOff, ArrowUpDown, GripVertical, Bookmark, ChevronDown,
 } from '@/components/ui/Icons'
 import { conversationName, otherMembers } from '@/lib/dm'
 import { cn } from '@/lib/utils'
@@ -94,6 +94,43 @@ function ChannelRow({
   )
 }
 
+// A collapsible sidebar section for grouped channels (e.g. "AI Command Consoles"). Collapse state
+// is remembered per group on this device.
+function CollapsibleChannelGroup({
+  label,
+  count,
+  children,
+}: {
+  label: string
+  count: number
+  children: React.ReactNode
+}) {
+  const storeKey = `rop:group-open:${label}`
+  const [open, setOpen] = useState(() => {
+    try { return localStorage.getItem(storeKey) !== '0' } catch { return true }
+  })
+  const toggle = () => {
+    setOpen((v) => {
+      const next = !v
+      try { localStorage.setItem(storeKey, next ? '1' : '0') } catch { /* ignore */ }
+      return next
+    })
+  }
+  return (
+    <div className="mt-2">
+      <button
+        onClick={toggle}
+        className="flex w-full items-center gap-1.5 px-3 pb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-300"
+      >
+        <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', open ? '' : '-rotate-90')} />
+        <span className="flex-1 text-left">{label}</span>
+        {!open && count > 0 && <UnreadBadge count={count} />}
+      </button>
+      {open && <div className="space-y-0.5">{children}</div>}
+    </div>
+  )
+}
+
 const NAV_LINK = 'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition'
 const active = 'bg-brand-500/25 text-white'
 const idle = 'text-slate-300 hover:bg-white/5 hover:text-white'
@@ -152,7 +189,8 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   // drag order exactly (no favorite-floating). Otherwise favorites float to the top and
   // `channelSort` orders within each group (A–Z, most-recent activity, or most-unread first).
   const visibleChannels = useMemo(() => {
-    const list = hideInactive ? channels.filter(isActiveChannel) : channels.slice()
+    // Grouped "console" channels (category set) always show — the hide-quiet filter never touches them.
+    const list = hideInactive ? channels.filter((c) => !!c.category || isActiveChannel(c)) : channels.slice()
     if (channelSort === 'manual') {
       const pos = new Map(manualOrderIds.map((id, i) => [id, i]))
       list.sort((a, b) => (pos.get(a.id) ?? Infinity) - (pos.get(b.id) ?? Infinity))
@@ -175,6 +213,19 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     return list
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channels, hideInactive, channelSort, unreadByChannel, manualOrderIds])
+
+  // Split into the normal (draggable) list and grouped "console" sections (by category).
+  const normalChannels = useMemo(() => visibleChannels.filter((c) => !c.category), [visibleChannels])
+  const channelGroups = useMemo(() => {
+    const m = new Map<string, typeof channels>()
+    for (const c of visibleChannels) {
+      if (!c.category) continue
+      const arr = m.get(c.category) ?? []
+      arr.push(c)
+      m.set(c.category, arr)
+    }
+    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+  }, [visibleChannels])
 
   function onDragEnd(e: DragEndEvent) {
     const { active, over } = e
@@ -284,9 +335,9 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             <p className="px-3 pb-1 text-[10px] text-slate-500">Drag the ⣿ handle to reorder. Tap the sort button to switch back.</p>
           )}
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-            <SortableContext items={visibleChannels.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+            <SortableContext items={normalChannels.map((c) => c.id)} strategy={verticalListSortingStrategy}>
               <div className="space-y-0.5">
-                {visibleChannels.map((c) => (
+                {normalChannels.map((c) => (
                   <ChannelRow
                     key={c.id}
                     c={c}
@@ -311,6 +362,26 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
               </div>
             </SortableContext>
           </DndContext>
+
+          {/* Grouped console channels (e.g. AI Command Consoles) — collapsible so they stay tidy. */}
+          {channelGroups.map(([label, list]) => (
+            <CollapsibleChannelGroup
+              key={label}
+              label={label}
+              count={list.reduce((n, c) => n + (unreadByChannel[c.id] ?? 0), 0)}
+            >
+              {list.map((c) => (
+                <ChannelRow
+                  key={c.id}
+                  c={c}
+                  unread={unreadByChannel[c.id] ?? 0}
+                  manual={false}
+                  onNavigate={go}
+                  onToggleFav={() => void toggleFavorite(c.id, !c.is_favorite)}
+                />
+              ))}
+            </CollapsibleChannelGroup>
+          ))}
         </div>
 
         {/* Direct messages */}
