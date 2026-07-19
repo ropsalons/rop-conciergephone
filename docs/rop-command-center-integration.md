@@ -108,7 +108,7 @@ Post a project update to a channel:
 ```bash
 curl -X POST "$ROP_CHAT_GATEWAY_URL" \
   -H "Authorization: Bearer $ROP_CHAT_TOKEN" -H "Content-Type: application/json" \
-  -d '{ "action": "post_message", "channel": "announcements-rop",
+  -d '{ "action": "post_message", "channel": "ai-updates",
         "text": "Command Center: the Bayfront remodel task is now IN PROGRESS.",
         "author_name": "Command Center" }'
 ```
@@ -152,7 +152,7 @@ lighter `ingest` webhook with the **same token** as `x-api-key`:
 ```bash
 curl -X POST "https://qrigzwactbwbpuufehxo.supabase.co/functions/v1/ingest" \
   -H "x-api-key: $ROP_CHAT_TOKEN" -H "Content-Type: application/json" \
-  -d '{ "channel": "announcements-rop", "author_name": "Command Center",
+  -d '{ "channel": "ai-updates", "author_name": "Command Center",
         "text": "Nightly project rollup is ready." }'
 ```
 Supports `channel` + `text`/`html`/`title`, `to_email` for a DM, `external_key` for an auto-updating

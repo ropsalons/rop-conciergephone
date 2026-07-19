@@ -67,7 +67,7 @@ records, put its **own record id** in `external_ref` so both sides can match.
 # Post an update to a channel (identify your project via author_name)
 curl -X POST "$ROP_CHAT_GATEWAY_URL" \
   -H "Authorization: Bearer $ROP_CHAT_TOKEN" -H "Content-Type: application/json" \
-  -d '{ "action":"post_message", "channel":"announcements-rop",
+  -d '{ "action":"post_message", "channel":"ai-updates",
         "text":"Inventory sync finished — 12 items reordered.",
         "author_name":"Inventory Bot" }'
 
@@ -156,7 +156,7 @@ Chat retries with backoff and puts a unique `id` on each event for dedupe.
 > records, put your record id in `external_ref`. Include a UUID `idempotency_key` on writes. All times
 > are US Eastern.
 >
-> **5. Test now:** send `{ "action":"list_channels" }`, then `post_message` to `announcements-rop`
+> **5. Test now:** send `{ "action":"list_channels" }`, then `post_message` to `ai-updates`
 > saying "`<YOUR PROJECT NAME>` is connected." Confirm you get `ok: true` and a `message_id`.
 >
 > **6. Optional return path** — if you want ROP Chat to push events to you, expose a webhook and reply
