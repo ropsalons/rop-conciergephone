@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.18.0'
+export const APP_VERSION = '1.19.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,18 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.19.0',
+    date: '2026-07-18',
+    time: '11:15 PM ET',
+    title: 'Replies show in the channel + save & remind-me on any message',
+    changes: [
+      'Replies are no longer hidden. When someone replies to a message it now shows right in the channel — lightly indented, with a “↳ replying to …” tag you can tap to jump to the original — and new replies land at the bottom where you’re reading. (The thread panel is still there as a focused view for long back-and-forths.)',
+      '⏰ Remind me: on any message, tap the clock (or ⋯ on your phone) and pick “In 1 hour,” “This evening,” “Tomorrow morning,” “Next week,” or a custom date/time. When it’s due you get a notification + a push to your phone, and tapping it jumps back to the message — so nothing slips.',
+      '🔖 Save for later: tap the bookmark to stash any message in your new “Saved & Reminders” list (in the left menu). Only you see it — revisit, reschedule or clear anytime.',
+      'Updated the Help guide (the ? button) to cover inline replies and saving/reminders.',
+    ],
+  },
   {
     version: '1.18.0',
     date: '2026-07-18',

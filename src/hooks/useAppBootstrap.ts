@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useDirectoryStore } from '@/stores/directoryStore'
 import { useChatStore } from '@/stores/chatStore'
 import { useUIStore } from '@/stores/uiStore'
+import { useSavedStore } from '@/stores/savedStore'
 import { syncExistingSubscription } from '@/lib/push'
 import type { NotificationRow } from '@/types'
 
@@ -27,6 +28,7 @@ export function useAppBootstrap() {
     if (!userId) return
     useDirectoryStore.getState().load()
     useChatStore.getState().loadSidebar()
+    void useSavedStore.getState().load()
     // Self-heal: if this device is already subscribed in the browser but the row never
     // saved, persist it now (covers a half-finished enable).
     void syncExistingSubscription(userId)

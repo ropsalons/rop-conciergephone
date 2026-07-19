@@ -19,6 +19,7 @@ export type NotificationType =
   | 'urgent'
   | 'channel'
   | 'channel_invite'
+  | 'reminder'
   | 'system'
 
 export type NotificationPrefs = {
@@ -175,6 +176,15 @@ export type NotificationRow = {
   entity_id: string | null
   channel_id: string | null
   is_read: boolean
+  created_at: string
+}
+export type MessageReminderRow = {
+  id: string
+  user_id: string
+  message_id: string
+  remind_at: string | null
+  fired_at: string | null
+  note: string | null
   created_at: string
 }
 export type AnnouncementRow = {

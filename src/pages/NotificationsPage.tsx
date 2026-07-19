@@ -9,7 +9,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { Avatar } from '@/components/ui/Avatar'
 import { FullPageLoader, EmptyState } from '@/components/ui/Feedback'
 import {
-  Bell, MessageSquare, Megaphone, AlertTriangle, Smile, Reply, Hash, CheckCheck, Trash, X,
+  Bell, MessageSquare, Megaphone, AlertTriangle, Smile, Reply, Hash, CheckCheck, Trash, X, Clock,
 } from '@/components/ui/Icons'
 import { timeAgo, cn } from '@/lib/utils'
 import type { NotificationRow, NotificationType } from '@/types'
@@ -23,6 +23,7 @@ const TYPE_META: Record<NotificationType, { label: string; icon: ComponentType<{
   announcement: { label: 'Announcement', icon: Megaphone, tint: 'text-brand-200' },
   channel: { label: 'Channel', icon: Hash, tint: 'text-brand-200' },
   channel_invite: { label: 'Invite', icon: Hash, tint: 'text-emerald-300' },
+  reminder: { label: 'Reminder', icon: Clock, tint: 'text-gold-300' },
   system: { label: 'System', icon: Bell, tint: 'text-slate-300' },
 }
 

@@ -90,7 +90,9 @@ export function useMessages(target: Target, opts: { parentId?: string | null } =
       .eq(column, key)
       .order('created_at', { ascending: false })
       .limit(PAGE)
-    q = parentFilter ? q.eq('parent_message_id', parentFilter) : q.is('parent_message_id', null)
+    // Thread panel loads one parent's replies. The channel view loads EVERYTHING (roots + replies)
+    // so replies show inline in the flow instead of being hidden behind the thread panel.
+    if (parentFilter) q = q.eq('parent_message_id', parentFilter)
     const { data } = await q
     const rows = ((data as MessageRow[]) ?? []).reverse()
     setHasMore(((data as MessageRow[]) ?? []).length === PAGE)
@@ -110,7 +112,7 @@ export function useMessages(target: Target, opts: { parentId?: string | null } =
       .lt('created_at', oldestRef.current)
       .order('created_at', { ascending: false })
       .limit(PAGE)
-    q = parentFilter ? q.eq('parent_message_id', parentFilter) : q.is('parent_message_id', null)
+    if (parentFilter) q = q.eq('parent_message_id', parentFilter)
     const { data } = await q
     const older = ((data as MessageRow[]) ?? []).reverse()
     setHasMore(((data as MessageRow[]) ?? []).length === PAGE)
@@ -138,21 +140,19 @@ export function useMessages(target: Target, opts: { parentId?: string | null } =
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `${column}=eq.${key}` },
         async (payload) => {
           const row = payload.new as MessageRow
-          const matchesScope = parentFilter
-            ? row.parent_message_id === parentFilter
-            : row.parent_message_id === null
-          if (!matchesScope) {
-            // A reply bumped a root message's reply_count — reflect it.
-            if (row.parent_message_id) {
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === row.parent_message_id
-                    ? { ...m, reply_count: m.reply_count + 1, last_reply_at: row.created_at }
-                    : m,
-                ),
-              )
-            }
-            return
+          if (parentFilter) {
+            // Thread panel: only this parent's replies belong here.
+            if (row.parent_message_id !== parentFilter) return
+          } else if (row.parent_message_id) {
+            // Channel scope: a reply also bumps its parent's reply-count indicator…
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === row.parent_message_id
+                  ? { ...m, reply_count: m.reply_count + 1, last_reply_at: row.created_at }
+                  : m,
+              ),
+            )
+            // …and then renders inline in the flow (falls through to append below).
           }
           const [hydrated] = await hydrate([row])
           setMessages((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, hydrated]))

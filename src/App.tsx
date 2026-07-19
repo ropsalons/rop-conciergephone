@@ -16,6 +16,7 @@ import { DMListPage } from '@/pages/DMListPage'
 import { DirectoryPage } from '@/pages/DirectoryPage'
 import { SearchPage } from '@/pages/SearchPage'
 import { NotificationsPage } from '@/pages/NotificationsPage'
+import { SavedPage } from '@/pages/SavedPage'
 import { ProfilePage } from '@/pages/ProfilePage'
 import { AnnouncementsPage } from '@/pages/AnnouncementsPage'
 import { UrgentAlertsPage } from '@/pages/UrgentAlertsPage'
@@ -79,6 +80,7 @@ export default function App() {
           <Route path="people" element={<DirectoryPage />} />
           <Route path="search" element={<SearchPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
+          <Route path="saved" element={<SavedPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="announcements" element={<AnnouncementsPage />} />
           <Route path="alerts" element={<UrgentAlertsPage />} />

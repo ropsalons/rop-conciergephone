@@ -11,13 +11,14 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { useAuthStore } from '@/stores/authStore'
 import { useChatStore } from '@/stores/chatStore'
+import { useSavedStore } from '@/stores/savedStore'
 import { useUIStore } from '@/stores/uiStore'
 import { Avatar } from '@/components/ui/Avatar'
 import { UnreadBadge, AccessBadge } from '@/components/ui/Badge'
 import {
   Hash, Lock, Megaphone, Home, MessageSquare, Users, Search, Bell, Plus,
   Star, LifeBuoy, Shield, Settings, Calendar, Link as LinkIcon, AlertTriangle,
-  Eye, EyeOff, ArrowUpDown, GripVertical,
+  Eye, EyeOff, ArrowUpDown, GripVertical, Bookmark,
 } from '@/components/ui/Icons'
 import { conversationName, otherMembers } from '@/lib/dm'
 import { cn } from '@/lib/utils'
@@ -102,6 +103,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const me = profile?.id
   const { channels, conversations, unreadByChannel, unreadByConversation, notificationsCount, toggleFavorite } =
     useChatStore()
+  const savedCount = useSavedStore((s) => s.reminders.length)
   const setSearchOpen = useUIStore((s) => s.setSearchOpen)
   const setHelpOpen = useUIStore((s) => s.setHelpOpen)
   const channelSort = useUIStore((s) => s.channelSort)
@@ -230,6 +232,10 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           </NavLink>
           <NavLink to="/people" onClick={go} className={({ isActive }) => cn(NAV_LINK, isActive ? active : idle)}>
             <Users className="h-4 w-4" /> People
+          </NavLink>
+          <NavLink to="/saved" onClick={go} className={({ isActive }) => cn(NAV_LINK, isActive ? active : idle)}>
+            <Bookmark className="h-4 w-4" /> <span className="flex-1">Saved &amp; Reminders</span>
+            {savedCount > 0 && <UnreadBadge count={savedCount} />}
           </NavLink>
           <NavLink to="/alerts" onClick={go} className={({ isActive }) => cn(NAV_LINK, isActive ? active : idle)}>
             <AlertTriangle className="h-4 w-4 text-red-400" /> Urgent Alerts

@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react'
 import type { MessageWithAuthor } from '@/types'
+import type { ParentPreview } from './MessageList'
 import { useAuthStore } from '@/stores/authStore'
 import { useDirectoryStore } from '@/stores/directoryStore'
 import { Avatar } from '@/components/ui/Avatar'
@@ -8,13 +9,17 @@ import { RichCard } from './RichCard'
 import { FileChip } from '@/components/files/FileChip'
 import { messageTime, displayName, cn } from '@/lib/utils'
 import { QUICK_EMOJIS, canManage } from '@/lib/constants'
-import { Smile, Reply, Pin, Edit, Trash, Check, X, MoreHorizontal, Link as LinkIcon } from '@/components/ui/Icons'
+import { Smile, Reply, Pin, Edit, Trash, Check, X, MoreHorizontal, Link as LinkIcon, Bookmark, Clock } from '@/components/ui/Icons'
 import { useUIStore } from '@/stores/uiStore'
+import { useSavedStore } from '@/stores/savedStore'
+import { RemindModal } from './RemindModal'
 
 interface Props {
   message: MessageWithAuthor
   grouped?: boolean
   showThread?: boolean
+  parentPreview?: ParentPreview
+  onJumpToParent?: () => void
   onReact: (emoji: string) => void
   onReply?: () => void
   onEdit: (body: string) => void
@@ -22,7 +27,7 @@ interface Props {
   onTogglePin?: (pinned: boolean) => void
 }
 
-export function MessageItem({ message, grouped, showThread = true, onReact, onReply, onEdit, onDelete, onTogglePin }: Props) {
+export function MessageItem({ message, grouped, showThread = true, parentPreview, onJumpToParent, onReact, onReply, onEdit, onDelete, onTogglePin }: Props) {
   const me = useAuthStore((s) => s.user?.id)
   const myAccess = useAuthStore((s) => s.profile?.access_level)
   const profilesById = useDirectoryStore((s) => s.profilesById)
@@ -32,6 +37,9 @@ export function MessageItem({ message, grouped, showThread = true, onReact, onRe
   const [confirmDel, setConfirmDel] = useState(false)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(message.body)
+  const [remindOpen, setRemindOpen] = useState(false)
+  const isSaved = useSavedStore((s) => s.savedIds.has(message.id))
+  const toggleSave = useSavedStore((s) => s.toggleSave)
   const longPress = useRef<number | null>(null)
 
   function startLongPress() {
@@ -57,6 +65,9 @@ export function MessageItem({ message, grouped, showThread = true, onReact, onRe
   const isMine = message.user_id === me
   const canModerate = isMine || canManage(myAccess)
   const isTemp = message.id.startsWith('temp-')
+  // When rendered in the channel flow, a reply is indented with a left bar and shows a small
+  // "replying to …" chip. Inside the thread panel no preview is passed, so it renders normally.
+  const showReplyContext = !!parentPreview
 
   // A shareable deep link to THIS message — open it (or text it to someone) and the app jumps to the
   // conversation and highlights the message. On phones we use the native share sheet (so it's one tap
@@ -120,7 +131,13 @@ export function MessageItem({ message, grouped, showThread = true, onReact, onRe
   return (
     <div
       data-mid={message.id}
-      className={cn('group relative flex gap-3 px-3 hover:bg-white/[0.03] sm:px-4', grouped ? 'py-0.5' : 'mt-3 py-0.5')}
+      className={cn(
+        'group relative flex gap-3 hover:bg-white/[0.03]',
+        grouped ? 'py-0.5' : 'mt-3 py-0.5',
+        showReplyContext
+          ? 'ml-3 border-l-2 border-brand-400/40 bg-brand-400/[0.03] pl-2 pr-3 sm:ml-4 sm:pr-4'
+          : 'px-3 sm:px-4',
+      )}
       onTouchStart={() => { if (!editing && !isTemp) startLongPress() }}
       onTouchEnd={cancelLongPress}
       onTouchMove={cancelLongPress}
@@ -136,6 +153,19 @@ export function MessageItem({ message, grouped, showThread = true, onReact, onRe
       </div>
 
       <div className="min-w-0 flex-1">
+        {showReplyContext && parentPreview && (
+          <button
+            onClick={onJumpToParent}
+            title="Go to the message this is replying to"
+            className="mb-0.5 flex max-w-full items-center gap-1 truncate text-left text-[11px] text-slate-500 hover:text-slate-300"
+          >
+            <Reply className="h-3 w-3 shrink-0 -scale-x-100 text-brand-300/70" />
+            <span className="shrink-0 font-medium text-slate-400">{parentPreview.name}</span>
+            <span className="truncate text-slate-500">
+              {parentPreview.deleted ? 'deleted message' : parentPreview.snippet}
+            </span>
+          </button>
+        )}
         {!grouped && (
           <div className="flex items-baseline gap-2">
             <span className="text-sm font-semibold text-white">
@@ -151,6 +181,7 @@ export function MessageItem({ message, grouped, showThread = true, onReact, onRe
               <span className="rounded bg-white/10 px-1.5 text-[10px] font-medium text-slate-400">archived</span>
             )}
             {message.is_pinned && <Pin className="h-3 w-3 text-gold-400" />}
+            {isSaved && <Bookmark className="h-3 w-3 fill-current text-gold-400" />}
           </div>
         )}
 
@@ -283,6 +314,12 @@ export function MessageItem({ message, grouped, showThread = true, onReact, onRe
           <button onClick={() => shareLink()} className="rounded p-1.5 text-slate-300 hover:bg-white/10" title="Copy link to this message">
             <LinkIcon className="h-4 w-4" />
           </button>
+          <button onClick={() => setRemindOpen(true)} className="rounded p-1.5 text-slate-300 hover:bg-white/10" title="Remind me about this later">
+            <Clock className="h-4 w-4" />
+          </button>
+          <button onClick={() => toggleSave(message.id)} className="rounded p-1.5 text-slate-300 hover:bg-white/10" title={isSaved ? 'Remove from Saved' : 'Save for later'}>
+            <Bookmark className={cn('h-4 w-4', isSaved && 'fill-current text-gold-400')} />
+          </button>
           {onTogglePin && canManage(myAccess) && (
             <button onClick={() => onTogglePin(!message.is_pinned)} className="rounded p-1.5 text-slate-300 hover:bg-white/10" title={message.is_pinned ? 'Unpin' : 'Pin'}>
               <Pin className={cn('h-4 w-4', message.is_pinned && 'text-gold-400')} />
@@ -328,6 +365,16 @@ export function MessageItem({ message, grouped, showThread = true, onReact, onRe
                 label="Copy / share link to message"
                 onClick={() => shareLink(() => setSheetOpen(false))}
               />
+              <SheetItem
+                icon={<Clock className="h-5 w-5" />}
+                label="Remind me about this later"
+                onClick={() => { setSheetOpen(false); setRemindOpen(true) }}
+              />
+              <SheetItem
+                icon={<Bookmark className={cn('h-5 w-5', isSaved && 'fill-current text-gold-400')} />}
+                label={isSaved ? 'Remove from Saved' : 'Save for later'}
+                onClick={() => { toggleSave(message.id); setSheetOpen(false) }}
+              />
               {showThread && onReply && (
                 <SheetItem icon={<Reply className="h-5 w-5" />} label="Reply in thread" onClick={() => { onReply(); setSheetOpen(false) }} />
               )}
@@ -348,6 +395,8 @@ export function MessageItem({ message, grouped, showThread = true, onReact, onRe
           </div>
         </div>
       )}
+
+      {remindOpen && <RemindModal messageId={message.id} onClose={() => setRemindOpen(false)} />}
 
       {/* Delete confirmation — a tap never deletes on its own; you have to confirm here. */}
       {confirmDel && (

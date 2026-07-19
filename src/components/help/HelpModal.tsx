@@ -7,7 +7,7 @@ import { APP_NAME, COMPANY_NAME } from '@/lib/constants'
 import {
   Home, Search, Bell, Users, Hash, Lock, Megaphone, MessageSquare, Plus,
   Star, LifeBuoy, GraduationCap, Calendar, ClipboardList, AlertTriangle, Shield, Pin, Sparkles,
-  Eye, EyeOff, ArrowUpDown,
+  Eye, EyeOff, ArrowUpDown, Bookmark, Clock,
 } from '@/components/ui/Icons'
 
 // One collapsible topic in the Help guide.
@@ -195,11 +195,27 @@ export function HelpModal() {
                 <li><b>Post</b> — type in the box at the bottom and press <K>Enter</K> (or the send button).</li>
                 <li><b>Mention someone</b> — type <K>@</K> and pick a name; they&apos;ll be notified.</li>
                 <li><b>React</b> — hover/long-press a message and tap the emoji.</li>
-                <li><b>Reply in a thread</b> — tap the reply icon to keep a side-conversation tidy.</li>
+                <li><b>Reply to a message</b> — tap the reply icon. Your reply shows right in the channel, lightly indented with a “↳ replying to …” tag you can tap to jump to the original — so replies are never hidden. (The thread panel still opens as a focused view for a long back-and-forth.)</li>
                 <li><b>Edit / delete</b> — on your own messages, use the ⋯ menu.</li>
                 <li><b>Attach a file/photo</b> — tap the paperclip in the message box (up to 25&nbsp;MB).</li>
                 <li><b>Pin</b> — important messages can be pinned; open the <Pin className="inline h-3.5 w-3.5" /> button up top to see them.</li>
               </ul>
+            </Topic>
+
+            <Topic icon={<Bookmark className="h-4 w-4" />} title="Save a message & get reminded">
+              <p>Don’t lose an important message. On <b>any</b> message you can save it or have the app nudge you about it later.</p>
+              <p className="font-semibold text-white">Remind me later (<Clock className="inline h-3.5 w-3.5" />):</p>
+              <Steps items={[
+                <>Hover the message and tap the <Clock className="inline h-3.5 w-3.5" /> clock (on a phone, long-press or tap <K>⋯</K> → <b>Remind me about this later</b>).</>,
+                <>Pick <b>In 1 hour</b>, <b>This evening</b>, <b>Tomorrow morning</b>, <b>Next week</b>, or a custom date &amp; time.</>,
+                <>When it’s due you’ll get a notification <Bell className="inline h-3.5 w-3.5" /> and a push on your phone — tap it to jump straight back to the message.</>,
+              ]} />
+              <p className="font-semibold text-white">Save for later (<Bookmark className="inline h-3.5 w-3.5" />):</p>
+              <Steps items={[
+                <>Tap the <Bookmark className="inline h-3.5 w-3.5" /> bookmark on a message (or <K>⋯</K> → <b>Save for later</b>) to stash it — no time needed.</>,
+                <>Find everything under <b>Saved &amp; Reminders</b> in the left menu. Only you can see your saved items.</>,
+                <>Open it, reschedule a reminder, or clear it once you’re done.</>,
+              ]} />
             </Topic>
 
             <Topic icon={<Star className="h-4 w-4" />} title="Salon workflows">
