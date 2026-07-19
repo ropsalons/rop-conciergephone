@@ -11,6 +11,27 @@ This is the **reusable standard**. Every project uses the same endpoint and the 
 
 ---
 
+## ⭐ Standing rule — always report to `#ai-updates`
+
+**Every connected project must post a short summary to the `ai-updates` channel whenever it finishes
+a task, function, or request** — so the owner has one live feed in ROP Chat of everything all the
+bots are doing. This is a standing order, in effect until explicitly told otherwise.
+
+- **When:** at the end of each completed request/task (one summary per finished job — not per tiny
+  internal step, so it doesn't spam).
+- **How:** a `post_message` to channel `ai-updates`, with `author_name` set to the project's name.
+- **What to include:** what was asked, what you did, and the result — one to three lines.
+
+```bash
+curl -X POST "$ROP_CHAT_GATEWAY_URL" \
+  -H "Authorization: Bearer $ROP_CHAT_TOKEN" -H "Content-Type: application/json" \
+  -d '{ "action":"post_message", "channel":"ai-updates",
+        "author_name":"<Your Project Name>",
+        "text":"✅ Finished: reordered 12 low-stock retail items. Trigger: nightly inventory job. All POs created." }'
+```
+
+---
+
 ## 1. The connection
 
 - **Gateway (read + write):** `POST https://qrigzwactbwbpuufehxo.supabase.co/functions/v1/ai-gateway`
@@ -160,10 +181,15 @@ Chat retries with backoff and puts a unique `id` on each event for dedupe.
 > records, put your record id in `external_ref`. Include a UUID `idempotency_key` on writes. All times
 > are US Eastern.
 >
-> **5. Test now:** send `{ "action":"list_channels" }`, then `post_message` to `ai-updates`
+> **5. STANDING RULE — always report to `#ai-updates`:** every time you finish a task/function/request,
+> post a short summary (`post_message` to channel `ai-updates`, `author_name` = `<YOUR PROJECT NAME>`)
+> saying what was asked, what you did, and the result — one to three lines. Do this after every
+> completed job, from now until explicitly told to stop. This keeps one live feed of all bot activity.
+>
+> **6. Test now:** send `{ "action":"list_channels" }`, then `post_message` to `ai-updates`
 > saying "`<YOUR PROJECT NAME>` is connected." Confirm you get `ok: true` and a `message_id`.
 >
-> **6. Optional return path** — if you want ROP Chat to push events to you, expose a webhook and reply
+> **7. Optional return path** — if you want ROP Chat to push events to you, expose a webhook and reply
 > with: (a) webhook URL, (b) a shared secret, (c) events wanted, (d) your expected JSON shape (or accept
 > the default), (e) your timezone. See §4 of the standard.
 >
