@@ -23,6 +23,7 @@ import {
 import { cn, displayName, formatBytes, timeAgo } from '@/lib/utils'
 import type {
   Profile,
+  ContactRow,
   ChannelRow,
   ChannelType,
   AnnouncementRow,
@@ -40,6 +41,7 @@ type LogAudit = (
 
 const TABS = [
   { key: 'users', label: 'Users' },
+  { key: 'guests', label: 'Guests' },
   { key: 'activity', label: 'Activity' },
   { key: 'ai', label: 'AI Integrations' },
   { key: 'channels', label: 'Channels' },
@@ -112,6 +114,7 @@ export function AdminPage() {
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
         {tab === 'users' && <UsersTab logAudit={logAudit} />}
+        {tab === 'guests' && <GuestsTab logAudit={logAudit} />}
         {tab === 'activity' && <ActivityTab />}
         {tab === 'ai' && <AiTab />}
         {tab === 'channels' && <ChannelsTab me={me ?? ''} logAudit={logAudit} />}
@@ -1239,6 +1242,230 @@ function UsersTab({ logAudit }: { logAudit: LogAudit }) {
         </div>
       </Modal>
     </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Guests / external contacts                                         */
+/* ------------------------------------------------------------------ */
+
+const GUEST_KINDS = [
+  { value: 'partner', label: 'Partner' },
+  { value: 'vendor', label: 'Vendor / Rep' },
+  { value: 'consultant', label: 'Consultant' },
+  { value: 'guest', label: 'Guest' },
+]
+
+const firstName = (n: string) => (n || '').trim().split(/\s+/)[0] || 'there'
+function defaultInviteText(name: string) {
+  return `Hey ${firstName(name)}, it's Rob. I built us our own private team app — ROP Chat (our own version of Slack). I'd love you in it. To join: open rop-connect.netlify.app, tap Sign up, register with your email, and you're in. On iPhone add it to your Home Screen for alerts. Tap the ? in the app anytime for help. — Rob`
+}
+function defaultInviteEmail(name: string) {
+  return `Hi ${firstName(name)},\n\nI'd like to welcome you into ROP Chat — our private team app for Robert of Philadelphia (think of it as our own personal Slack).\n\nGetting in takes about a minute:\n1) Go to rop-connect.netlify.app\n2) Tap "Sign up" and register with this email\n3) You'll land in your channels\n\nAdd it to your phone's Home Screen for notifications, and tap the "?" button anytime for a full guide. You can message me directly by DMing "Rob".\n\nGlad to have you.\n— Rob DiLella`
+}
+
+function GuestsTab({ logAudit }: { logAudit: LogAudit }) {
+  const [contacts, setContacts] = useState<ContactRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showAdd, setShowAdd] = useState(false)
+  const [editing, setEditing] = useState<ContactRow | null>(null)
+  const [invite, setInvite] = useState<{ c: ContactRow; method: 'sms' | 'email' } | null>(null)
+
+  const load = useCallback(async () => {
+    const { data } = await supabase.from('contacts').select('*').order('created_at')
+    setContacts((data as ContactRow[]) ?? [])
+    setLoading(false)
+  }, [])
+  useEffect(() => { void load() }, [load])
+
+  async function removeContact(c: ContactRow) {
+    if (!window.confirm(`Remove ${c.full_name} from guests?`)) return
+    await supabase.from('contacts').delete().eq('id', c.id)
+    await logAudit('remove_contact', 'contact', c.id, { name: c.full_name })
+    await load()
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-slate-400">Outside people — partners, reps, consultants. They don’t sync to payroll. Invite them by text or email.</p>
+        <button onClick={() => setShowAdd(true)} className="btn-primary shrink-0 px-3 py-1.5 text-sm"><Plus className="h-4 w-4" /> Add guest</button>
+      </div>
+
+      {loading ? (
+        <FullPageLoader label="Loading guests…" />
+      ) : contacts.length === 0 ? (
+        <EmptyState icon={<Users className="h-8 w-8" />} title="No guests yet" body="Add an outside partner, rep, or consultant to invite them in." />
+      ) : (
+        <div className="space-y-2">
+          {contacts.map((c) => (
+            <div key={c.id} className="card space-y-2 p-3">
+              <div className="flex items-start gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="truncate text-sm font-semibold text-white">{c.full_name}</p>
+                    <Tag tone="gold">{GUEST_KINDS.find((k) => k.value === c.kind)?.label ?? c.kind}</Tag>
+                    {c.status === 'joined' ? <Tag tone="green">Joined</Tag> : c.status === 'invited' ? <Tag tone="brand">Invited</Tag> : <Tag tone="slate">Not invited</Tag>}
+                  </div>
+                  <p className="truncate text-xs text-slate-400">{c.title || '—'}</p>
+                  <p className="truncate text-[11px] text-slate-500">
+                    {[c.email, c.phone].filter(Boolean).join(' · ') || 'No email or phone yet'}
+                    {c.channels?.length ? ` · joins: ${c.channels.join(', ')}` : ''}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button onClick={() => setInvite({ c, method: 'sms' })} disabled={!c.phone} className="btn-ghost px-2.5 py-1 text-xs disabled:opacity-40" title={c.phone ? '' : 'Add a phone number first'}>Invite by text</button>
+                <button onClick={() => setInvite({ c, method: 'email' })} disabled={!c.email} className="btn-ghost px-2.5 py-1 text-xs disabled:opacity-40" title={c.email ? '' : 'Add an email first'}>Invite by email</button>
+                <button onClick={() => setEditing(c)} className="btn-ghost px-2.5 py-1 text-xs">Edit</button>
+                <button onClick={() => removeContact(c)} className="ml-auto rounded-lg p-1.5 text-slate-500 hover:bg-red-500/10 hover:text-red-300" title="Remove"><Trash className="h-4 w-4" /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {(showAdd || editing) && (
+        <ContactModal
+          existing={editing}
+          onClose={() => { setShowAdd(false); setEditing(null) }}
+          onSaved={async () => { setShowAdd(false); setEditing(null); await load() }}
+          logAudit={logAudit}
+        />
+      )}
+      {invite && (
+        <InviteModal
+          contact={invite.c}
+          method={invite.method}
+          onClose={() => setInvite(null)}
+          onSent={async () => { setInvite(null); await load() }}
+          logAudit={logAudit}
+        />
+      )}
+    </div>
+  )
+}
+
+function ContactModal({ existing, onClose, onSaved, logAudit }: { existing: ContactRow | null; onClose: () => void; onSaved: () => void | Promise<void>; logAudit: LogAudit }) {
+  const toast = useUIStore((s) => s.toast)
+  const me = useAuthStore((s) => s.user?.id)
+  const [fullName, setFullName] = useState(existing?.full_name ?? '')
+  const [email, setEmail] = useState(existing?.email ?? '')
+  const [phone, setPhone] = useState(existing?.phone ?? '')
+  const [kind, setKind] = useState(existing?.kind ?? 'partner')
+  const [title, setTitle] = useState(existing?.title ?? '')
+  const [note, setNote] = useState(existing?.note ?? '')
+  const [channelSlugs, setChannelSlugs] = useState<string[]>(existing?.channels ?? [])
+  const [chans, setChans] = useState<{ slug: string; name: string }[]>([])
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    supabase.from('channels').select('slug,name').eq('is_archived', false).order('name')
+      .then(({ data }) => setChans((data as { slug: string; name: string }[]) ?? []))
+  }, [])
+
+  async function save() {
+    if (!fullName.trim()) return toast({ kind: 'error', title: 'Name required' })
+    setSaving(true)
+    const payload = {
+      full_name: fullName.trim(),
+      email: email.trim() || null,
+      phone: phone.trim() || null,
+      kind, title: title.trim() || null, note: note.trim() || null,
+      channels: channelSlugs,
+    }
+    const res = existing
+      ? await supabase.from('contacts').update(payload as never).eq('id', existing.id)
+      : await supabase.from('contacts').insert({ ...payload, created_by: me } as never)
+    setSaving(false)
+    if (res.error) return toast({ kind: 'error', title: 'Save failed', body: res.error.message })
+    await logAudit(existing ? 'edit_contact' : 'add_contact', 'contact', existing?.id ?? null, { name: fullName.trim() })
+    toast({ kind: 'success', title: existing ? 'Guest updated' : 'Guest added' })
+    void onSaved()
+  }
+
+  return (
+    <Modal open onClose={onClose} title={existing ? `Edit ${existing.full_name}` : 'Add a guest'}
+      footer={<><button className="btn-ghost px-3 py-1.5 text-sm" onClick={onClose}>Cancel</button><button className="btn-primary px-3 py-1.5 text-sm" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save'}</button></>}>
+      <div className="space-y-3">
+        <label className="block"><span className="label">Name</span><input className="input" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="e.g. Michelle" autoFocus /></label>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block"><span className="label">Type</span>
+            <select className="input" value={kind} onChange={(e) => setKind(e.target.value)}>
+              {GUEST_KINDS.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}
+            </select>
+          </label>
+          <label className="block"><span className="label">Title / role</span><input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Wella Rep" /></label>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block"><span className="label">Email</span><input className="input" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@email.com" /></label>
+          <label className="block"><span className="label">Phone</span><input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(617) 555-1212" /></label>
+        </div>
+        <label className="block"><span className="label">Note (optional)</span><input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Anything to remember" /></label>
+        <div>
+          <span className="label">Add to these channels when they join</span>
+          <div className="mt-1 max-h-40 space-y-1 overflow-y-auto rounded-lg border border-white/10 bg-brand-900/60 p-2">
+            {chans.map((ch) => {
+              const on = channelSlugs.includes(ch.slug)
+              return (
+                <label key={ch.slug} className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 text-sm text-slate-200 hover:bg-white/5">
+                  <input type="checkbox" className="h-4 w-4 accent-brand-500" checked={on}
+                    onChange={(e) => setChannelSlugs((prev) => (e.target.checked ? [...prev, ch.slug] : prev.filter((s) => s !== ch.slug)))} />
+                  #{ch.name}
+                </label>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+function InviteModal({ contact, method, onClose, onSent, logAudit }: { contact: ContactRow; method: 'sms' | 'email'; onClose: () => void; onSent: () => void | Promise<void>; logAudit: LogAudit }) {
+  const toast = useUIStore((s) => s.toast)
+  const myEmail = useAuthStore((s) => s.profile?.email)
+  const [subject, setSubject] = useState("You're invited to ROP Chat")
+  const [message, setMessage] = useState(method === 'sms' ? defaultInviteText(contact.full_name) : defaultInviteEmail(contact.full_name))
+  const [sending, setSending] = useState(false)
+
+  async function send() {
+    if (!message.trim()) return
+    const target = method === 'sms' ? contact.phone : contact.email
+    if (!target) return toast({ kind: 'error', title: `No ${method === 'sms' ? 'phone' : 'email'} on file` })
+    if (!window.confirm(`Send this ${method === 'sms' ? 'text' : 'email'} to ${contact.full_name} (${target})?`)) return
+    setSending(true)
+    let ok = false
+    let errMsg = ''
+    if (method === 'sms') {
+      const { data, error } = await supabase.functions.invoke('send-sms', { body: { to: [target], body: message.trim() } })
+      ok = !!(data as any)?.ok && !error
+      errMsg = (data as any)?.results?.find((r: any) => !r.ok)?.error || (data as any)?.error || error?.message || ''
+    } else {
+      const html = `<div style="font-family:system-ui,Arial,sans-serif;font-size:14px;line-height:1.6;white-space:pre-wrap">${message.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</div>`
+      const { data, error } = await supabase.functions.invoke('send-email', { body: { bcc: [target], subject: subject.trim(), html, text: message, replyTo: myEmail || undefined } })
+      ok = !!(data as any)?.ok && !error
+      errMsg = (data as any)?.error || error?.message || ''
+    }
+    if (!ok) { setSending(false); return toast({ kind: 'error', title: 'Not sent', body: errMsg }) }
+    await supabase.from('contacts').update({ status: 'invited', invited_at: new Date().toISOString(), invite_method: method } as never).eq('id', contact.id)
+    await logAudit('invite_contact', 'contact', contact.id, { name: contact.full_name, method })
+    setSending(false)
+    toast({ kind: 'success', title: `Invite ${method === 'sms' ? 'texted' : 'emailed'}`, body: `Sent to ${contact.full_name}.` })
+    void onSent()
+  }
+
+  return (
+    <Modal open onClose={onClose} title={`Invite ${contact.full_name} by ${method === 'sms' ? 'text' : 'email'}`}
+      footer={<><button className="btn-ghost px-3 py-1.5 text-sm" onClick={onClose}>Cancel</button><button className="btn-primary px-3 py-1.5 text-sm" disabled={sending} onClick={send}>{sending ? 'Sending…' : `Send ${method === 'sms' ? 'text' : 'email'}`}</button></>}>
+      <div className="space-y-3">
+        <p className="text-xs text-slate-400">To: <span className="text-slate-200">{method === 'sms' ? contact.phone : contact.email}</span>. Edit the message however you like before sending.</p>
+        {method === 'email' && (
+          <label className="block"><span className="label">Subject</span><input className="input" value={subject} onChange={(e) => setSubject(e.target.value)} /></label>
+        )}
+        <label className="block"><span className="label">Message</span><textarea className="input min-h-[180px]" value={message} onChange={(e) => setMessage(e.target.value)} /></label>
+      </div>
+    </Modal>
   )
 }
 

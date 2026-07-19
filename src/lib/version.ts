@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.21.0'
+export const APP_VERSION = '1.22.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,18 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.22.0',
+    date: '2026-07-19',
+    time: '2:20 AM ET',
+    title: 'Guests — invite outside partners, reps & consultants',
+    changes: [
+      'New Admin → Guests tab for outside people who aren’t employees (partners, vendor/reps, consultants). They’re marked as guests and never sync to payroll.',
+      'Add a guest with their name, type, title, email/phone, and which channels they should join. Then invite them with one tap — by text or by email — using a friendly, editable welcome message. Nothing sends until you hit Send.',
+      'When an invited guest signs up with that email, they’re automatically marked a guest and dropped into the channels you picked for them.',
+      'Added a #Color Orders channel, and pre-loaded Michelle and Bridget (Wella / Cosmoprof reps) and Scott Kelly (consultant) as guests ready to invite.',
+    ],
+  },
   {
     version: '1.21.0',
     date: '2026-07-19',

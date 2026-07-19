@@ -69,6 +69,7 @@ export type ProfileRow = {
   location_id: string | null
   secondary_location_id: string | null
   department_id: string | null
+  is_external: boolean
   title: string | null
   phone: string | null
   bio: string | null
@@ -183,6 +184,23 @@ export type NotificationRow = {
   channel_id: string | null
   is_read: boolean
   created_at: string
+}
+export type ContactRow = {
+  id: string
+  full_name: string
+  email: string | null
+  phone: string | null
+  kind: string
+  title: string | null
+  note: string | null
+  channels: string[]
+  status: string
+  invited_at: string | null
+  invite_method: string | null
+  linked_profile_id: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
 }
 export type MessageReminderRow = {
   id: string
