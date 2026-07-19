@@ -294,8 +294,8 @@ export function HelpModal() {
               </ol>
               <p className="mt-1 text-xs text-slate-500">On a Pixel, if notifications seem silent, also check <b>Settings → Notifications</b> and make sure <b>Do Not Disturb</b> / <b>Bedtime mode</b> isn&apos;t hiding them.</p>
 
-              <p className="mt-3"><b>What you&apos;ll get by default:</b> direct messages, <b>@mentions</b>, and announcements. Tapping a notification opens straight to that message.</p>
-              <p className="mt-2"><b>Mute a channel:</b> open the channel and tap the <b>bell</b> in the top bar. A muted channel never sends phone notifications (the bell shows a line through it). Tap again to unmute.</p>
+              <p className="mt-3"><b>What you&apos;ll get by default:</b> a notification on <b>every message in every channel you&apos;re in</b>, plus all your direct messages, <b>@mentions</b>, and announcements — on your phone and the desktop app. Tapping a notification opens straight to that message.</p>
+              <p className="mt-2"><b>Too much on a channel? Quiet it:</b> open the channel and tap the <b>bell</b> in the top bar, then choose <b>“Mentions &amp; DMs only”</b> (only ping me when I&apos;m @mentioned) or <b>“Mute”</b> (never ping me here). This only affects that one channel — every other channel keeps notifying you.</p>
               <p className="mt-2"><b>Fine-tune:</b> in <b>Profile → Notifications</b> you can switch DMs, mentions, announcements and urgent alerts on or off individually.</p>
               <p className="mt-2 text-xs text-slate-500">Blocked before? On iPhone: <b>Settings → Notifications → ROP Chat → Allow Notifications</b>. On Android: <b>Settings → Apps → ROP Chat → Notifications</b>. Then re-open the app and tap the button again.</p>
             </Topic>

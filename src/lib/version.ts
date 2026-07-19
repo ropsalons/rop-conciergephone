@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.16.2'
+export const APP_VERSION = '1.17.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.17.0',
+    date: '2026-07-18',
+    time: '9:20 PM ET',
+    title: 'You’re now notified on every channel (mute the ones you don’t want)',
+    changes: [
+      'New default for everyone: you now get a notification — on your phone and the desktop app — for every message in every channel you’re in, not just @mentions and DMs. This makes sure nothing gets missed.',
+      'Too much on a busy channel? Open it, tap the 🔔 bell in the top bar, and choose “Mentions & DMs only” or “Mute.” That only quiets that one channel; everything else keeps notifying you. New channels you join will notify you by default.',
+      'Updated the Help guide (the ? button) with how this works and how to quiet a channel.',
+    ],
+  },
   {
     version: '1.16.2',
     date: '2026-07-17',
