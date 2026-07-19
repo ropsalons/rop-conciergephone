@@ -12,7 +12,7 @@
 //
 // Actions: list_channels · read_channel_messages · read_thread · search_messages ·
 //          post_message · reply_thread · send_dm · send_group_dm · create_task · update_task ·
-//          request_approval · list_approvals
+//          register_webhook · request_approval · list_approvals
 //
 // The endpoint uses the service role (bypassing RLS) but ONLY after validating the agent and
 // enforcing its scope in code — content the agent isn't allowed to see is never returned.
@@ -456,6 +456,36 @@ Deno.serve(async (req) => {
       const { data } = await admin.from('ai_action_approvals').insert({ agent_id: A.id, action: reqAction, payload: { ...(body.payload ?? {}), ai_agent: aiTag }, preview }).select('id').single()
       await audit('ok', true, { approval_id: data?.id })
       return json({ ok: true, approval_id: data?.id, status: 'pending', correlation_id: correlationId })
+    }
+
+    if (action === 'register_webhook') {
+      // A project self-registers its return-path webhook — no human copy-paste. We store it and
+      // auto-create a dedicated command channel (grouped, leader-level) that routes to this project.
+      const url = String(body.url ?? '').trim()
+      if (!/^https:\/\//i.test(url)) return deny('Provide a valid https "url"', 400)
+      const projectName = (String(body.project_name ?? body.author_name ?? A.name).trim() || A.name)
+      const secret = typeof body.secret === 'string' && body.secret.trim() ? body.secret.trim() : null
+      const events = Array.isArray(body.events) && body.events.length ? body.events.map((e: unknown) => String(e)) : ['message.created']
+      const slug = (projectName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 40)) || A.slug
+      let { data: ch } = await admin.from('channels').select('id,slug').eq('slug', slug).maybeSingle()
+      if (!ch) {
+        const { data: created, error: cerr } = await admin.from('channels').insert({
+          slug, name: projectName, type: 'private',
+          description: `Type here to command ${projectName}. It reads messages here as instructions and replies back.`,
+          category: 'AI Command Consoles', min_access_rank: 40, created_by: BOT_ID,
+        }).select('id,slug').single()
+        if (cerr) throw cerr
+        ch = created
+      }
+      const key = projectName.toLowerCase()
+      const { data: existing } = await admin.from('project_webhooks').select('id').eq('project_key', key).maybeSingle()
+      if (existing) {
+        await admin.from('project_webhooks').update({ agent_id: A.id, url, secret, events, command_channel_id: ch!.id, is_active: true, updated_at: new Date().toISOString() }).eq('id', existing.id)
+      } else {
+        await admin.from('project_webhooks').insert({ project_name: projectName, agent_id: A.id, url, secret, events, command_channel_id: ch!.id })
+      }
+      await audit('ok', true, { project: projectName, command_channel: ch!.slug })
+      return json({ ok: true, command_channel: ch!.slug, command_channel_id: ch!.id, events, correlation_id: correlationId })
     }
 
     if (action === 'list_approvals') {

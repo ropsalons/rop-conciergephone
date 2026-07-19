@@ -70,6 +70,7 @@ the same key returns the original result instead of double-posting.
 | `send_group_dm` | `to_emails` (array or comma list), `text`, `title?`, `author_name?`, `attachments?` — DM a group |
 | `create_task` | `title`, `body?`, `channel?`, `assignee_email?`, `external_ref?` |
 | `update_task` | `task_id`, `status?` (`open`/`in_progress`/`done`/`cancelled`), `title?`, `body?` |
+| `register_webhook` | `project_name`, `url`, `secret?`, `events?` — self-register your return-path webhook (see §4) |
 | `request_approval` | `request_action`, `preview`, `payload?` |
 | `list_approvals` | — |
 
@@ -121,24 +122,34 @@ curl -X POST "$ROP_CHAT_GATEWAY_URL" \
 
 ---
 
-## 4. Return path — let ROP Chat push events back to a project (optional)
+## 4. Return path — SELF-REGISTER your webhook (no human copy-paste)
 
-If a project wants ROP Chat to **notify it** (instead of polling), it exposes a webhook and hands ROP
-Chat five things:
+To have ROP Chat push events to you, **register your webhook yourself** through the gateway — the
+`register_webhook` action. No one has to hand a URL/secret back and forth.
 
-1. **Webhook URL** (e.g. `https://<project-host>/api/rop-chat/webhook`)
-2. **A shared secret** (bearer token or HMAC-SHA256 — the project's choice)
-3. **Events wanted:** `message.created`, `message.mention`, `task.updated`, `approval.requested`, `dm.received`
-4. **Expected JSON shape** — or accept ROP Chat's default envelope:
-   ```json
-   { "source":"rop-chat", "event":"task.updated", "id":"<uuid>",
-     "occurred_at":"2026-07-18T23:15:00-04:00",
-     "data":{ "task_id":"…", "external_ref":"INV-9931", "status":"done" } }
+1. Stand up your webhook endpoint and generate a shared secret (store it server-side; ROP Chat sends
+   it back as `Authorization: Bearer <secret>` on every event).
+2. Call the gateway **once**:
+   ```bash
+   curl -X POST "$ROP_CHAT_GATEWAY_URL" \
+     -H "Authorization: Bearer $ROP_CHAT_TOKEN" -H "Content-Type: application/json" \
+     -d '{ "action":"register_webhook",
+           "project_name":"<Your Project Name>",
+           "url":"https://<your-host>/api/rop-chat/webhook",
+           "secret":"<the shared secret you generated>",
+           "events":["message.created"] }'
    ```
-5. **Timezone** (ROP Chat is Eastern).
+   The response returns your **`command_channel`** slug — ROP Chat auto-creates a private, leader-level
+   command channel for you (in the "AI Command Consoles" sidebar group) and routes it to your webhook.
+3. Your webhook receives ROP Chat's default envelope; reply with a fast `2xx`:
+   ```json
+   { "source":"rop-chat", "event":"message.created", "id":"<uuid>",
+     "occurred_at":"2026-07-19T00:15:00Z",
+     "data":{ "channel_id":"…", "message_id":"…", "text":"…", "author":"Rob", "author_id":"…" } }
+   ```
 
-ROP Chat then wires a small forwarder (Postgres trigger → `pg_net` POST). Return a fast `2xx`; ROP
-Chat retries with backoff and puts a unique `id` on each event for dedupe.
+That's it — no reply-with-your-URL step. To change or disable it later, call `register_webhook` again
+(same `project_name`) or ask an admin. Each `id` is unique for dedupe.
 
 ---
 
@@ -214,9 +225,12 @@ name in advance — just handle incoming `message.created` events and reply to t
 > **6. Test now:** send `{ "action":"list_channels" }`, then `post_message` to `ai-updates`
 > saying "`<YOUR PROJECT NAME>` is connected." Confirm you get `ok: true` and a `message_id`.
 >
-> **7. Set up the return path** so ROP Chat can push events back to you. Expose a webhook, generate a
-> shared secret (store it server-side, Supabase-first), then reply with: (a) webhook URL, (b) the shared
-> secret value, (c) events wanted (`message.mention`, `dm.received`, `approval.requested`, `task.updated`),
-> (d) confirm you accept ROP Chat's default JSON envelope, (e) your timezone (America/New_York).
+> **7. Set up the return path yourself — no copy-paste.** Stand up a webhook endpoint, generate a
+> shared secret (store it server-side, Supabase-first), then **call the gateway** to register it:
+> `{ "action":"register_webhook", "project_name":"<your chosen name>", "url":"https://<your-host>/api/rop-chat/webhook", "secret":"<your secret>", "events":["message.created"] }`.
+> The response returns your **`command_channel`** — ROP Chat auto-creates a private command channel for
+> you and routes its messages to your webhook. When a `message.created` event arrives, treat the text as
+> a command (see §4b), do it, and reply in that channel.
 >
-> **Report back:** confirm the test worked, confirm you'll summarize every finished job to `#ai-updates`, and give me items (a)–(e).
+> **Report back:** the name you chose, that the test worked, that you'll summarize every finished job to
+> `#ai-updates`, and your `command_channel` slug from `register_webhook`.
