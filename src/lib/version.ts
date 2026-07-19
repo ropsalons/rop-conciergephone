@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.20.0'
+export const APP_VERSION = '1.21.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.21.0',
+    date: '2026-07-19',
+    time: '1:15 AM ET',
+    title: 'Quiet hours & vacation — don’t get pinged when you don’t want to',
+    changes: [
+      'New “Do Not Disturb” in Profile → Notifications. Set Quiet hours (e.g. 10 PM–7 AM) and your phone stays silent overnight — notifications still pile up in the app, they just don’t buzz you.',
+      'Going away? Flip “Pause all notifications (vacation).” Leave it on until you’re back, or set a “Resume on” date and it turns itself back on automatically.',
+      'One safety rule: Urgent Alerts always come through, even during quiet hours or vacation — so a real emergency still reaches you. Everything else respects your settings. Times are Eastern.',
+    ],
+  },
   {
     version: '1.20.0',
     date: '2026-07-19',

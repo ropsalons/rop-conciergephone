@@ -31,6 +31,10 @@ export type NotificationPrefs = {
   browser_push: boolean
   mobile_push: boolean // master switch for background push to this user's devices
   sound: boolean
+  quiet_enabled?: boolean       // Do Not Disturb during set hours
+  quiet_start?: string          // "22:00" (Eastern)
+  quiet_end?: string            // "07:00" (Eastern)
+  paused_until?: string | null  // pause ALL notifications until this ISO time (vacation); null = not paused
 }
 
 export type RoleRow = {

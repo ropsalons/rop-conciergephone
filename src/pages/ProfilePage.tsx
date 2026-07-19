@@ -7,13 +7,13 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { Avatar } from '@/components/ui/Avatar'
 import { Spinner } from '@/components/ui/Feedback'
 import { AccessBadge } from '@/components/ui/Badge'
-import { Bell, LogOut } from '@/components/ui/Icons'
+import { Bell, BellOff, LogOut } from '@/components/ui/Icons'
 import { ROLE_LABELS, titleLabel, ACCESS_LABELS } from '@/lib/constants'
 import { cn, uuid } from '@/lib/utils'
 import { disablePush, enablePush, getPushStatus, type PushStatus } from '@/lib/push'
 import type { NotificationPrefs, Presence, Profile } from '@/types'
 
-const PREF_LABELS: Record<keyof NotificationPrefs, string> = {
+const PREF_LABELS: Partial<Record<keyof NotificationPrefs, string>> = {
   dm: 'Direct messages',
   mentions: 'Mentions',
   announcements: 'Announcements',
@@ -136,6 +136,12 @@ export function ProfilePage() {
   function togglePref(key: keyof NotificationPrefs, value: boolean) {
     void patch({ notification_prefs: { ...prefs, [key]: value } })
   }
+  function updatePrefs(partial: Partial<NotificationPrefs>) {
+    void patch({ notification_prefs: { ...prefs, ...partial } })
+  }
+
+  // Vacation pause is "on" while paused_until is a future time.
+  const pausedActive = !!prefs.paused_until && new Date(prefs.paused_until).getTime() > Date.now()
 
   async function enableDevicePush() {
     if (!user) return
@@ -316,11 +322,71 @@ export function ProfilePage() {
               {TYPE_TOGGLES.map((key) => (
                 <Toggle
                   key={key}
-                  label={PREF_LABELS[key]}
+                  label={PREF_LABELS[key] ?? key}
                   checked={!!prefs[key]}
                   onChange={(v) => togglePref(key, v)}
                 />
               ))}
+            </div>
+
+            {/* Do Not Disturb — quiet hours + vacation pause */}
+            <div className="mt-2 rounded-xl border border-white/10 bg-brand-950/40 p-3">
+              <div className="mb-1 flex items-center gap-2">
+                <BellOff className="h-4 w-4 text-gold-300" />
+                <h3 className="text-sm font-semibold text-white">Do Not Disturb</h3>
+              </div>
+
+              <Toggle
+                label="Quiet hours (silence phone push overnight)"
+                checked={!!prefs.quiet_enabled}
+                onChange={(v) => updatePrefs({ quiet_enabled: v })}
+              />
+              {prefs.quiet_enabled && (
+                <div className="mt-1 flex items-center gap-2 pl-1 pb-1 text-sm text-slate-300">
+                  <span className="text-slate-400">From</span>
+                  <input
+                    type="time"
+                    className="input w-28 py-1"
+                    value={prefs.quiet_start ?? '22:00'}
+                    onChange={(e) => updatePrefs({ quiet_start: e.target.value })}
+                  />
+                  <span className="text-slate-400">to</span>
+                  <input
+                    type="time"
+                    className="input w-28 py-1"
+                    value={prefs.quiet_end ?? '07:00'}
+                    onChange={(e) => updatePrefs({ quiet_end: e.target.value })}
+                  />
+                </div>
+              )}
+
+              <div className="border-t border-white/5">
+                <Toggle
+                  label="Pause all notifications (vacation)"
+                  checked={pausedActive}
+                  onChange={(v) =>
+                    updatePrefs({ paused_until: v ? '2999-12-31T00:00:00Z' : null })
+                  }
+                />
+              </div>
+              {pausedActive && (
+                <div className="mt-1 flex flex-wrap items-center gap-2 pl-1 text-sm text-slate-300">
+                  <span className="text-slate-400">Resume on</span>
+                  <input
+                    type="date"
+                    className="input w-40 py-1"
+                    value={prefs.paused_until && !prefs.paused_until.startsWith('2999') ? prefs.paused_until.slice(0, 10) : ''}
+                    onChange={(e) =>
+                      updatePrefs({ paused_until: e.target.value ? `${e.target.value}T23:59:00` : '2999-12-31T00:00:00Z' })
+                    }
+                  />
+                  <span className="text-[11px] text-slate-500">Leave blank to stay paused until you turn it off.</span>
+                </div>
+              )}
+
+              <p className="mt-2 text-[11px] text-slate-500">
+                Quiet hours and vacation silence your phone push. <b>Urgent Alerts always come through.</b> Times are Eastern (ET).
+              </p>
             </div>
           </section>
 
