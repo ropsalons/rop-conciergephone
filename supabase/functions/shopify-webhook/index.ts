@@ -2,6 +2,9 @@
 // (orders/create) or shipped (fulfillments/create); we format it and post to the
 // #product-shipping channel via the ingest endpoint (author "Shopify").
 //
+// New orders @mention Rob so he gets a notification + push in ROP Chat. Shipments post
+// without a ping (informational for the desk).
+//
 // Auth: a shared secret in the ?token= query param (Shopify lets us set an arbitrary
 // callback URL). Always returns 200 so Shopify doesn't retry-storm on a formatting error.
 //
@@ -15,6 +18,7 @@ const INGEST_URL = 'https://qrigzwactbwbpuufehxo.supabase.co/functions/v1/ingest
 const INGEST_KEY = Deno.env.get('INGEST_KEY') ?? 'REDACTED_IN_REPO'
 const SHOPIFY_TOKEN = Deno.env.get('SHOPIFY_TOKEN') ?? 'REDACTED_IN_REPO'
 const CHANNEL = 'product-shipping'
+const ROB_ID = '6cd61125-689a-4889-82ab-fb5835acf59c' // Robert DiLella (owner) — tagged on each order
 
 function money(v: any): string {
   const n = Number(v)
@@ -27,11 +31,13 @@ function items(li: any): string {
   if (li.length > 6) s += ', +' + (li.length - 6) + ' more'
   return s
 }
-async function post(text: string) {
+async function post(text: string, mentions?: string[]) {
+  const body: any = { channel: CHANNEL, author_name: 'Shopify', text }
+  if (mentions && mentions.length) body.metadata = { mentions }
   await fetch(INGEST_URL, {
     method: 'POST',
     headers: { 'x-api-key': INGEST_KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ channel: CHANNEL, author_name: 'Shopify', text }),
+    body: JSON.stringify(body),
   })
 }
 
@@ -61,7 +67,7 @@ Deno.serve(async (req) => {
       const total = money(p.total_price != null ? p.total_price : p.current_total_price)
       let text = '🛍️ New order ' + name + (cust ? ' — ' + cust : '') + (total ? ' · ' + total : '')
       if (itxt) text += '\n' + itxt
-      await post(text)
+      await post(text, [ROB_ID])
     }
   } catch { /* ignore — still 200 */ }
   return new Response('ok', { status: 200 })
