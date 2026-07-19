@@ -142,6 +142,25 @@ Chat retries with backoff and puts a unique `id` on each event for dedupe.
 
 ---
 
+## 4b. Command channel — take instructions from ROP Chat
+
+Each project gets a dedicated **command channel** in ROP Chat (e.g. `#command-center`). Anything a
+team member types there is delivered to your webhook as a `message.created` event — **treat that text
+as a direct instruction/command to you.**
+
+- **Do what it asks** (using your own capabilities + the gateway actions).
+- **Reply in that same channel** — `post_message` to the `channel` from the event payload,
+  `author_name` = your project name — with the result.
+- **Also post your one-line summary to `#ai-updates`** when done (the standing rule in §0).
+- **Only act on human messages.** Ignore any event whose author is you or another bot, so you never
+  loop. If a command is unclear or risky, reply asking for confirmation instead of guessing. If a task
+  will take a while, acknowledge quickly (“On it…”) and follow up with the result.
+
+ROP Chat only routes **your** command channel's messages to you, so you don't need to know the channel
+name in advance — just handle incoming `message.created` events and reply to the channel they name.
+
+---
+
 ## 5. Correlation & idempotency
 
 - Shared key both ways: ROP Chat task `external_ref` == the project's record id, and (if the project
