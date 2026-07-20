@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.22.3'
+export const APP_VERSION = '1.23.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.23.0',
+    date: '2026-07-20',
+    time: '3:45 PM ET',
+    title: 'Feeds control — see & switch off any automated poster',
+    changes: [
+      'New Admin → Feeds tab lists every automation posting into ROP Chat (the Boulevard booking feed, the email bridge, inbound texts, and each connected AI project) — showing what it is, which channels it posts to, and how much.',
+      'Each feed has a simple On/Off switch. Turning one Off silences it instantly — no matter which project or pipeline it came from — and turning it back on is one tap. Your team’s own messages are never affected.',
+    ],
+  },
   {
     version: '1.22.3',
     date: '2026-07-20',

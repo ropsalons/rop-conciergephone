@@ -43,6 +43,7 @@ const TABS = [
   { key: 'users', label: 'Users' },
   { key: 'guests', label: 'Guests' },
   { key: 'activity', label: 'Activity' },
+  { key: 'feeds', label: 'Feeds' },
   { key: 'ai', label: 'AI Integrations' },
   { key: 'channels', label: 'Channels' },
   { key: 'email', label: 'Send Email' },
@@ -116,6 +117,7 @@ export function AdminPage() {
         {tab === 'users' && <UsersTab logAudit={logAudit} />}
         {tab === 'guests' && <GuestsTab logAudit={logAudit} />}
         {tab === 'activity' && <ActivityTab />}
+        {tab === 'feeds' && <FeedsTab />}
         {tab === 'ai' && <AiTab />}
         {tab === 'channels' && <ChannelsTab me={me ?? ''} logAudit={logAudit} />}
         {tab === 'email' && <EmailTab logAudit={logAudit} />}
@@ -306,6 +308,130 @@ function StatTile({ label, value, muted }: { label: string; value: number; muted
     <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5">
       <p className={cn('text-2xl font-bold', muted ? 'text-slate-400' : 'text-white')}>{value}</p>
       <p className="text-[11px] uppercase tracking-wide text-slate-500">{label}</p>
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Feeds — every automation posting into ROP Chat, with an on/off switch */
+/* ------------------------------------------------------------------ */
+
+interface FeedSource {
+  source: string
+  channels: string | null
+  channel_count: number
+  msg_count: number
+  last_post: string | null
+  muted: boolean
+}
+
+// Friendly, plain-English explanation of each known feed so Rob can tell at a
+// glance what it is and where it comes from. Matched case-insensitively; anything
+// unknown still shows with its raw source label.
+function describeFeed(source: string): string {
+  const s = source.toLowerCase()
+  if (s.includes('reports') || s.includes('dashboard')) return 'Boulevard booking feed — posts every new appointment.'
+  if (s === 'email-bridge') return 'Email bridge — forwarded emails turned into channel messages.'
+  if (s === 'sms-inbound') return 'Inbound texts to your business number.'
+  if (s.includes('on the clock')) return 'ROP On the Clock project.'
+  if (s.includes('website')) return 'ROP Website Agent project.'
+  if (s.includes('growth')) return 'Growth Dashboard project.'
+  if (s.includes('command center') || s === 'command center') return 'ROP Command Center project.'
+  if (s.includes('analytics')) return 'ROP Analytics project.'
+  if (s.includes('brain')) return 'ROP Brain / knowledge project.'
+  if (s.includes('assistant')) return 'ROP Assistant project.'
+  if (s.includes('guest')) return 'Guest Experience project.'
+  if (s.includes('claude') || s.includes('cowork')) return 'A Claude / Cowork AI session.'
+  return 'Automated project posting through the integration API.'
+}
+
+function FeedsTab() {
+  const toast = useUIStore((s) => s.toast)
+  const [feeds, setFeeds] = useState<FeedSource[] | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rpc = (fn: string, args: any = {}) => (supabase.rpc as any)(fn, args)
+
+  async function load() {
+    setErr(null)
+    const { data, error } = await rpc('admin_feed_sources_all')
+    if (error) { setErr(error.message); return }
+    setFeeds((data as FeedSource[]) || [])
+  }
+  useEffect(() => { void load() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [])
+
+  async function toggle(f: FeedSource) {
+    const turningOff = !f.muted
+    if (turningOff && !window.confirm(`Turn OFF "${f.source}"?\n\nNew messages from this source will stop appearing in ROP Chat until you turn it back on. Past messages stay. You can re-enable it here anytime.`)) return
+    setBusy(f.source)
+    const { error } = await rpc('admin_set_feed_muted', { p_source: f.source, p_muted: turningOff })
+    setBusy(null)
+    if (error) return toast({ kind: 'error', title: 'Could not update feed', body: error.message })
+    toast({ kind: turningOff ? 'urgent' : 'success', title: turningOff ? `${f.source} turned off` : `${f.source} turned back on` })
+    // optimistic update
+    setFeeds((prev) => (prev || []).map((x) => (x.source === f.source ? { ...x, muted: turningOff } : x)))
+  }
+
+  if (err) return <EmptyState icon={<Shield className="h-8 w-8" />} title="Couldn't load feeds" body={err} />
+  if (!feeds) return <FullPageLoader label="Finding what's posting into ROP Chat…" />
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+        <p className="text-sm font-semibold text-white">Automated feeds posting into ROP Chat</p>
+        <p className="mt-1 text-xs text-slate-400">
+          Everything an outside project, email forward, or AI posts here shows up below — with where it lands and how
+          much it posts. Flip any one <span className="font-semibold text-slate-200">Off</span> to silence it instantly,
+          no matter which project it came from. Turning it back on is one tap. Your team's own messages are never affected.
+        </p>
+      </div>
+
+      {feeds.length === 0 ? (
+        <EmptyState icon={<ClipboardList className="h-8 w-8" />} title="No automated feeds found" body="Nothing has posted through an integration recently." />
+      ) : (
+        <div className="space-y-2">
+          {feeds.map((f) => (
+            <div
+              key={f.source}
+              className={cn(
+                'flex items-center gap-3 rounded-xl border p-3',
+                f.muted ? 'border-red-500/40 bg-red-950/20' : 'border-white/10 bg-brand-950/40',
+              )}
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-semibold text-white">{f.source}</p>
+                  {f.muted && <Tag tone="slate">Off</Tag>}
+                </div>
+                <p className="mt-0.5 text-xs text-slate-400">{describeFeed(f.source)}</p>
+                <p className="mt-1 text-[11px] text-slate-500">
+                  {f.channels ? <>Posts to <span className="text-slate-300">{f.channels}</span> · </> : null}
+                  {f.msg_count > 0 ? `${f.msg_count.toLocaleString()} in 60 days` : 'no recent posts'}
+                  {f.last_post ? ` · last ${timeAgo(f.last_post)}` : ''}
+                </p>
+              </div>
+              <button
+                onClick={() => toggle(f)}
+                disabled={busy === f.source}
+                title={f.muted ? 'Turn this feed back on' : 'Turn this feed off'}
+                className={cn(
+                  'relative h-7 w-12 shrink-0 rounded-full transition disabled:opacity-50',
+                  f.muted ? 'bg-white/15' : 'bg-emerald-600',
+                )}
+              >
+                <span
+                  className={cn(
+                    'absolute top-1 h-5 w-5 rounded-full bg-white transition-all',
+                    f.muted ? 'left-1' : 'left-6',
+                  )}
+                />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
