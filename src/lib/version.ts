@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.23.0'
+export const APP_VERSION = '1.24.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.24.0',
+    date: '2026-07-20',
+    time: '4:20 PM ET',
+    title: 'Forward any message to a project (Command Center)',
+    changes: [
+      'Admins now have a “Send to a project” action on any message (the 📋 icon on hover, or in the ⋯ menu on phone). Pick a connected project — Command Center or any other — add an optional note, and the message is sent straight into that project’s command channel, where it becomes a task/project item.',
+      'It carries where it came from (channel + original sender) and your note, so the project has full context. Admins only.',
+    ],
+  },
   {
     version: '1.23.0',
     date: '2026-07-20',

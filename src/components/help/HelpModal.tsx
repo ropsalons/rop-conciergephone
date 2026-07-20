@@ -218,6 +218,15 @@ export function HelpModal() {
               ]} />
             </Topic>
 
+            <Topic icon={<ClipboardList className="h-4 w-4" />} title="Send a message to a project (admins)">
+              <p>Admins can forward <b>any</b> message straight to a connected project — like <b>ROP Command Center</b> — so it becomes a task/project item over there.</p>
+              <Steps items={[
+                <>On any message, tap the <ClipboardList className="inline h-3.5 w-3.5" /> icon on hover (on a phone, long-press or tap <K>⋯</K> → <b>Send to a project</b>).</>,
+                <>Pick the project (defaults to <b>Command Center</b>), add an optional note, and tap <b>Send to project</b>.</>,
+                <>It drops into that project’s command channel with where it came from and your note, and the project turns it into a task. Admins only.</>,
+              ]} />
+            </Topic>
+
             <Topic icon={<Star className="h-4 w-4" />} title="Salon workflows">
               <ul className="ml-4 list-disc space-y-1 marker:text-slate-500">
                 <li><Megaphone className="inline h-3.5 w-3.5" /> <b>Announcements</b> — company news. <b>Anyone</b> can post one.</li>

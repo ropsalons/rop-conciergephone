@@ -8,11 +8,12 @@ import { RichText } from './RichText'
 import { RichCard } from './RichCard'
 import { FileChip } from '@/components/files/FileChip'
 import { messageTime, displayName, cn } from '@/lib/utils'
-import { QUICK_EMOJIS, canManage } from '@/lib/constants'
-import { Smile, Reply, Pin, Edit, Trash, Check, X, MoreHorizontal, Link as LinkIcon, Bookmark, Clock } from '@/components/ui/Icons'
+import { QUICK_EMOJIS, canManage, isAdmin } from '@/lib/constants'
+import { Smile, Reply, Pin, Edit, Trash, Check, X, MoreHorizontal, Link as LinkIcon, Bookmark, Clock, ClipboardList } from '@/components/ui/Icons'
 import { useUIStore } from '@/stores/uiStore'
 import { useSavedStore } from '@/stores/savedStore'
 import { RemindModal } from './RemindModal'
+import { ForwardModal } from './ForwardModal'
 
 interface Props {
   message: MessageWithAuthor
@@ -38,6 +39,7 @@ export function MessageItem({ message, grouped, showThread = true, parentPreview
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(message.body)
   const [remindOpen, setRemindOpen] = useState(false)
+  const [forwardOpen, setForwardOpen] = useState(false)
   const isSaved = useSavedStore((s) => s.savedIds.has(message.id))
   const toggleSave = useSavedStore((s) => s.toggleSave)
   const longPress = useRef<number | null>(null)
@@ -64,6 +66,7 @@ export function MessageItem({ message, grouped, showThread = true, parentPreview
 
   const isMine = message.user_id === me
   const canModerate = isMine || canManage(myAccess)
+  const canForward = isAdmin(myAccess) // admins can forward any message to a connected project
   const isTemp = message.id.startsWith('temp-')
   // When rendered in the channel flow, a reply is indented with a left bar and shows a small
   // "replying to …" chip. Inside the thread panel no preview is passed, so it renders normally.
@@ -320,6 +323,11 @@ export function MessageItem({ message, grouped, showThread = true, parentPreview
           <button onClick={() => toggleSave(message.id)} className="rounded p-1.5 text-slate-300 hover:bg-white/10" title={isSaved ? 'Remove from Saved' : 'Save for later'}>
             <Bookmark className={cn('h-4 w-4', isSaved && 'fill-current text-gold-400')} />
           </button>
+          {canForward && (
+            <button onClick={() => setForwardOpen(true)} className="rounded p-1.5 text-brand-300 hover:bg-white/10" title="Send to a project (Command Center, etc.)">
+              <ClipboardList className="h-4 w-4" />
+            </button>
+          )}
           {onTogglePin && canManage(myAccess) && (
             <button onClick={() => onTogglePin(!message.is_pinned)} className="rounded p-1.5 text-slate-300 hover:bg-white/10" title={message.is_pinned ? 'Unpin' : 'Pin'}>
               <Pin className={cn('h-4 w-4', message.is_pinned && 'text-gold-400')} />
@@ -375,6 +383,13 @@ export function MessageItem({ message, grouped, showThread = true, parentPreview
                 label={isSaved ? 'Remove from Saved' : 'Save for later'}
                 onClick={() => { toggleSave(message.id); setSheetOpen(false) }}
               />
+              {canForward && (
+                <SheetItem
+                  icon={<ClipboardList className="h-5 w-5 text-brand-300" />}
+                  label="Send to a project (Command Center…)"
+                  onClick={() => { setSheetOpen(false); setForwardOpen(true) }}
+                />
+              )}
               {showThread && onReply && (
                 <SheetItem icon={<Reply className="h-5 w-5" />} label="Reply in thread" onClick={() => { onReply(); setSheetOpen(false) }} />
               )}
@@ -397,6 +412,7 @@ export function MessageItem({ message, grouped, showThread = true, parentPreview
       )}
 
       {remindOpen && <RemindModal messageId={message.id} onClose={() => setRemindOpen(false)} />}
+      {forwardOpen && <ForwardModal messageId={message.id} onClose={() => setForwardOpen(false)} />}
 
       {/* Delete confirmation — a tap never deletes on its own; you have to confirm here. */}
       {confirmDel && (
