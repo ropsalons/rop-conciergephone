@@ -46,13 +46,16 @@ export async function uploadAttachment(file: File, userId: string): Promise<Pend
 }
 
 // Attachments live in a private bucket; resolve short-lived signed URLs to display them.
+// Pass `download` (a filename) to get a URL that the browser SAVES instead of opening —
+// Supabase then serves it with Content-Disposition: attachment; filename=<download>.
 const signedCache = new Map<string, { url: string; exp: number }>()
-export async function signedUrl(path: string, bucket = 'attachments'): Promise<string | null> {
-  const cached = signedCache.get(path)
+export async function signedUrl(path: string, bucket = 'attachments', download?: string): Promise<string | null> {
+  const cacheKey = download ? `${path}::dl` : path
+  const cached = signedCache.get(cacheKey)
   if (cached && cached.exp > Date.now()) return cached.url
-  const { data } = await supabase.storage.from(bucket).createSignedUrl(path, 3600)
+  const { data } = await supabase.storage.from(bucket).createSignedUrl(path, 3600, download ? { download } : undefined)
   if (!data?.signedUrl) return null
-  signedCache.set(path, { url: data.signedUrl, exp: Date.now() + 3000_000 })
+  signedCache.set(cacheKey, { url: data.signedUrl, exp: Date.now() + 3000_000 })
   return data.signedUrl
 }
 
