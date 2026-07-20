@@ -145,8 +145,8 @@ export function ChannelPage() {
                 </button>
                 {notifyOpen && (
                   <>
-                    <div className="fixed inset-0 z-20" onClick={() => setNotifyOpen(false)} />
-                    <div className="absolute right-0 z-30 mt-1 w-60 overflow-hidden rounded-xl border border-white/10 bg-brand-800 shadow-2xl">
+                    <div className="fixed inset-0 z-40" onClick={() => setNotifyOpen(false)} />
+                    <div className="absolute right-0 z-50 mt-1 w-60 overflow-hidden rounded-xl border border-white/15 bg-brand-950 shadow-2xl ring-1 ring-black/40">
                       <p className="px-3 pt-2.5 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Notify me about…</p>
                       {([
                         ['all', 'All messages', 'Every post in this channel'],

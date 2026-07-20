@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.24.1'
+export const APP_VERSION = '1.24.2'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,15 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.24.2',
+    date: '2026-07-20',
+    time: '6:35 PM ET',
+    title: 'Fixed the “Notify me about…” menu',
+    changes: [
+      'The channel notification menu (the 🔔 bell → All messages / Mentions & DMs only / Nothing) was see-through and hard to read because the message text behind it was showing through. It now has a solid background and sits cleanly on top, on both phone and desktop. Picking an option applies right away and the bell reflects your choice.',
+    ],
+  },
   {
     version: '1.24.1',
     date: '2026-07-20',

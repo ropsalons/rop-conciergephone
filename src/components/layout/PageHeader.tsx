@@ -26,7 +26,7 @@ export function PageHeader({
   const openHelp = useUIStore((s) => s.setHelpOpen)
   const navigate = useNavigate()
   return (
-    <header className="flex items-center gap-2 border-b border-white/10 bg-brand-900/60 px-3 py-3 backdrop-blur safe-top sm:px-4">
+    <header className="relative z-30 flex items-center gap-2 border-b border-white/10 bg-brand-900/60 px-3 py-3 backdrop-blur safe-top sm:px-4">
       {backTo ? (
         <button onClick={() => navigate(backTo)} aria-label="Back" className={`-ml-1 rounded-lg p-2 text-slate-300 hover:bg-white/10 ${backAlways ? '' : 'lg:hidden'}`}>
           <ChevronLeft className="h-5 w-5" />
