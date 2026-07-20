@@ -191,6 +191,7 @@ export type ContactRow = {
   email: string | null
   phone: string | null
   kind: string
+  access_level: string
   title: string | null
   note: string | null
   channels: string[]

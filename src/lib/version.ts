@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.24.0'
+export const APP_VERSION = '1.24.1'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.24.1',
+    date: '2026-07-20',
+    time: '6:15 PM ET',
+    title: 'Fixes: Activity tab, texting invites, and admin guests',
+    changes: [
+      'Fixed the admin check that had drifted after the access-level redesign — it was reading your old job title instead of your access level. This was making the Admin → Activity tab show “forbidden” and causing “Send text” invites to fail with a non-2xx error. Both work now.',
+      'Guests can now be given an access level (Member / Leader / Admin) right on their card. Set a guest to Admin and they get full admin access the moment they sign up — so you can have trusted outside people (like a consultant) as “admin guests.”',
+    ],
+  },
   {
     version: '1.24.0',
     date: '2026-07-20',

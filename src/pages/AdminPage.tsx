@@ -1479,6 +1479,7 @@ function ContactModal({ existing, onClose, onSaved, logAudit }: { existing: Cont
   const [email, setEmail] = useState(existing?.email ?? '')
   const [phone, setPhone] = useState(existing?.phone ?? '')
   const [kind, setKind] = useState(existing?.kind ?? 'partner')
+  const [access, setAccess] = useState(existing?.access_level ?? 'member')
   const [title, setTitle] = useState(existing?.title ?? '')
   const [note, setNote] = useState(existing?.note ?? '')
   const [channelSlugs, setChannelSlugs] = useState<string[]>(existing?.channels ?? [])
@@ -1498,6 +1499,7 @@ function ContactModal({ existing, onClose, onSaved, logAudit }: { existing: Cont
       email: email.trim() || null,
       phone: phone.trim() || null,
       kind, title: title.trim() || null, note: note.trim() || null,
+      access_level: access,
       channels: channelSlugs,
     }
     const res = existing
@@ -1521,8 +1523,20 @@ function ContactModal({ existing, onClose, onSaved, logAudit }: { existing: Cont
               {GUEST_KINDS.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}
             </select>
           </label>
-          <label className="block"><span className="label">Title / role</span><input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Wella Rep" /></label>
+          <label className="block"><span className="label">Access level</span>
+            <select className="input" value={access} onChange={(e) => setAccess(e.target.value)}>
+              <option value="member">Member (normal)</option>
+              <option value="leader">Leader</option>
+              <option value="admin">Admin</option>
+            </select>
+          </label>
         </div>
+        <label className="block"><span className="label">Title / role</span><input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Wella Rep, Consultant" /></label>
+        {access !== 'member' && (
+          <p className="-mt-1 rounded-lg border border-gold-400/30 bg-gold-400/10 p-2 text-[11px] text-gold-100">
+            This guest will get <b>{access === 'admin' ? 'Admin' : 'Leader'}</b> access the moment they sign up with their invited email. Admins can do everything in the Admin Panel — only give this to people you fully trust.
+          </p>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <label className="block"><span className="label">Email</span><input className="input" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@email.com" /></label>
           <label className="block"><span className="label">Phone</span><input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(617) 555-1212" /></label>
