@@ -1543,7 +1543,17 @@ function ContactModal({ existing, onClose, onSaved, logAudit }: { existing: Cont
         </div>
         <label className="block"><span className="label">Note (optional)</span><input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Anything to remember" /></label>
         <div>
-          <span className="label">Add to these channels when they join</span>
+          <div className="flex items-center justify-between">
+            <span className="label">Add to these channels when they join</span>
+            <button
+              type="button"
+              onClick={() => setChannelSlugs((prev) => (prev.length === chans.length ? [] : chans.map((c) => c.slug)))}
+              className="text-[11px] font-semibold text-brand-300 hover:text-brand-200"
+            >
+              {channelSlugs.length === chans.length && chans.length > 0 ? 'Clear all' : 'Select all'}
+            </button>
+          </div>
+          <p className="mb-1 text-[11px] text-slate-500">{channelSlugs.length} of {chans.length} selected</p>
           <div className="mt-1 max-h-40 space-y-1 overflow-y-auto rounded-lg border border-white/10 bg-brand-900/60 p-2">
             {chans.map((ch) => {
               const on = channelSlugs.includes(ch.slug)
