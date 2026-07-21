@@ -28,15 +28,20 @@ jobs:
           echo "Primary custom_domain: $(jq -r '.custom_domain // "(none — uses *.netlify.app)"' site.json)"
           echo "Existing aliases: $(jq -c '.domain_aliases // []' site.json)"
           NEW=$(jq -c --arg d "$DOMAIN" '((.domain_aliases // []) + [$d]) | unique' site.json)
-          echo "New aliases: $NEW"
-          RESP=$(curl -sS -X PATCH \
+          echo "New aliases to set: $NEW"
+          echo "--- PATCH raw response ---"
+          curl -sS -X PATCH \
             -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN" \
             -H "Content-Type: application/json" \
             "https://api.netlify.com/api/v1/sites/$SITE_ID" \
-            -d "{\"domain_aliases\": $NEW}")
-          echo "$RESP" | jq '{custom_domain, domain_aliases, ssl_url, state}'
+            -d "{\"domain_aliases\": $NEW}" | tee patch.json | head -c 800
           echo ""
-          echo "✅ Netlify now knows about '$DOMAIN'."
+          echo "--- Verify with fresh GET ---"
+          curl -sS -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN" \
+            "https://api.netlify.com/api/v1/sites/$SITE_ID" \
+            | jq '{name, custom_domain, domain_aliases}'
+          echo ""
+          echo "✅ Check above: domain_aliases should include '$DOMAIN'."
           echo "➡️  Add this DNS record at your registrar to finish:"
           echo "    Type: CNAME   Host: ${DOMAIN%%.*}   Value: rop-connect.netlify.app"
           echo "    (SSL auto-provisions once that resolves.)"
