@@ -1,0 +1,42 @@
+name: Attach custom domain
+
+# One-off / on-demand: attaches a custom domain to the Netlify site as a NON-DESTRUCTIVE
+# domain alias (rop-connect.netlify.app stays the primary, so nothing redirects or breaks
+# while DNS is still pending). Uses the same NETLIFY_AUTH_TOKEN the deploy workflow uses.
+on:
+  workflow_dispatch:
+    inputs:
+      domain:
+        description: Custom domain to attach (e.g. chat.ropsalons.com)
+        required: true
+        default: chat.ropsalons.com
+
+jobs:
+  attach-domain:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add domain alias via Netlify API
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          SITE_ID: e6d7215b-dc6d-4adb-9300-124d114f1849
+          DOMAIN: ${{ github.event.inputs.domain }}
+        run: |
+          set -euo pipefail
+          echo "Attaching '$DOMAIN' to site $SITE_ID as a domain alias…"
+          curl -sS -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN" \
+            "https://api.netlify.com/api/v1/sites/$SITE_ID" > site.json
+          echo "Primary custom_domain: $(jq -r '.custom_domain // "(none — uses *.netlify.app)"' site.json)"
+          echo "Existing aliases: $(jq -c '.domain_aliases // []' site.json)"
+          NEW=$(jq -c --arg d "$DOMAIN" '((.domain_aliases // []) + [$d]) | unique' site.json)
+          echo "New aliases: $NEW"
+          RESP=$(curl -sS -X PATCH \
+            -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://api.netlify.com/api/v1/sites/$SITE_ID" \
+            -d "{\"domain_aliases\": $NEW}")
+          echo "$RESP" | jq '{custom_domain, domain_aliases, ssl_url, state}'
+          echo ""
+          echo "✅ Netlify now knows about '$DOMAIN'."
+          echo "➡️  Add this DNS record at your registrar to finish:"
+          echo "    Type: CNAME   Host: ${DOMAIN%%.*}   Value: rop-connect.netlify.app"
+          echo "    (SSL auto-provisions once that resolves.)"
