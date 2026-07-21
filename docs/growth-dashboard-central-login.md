@@ -92,22 +92,40 @@ Use `profile.access_level` to show/hide the Growth Dashboard's pages instead of 
 
 ---
 
-## 4. The passcode convention — the important part (don't skip)
+## 4. The passcode convention — DONE ✅ (this is now live)
 
-Today people are told: **"log in with the last 4 of your phone."** One catch to solve up front:
-**Supabase requires passwords of at least 6 characters**, so a 4-digit code can't literally be the
-password. To keep it just as easy but valid everywhere, standardize on **one simple rule** — pick one:
+The standard is set and **already applied**: **the passcode is the last 6 digits of the person's phone
+number.** (Supabase requires ≥6 characters, so "last 4" can't literally be the password — last 6 is
+almost as easy, everyone knows it, and it's uniform across every ROP app.)
 
-- **Recommended: last 6 digits of your phone number.** Almost as easy as "last 4," everyone knows it,
-  meets the 6-char rule, and it's uniform across every ROP app.
-- Alternatives: the **full 10-digit phone**, or a memorable default like `rop` + last 4 (e.g. `rop1819`).
+**Status as of 2026-07-21:** every active ROP Chat account (51 people) has had its passcode **pre-set to
+the last 6 digits of their phone** in the shared Supabase project. So on day one, the moment Growth
+Dashboard points at this project, every existing person logs in with **their ROP email + last-6-of-phone**.
+No reset flow to build, no per-app setup.
 
-**Whatever we pick, it becomes the single passcode for that person across all ROP apps.** Nobody has to
-learn anything new per app — that's the whole point.
+- Example: phone `239-302-7005` → passcode `027005`.
+- People who join later get the same default when their account is created.
+- A person can change their own password later; that new password then works across all ROP apps too
+  (because it's one account).
 
-> **We (the ROP Chat side) can pre-set everyone's passcode to this standard in one batch**, so on day
-> one every existing person can log into Growth Dashboard with the exact same rule. Rob just says the
-> word and we set it. Ask before building your own reset flow.
+> **Do NOT build your own signup/reset flow.** Accounts and passcodes are managed centrally in ROP Chat.
+> If you need someone's passcode reset, that's done once in ROP Chat's Admin (or the Supabase dashboard)
+> and it works everywhere.
+
+### Telling staff (draft email / text)
+Since everyone's passcode was just standardized, send this once so nobody's confused:
+
+> **Subject: One login for all your ROP tools**
+>
+> Hi [name] — we've simplified logging in. You now use **one email + one passcode** for ROP Chat and
+> our other ROP dashboards.
+>
+> - **Email:** the one we have on file for you
+> - **Passcode:** the **last 6 digits of your phone number** (e.g. if your number ends in 302-7005, your
+>   passcode is `027005`)
+>
+> That's it — same login everywhere. You can change your passcode after you're in. Questions? Just ask
+> in ROP Chat.
 
 ---
 
@@ -158,8 +176,9 @@ learn anything new per app — that's the whole point.
 > 3. After login, read the person's row from the shared **`profiles`** table
 >    (`select ... where id = session.user.id`) and drive page permissions off **`access_level`**
 >    (owner/admin/leader/member); block if `is_active` is false.
-> 4. Passcode standard is **last 6 digits of phone** (≥6 chars, valid in Supabase). Do NOT invent your
->    own signup/reset — ROP Chat manages accounts and can pre-set everyone's passcode in one batch.
+> 4. Passcode standard is **last 6 digits of phone** (≥6 chars, valid in Supabase) and is **already set
+>    for every existing account** (done 2026-07-21). Do NOT invent your own signup/reset — ROP Chat
+>    manages accounts and passcodes centrally.
 > 5. Keep the old login behind a flag until the new one is verified with a few accounts, then cut over.
 >
 > Report back: that login works against the shared Supabase project, that permissions read from

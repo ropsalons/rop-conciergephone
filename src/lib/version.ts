@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.27.0'
+export const APP_VERSION = '1.28.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,18 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.28.0',
+    date: '2026-07-21',
+    time: '10:05 AM ET',
+    title: 'The “Ask AI” assistant can now actually help',
+    changes: [
+      'Fixed the AI assistant in the Ask AI channel — it had quietly stopped answering on July 19 (a bad security token). It’s working again and answering within about a minute.',
+      'The assistant is no longer a generic chatbot: it can now look inside ROP Chat and answer with real information — your staff directory, the channel list, where automated notifications come from, and what was posted in channels you can see.',
+      'It can also take a few safe actions when you ask: file a task, or (for admins) forward an item to a connected project. Anything sensitive — money, access changes, deletes — it flags to Rob instead of doing it.',
+      'Ask it things like “which feeds are posting into chat and where do they go?”, “who are the admins?”, or “summarize the daily briefing channel.”',
+    ],
+  },
   {
     version: '1.27.0',
     date: '2026-07-21',
