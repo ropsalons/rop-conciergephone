@@ -1,0 +1,23 @@
+name: DNS lookup
+on:
+  workflow_dispatch:
+    inputs:
+      domain:
+        default: ropsalons.com
+        required: true
+jobs:
+  lookup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Where does this domain's DNS live?
+        env:
+          D: ${{ github.event.inputs.domain }}
+        run: |
+          echo "=== Nameservers (authoritative) for $D ==="
+          dig +short NS "$D" || true
+          echo "=== SOA ==="
+          dig +short SOA "$D" || true
+          echo "=== Existing chat.$D ==="
+          dig +short "chat.$D" || echo "(none)"
+          echo "=== whois registrar / name servers ==="
+          (whois "$D" 2>/dev/null | grep -iE "registrar:|name server:|nserver:" | sort -u) || echo "(whois unavailable)"
