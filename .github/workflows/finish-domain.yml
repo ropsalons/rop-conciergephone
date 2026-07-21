@@ -1,0 +1,77 @@
+name: Finish custom domain
+
+# End-to-end: creates the CNAME at GoDaddy (using GODADDY_PAT), then sets the domain as the
+# Netlify primary custom domain and provisions SSL. rop-connect.netlify.app then 301s to it.
+on:
+  workflow_dispatch:
+    inputs:
+      domain:
+        description: Full custom domain
+        default: chat.ropsalons.com
+        required: true
+      root:
+        description: Root/registered domain at GoDaddy
+        default: ropsalons.com
+        required: true
+      host:
+        description: Subdomain host
+        default: chat
+        required: true
+      target:
+        description: CNAME target
+        default: rop-connect.netlify.app
+        required: true
+
+jobs:
+  finish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create CNAME at GoDaddy
+        env:
+          GODADDY_PAT: ${{ secrets.GODADDY_PAT }}
+          ROOT: ${{ github.event.inputs.root }}
+          HOST: ${{ github.event.inputs.host }}
+          TARGET: ${{ github.event.inputs.target }}
+        run: |
+          set -uo pipefail
+          URL="https://api.godaddy.com/v1/domains/$ROOT/records/CNAME/$HOST"
+          BODY="[{\"data\":\"$TARGET\",\"ttl\":3600}]"
+          ok=0; WORKING_AUTH=""
+          # New gd_pat tokens: auth format isn't documented consistently, so try the known variants.
+          for AUTH in "Bearer $GODADDY_PAT" "sso-key $GODADDY_PAT" "sso-key $GODADDY_PAT:"; do
+            LABEL="${AUTH%% *}"
+            echo "→ PUT $URL  (auth: $LABEL...)"
+            code=$(curl -sS -o resp.txt -w "%{http_code}" -X PUT "$URL" \
+              -H "Authorization: $AUTH" -H "Content-Type: application/json" -d "$BODY" || echo 000)
+            echo "   HTTP $code — $(head -c 300 resp.txt)"
+            if [ "$code" -ge 200 ] && [ "$code" -lt 300 ]; then ok=1; WORKING_AUTH="$AUTH"; echo "   ✅ CNAME set"; break; fi
+          done
+          if [ "$ok" -ne 1 ]; then
+            echo "❌ GoDaddy DNS write failed with every auth format (see responses above)."
+            echo "   Most likely: this GoDaddy account isn't eligible for API DNS writes, or the token scope is wrong."
+            exit 1
+          fi
+          echo "--- verify record ---"
+          curl -sS "$URL" -H "Authorization: $WORKING_AUTH" | head -c 400; echo
+
+      - name: Set Netlify primary domain + provision SSL
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          SITE_ID: e6d7215b-dc6d-4adb-9300-124d114f1849
+          DOMAIN: ${{ github.event.inputs.domain }}
+        run: |
+          set -uo pipefail
+          echo "Setting Netlify custom_domain=$DOMAIN"
+          curl -sS -X PATCH -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://api.netlify.com/api/v1/sites/$SITE_ID" \
+            -d "{\"custom_domain\":\"$DOMAIN\"}" | jq '{custom_domain, state}' || true
+          echo "Requesting SSL cert (retries automatically until DNS resolves)…"
+          curl -sS -X POST -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN" \
+            "https://api.netlify.com/api/v1/sites/$SITE_ID/ssl" | head -c 300 || true
+          echo ""
+          echo "--- final site state ---"
+          curl -sS -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN" \
+            "https://api.netlify.com/api/v1/sites/$SITE_ID" | jq '{name, custom_domain, domain_aliases, ssl_url, state}'
+          echo ""
+          echo "✅ Done. chat.ropsalons.com will be live once DNS propagates (minutes) and SSL issues."
