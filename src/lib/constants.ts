@@ -1,6 +1,6 @@
 // Static reference data + tokens shared across the app.
 
-export const APP_NAME = 'ROP Chat (Slack)'
+export const APP_NAME = 'ROP Chat'
 export const COMPANY_NAME = 'Robert of Philadelphia Salons'
 
 // Job TITLES (a person's designation / comms group). Someone can have two (dual role).

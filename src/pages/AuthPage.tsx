@@ -143,11 +143,11 @@ export function AuthPage() {
             <input
               type="password"
               required
-              minLength={4}
+              minLength={6}
               className="input"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder={mode === 'signup' ? 'Choose any password (min 4 characters)' : 'Your password'}
+              placeholder={mode === 'signup' ? 'Choose a password (at least 6 characters)' : 'Your password'}
             />
           </div>
 

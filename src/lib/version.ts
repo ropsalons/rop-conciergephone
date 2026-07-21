@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.25.2'
+export const APP_VERSION = '1.26.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,25 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.26.0',
+    date: '2026-07-20',
+    time: '10:40 PM ET',
+    title: 'It’s just “ROP Chat” now — no more “(Slack)”',
+    changes: [
+      'Dropped “(Slack)” from the app’s name everywhere — the installed app name, the browser tab, and the invite wording. It’s simply ROP Chat now.',
+      'Note: if you already installed it on your phone/desktop, the old “ROP Chat (Slack)” icon name sticks until you remove and re-add it — the name only refreshes on a fresh install.',
+    ],
+  },
+  {
+    version: '1.25.3',
+    date: '2026-07-20',
+    time: '10:30 PM ET',
+    title: 'Password rule now says the right number (6)',
+    changes: [
+      'The sign-up password field said “min 4 characters” but the system actually requires 6 — so you’d get an error after following the hint. It now correctly says “at least 6 characters” and won’t let you submit a shorter one.',
+    ],
+  },
   {
     version: '1.25.2',
     date: '2026-07-20',

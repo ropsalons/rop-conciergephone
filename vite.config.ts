@@ -41,7 +41,7 @@ export default defineConfig({
         ],
       },
       manifest: {
-        name: 'ROP Chat (Slack)',
+        name: 'ROP Chat',
         short_name: 'ROP Chat',
         description: 'Private team communication for Robert of Philadelphia Salons',
         theme_color: '#1f2a44',
