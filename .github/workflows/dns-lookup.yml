@@ -17,12 +17,16 @@ jobs:
           dig +short NS "$D" || true
           echo "=== SOA ==="
           dig +short SOA "$D" || true
-          echo "=== Live website? (apex A + www) ==="
-          dig +short "$D" A || echo "(no A record)"
-          dig +short "www.$D" || echo "(no www)"
-          echo "=== Live email? (MX) ==="
-          dig +short "$D" MX || echo "(no MX — no email on this domain)"
-          echo "=== Existing chat.$D ==="
-          dig +short "chat.$D" || echo "(none)"
+          echo "=== apex A / AAAA ==="; dig +short "$D" A; dig +short "$D" AAAA
+          echo "=== www ==="; dig +short "www.$D" CNAME; dig +short "www.$D" A
+          echo "=== MX (email) ==="; dig +short "$D" MX
+          echo "=== apex TXT (SPF etc.) ==="; dig +short "$D" TXT
+          echo "=== DKIM (google selector) ==="; dig +short "google._domainkey.$D" TXT
+          echo "=== DMARC ==="; dig +short "_dmarc.$D" TXT
+          echo "=== common subdomains ==="
+          for s in mail webmail ftp cpanel autodiscover autoconfig blog shop booking app portal; do
+            r=$(dig +short "$s.$D"); [ -n "$r" ] && echo "$s.$D -> $r"
+          done
+          echo "=== existing chat ==="; dig +short "chat.$D" || echo "(none)"
           echo "=== whois registrar / name servers ==="
           (whois "$D" 2>/dev/null | grep -iE "registrar:|name server:|nserver:" | sort -u) || echo "(whois unavailable)"
