@@ -34,25 +34,23 @@ jobs:
           TARGET: ${{ github.event.inputs.target }}
         run: |
           set -uo pipefail
+          AUTH="Bearer $GODADDY_PAT"   # confirmed working (Bearer authenticates; sso-key = 401)
+          echo "=== Domains this GoDaddy account owns ==="
+          curl -sS "https://api.godaddy.com/v1/domains?limit=200" -H "Authorization: $AUTH" \
+            | jq -r 'if type=="array" then (.[].domain) else . end' || echo "(could not list)"
+          echo "========================================="
           URL="https://api.godaddy.com/v1/domains/$ROOT/records/CNAME/$HOST"
           BODY="[{\"data\":\"$TARGET\",\"ttl\":3600}]"
-          ok=0; WORKING_AUTH=""
-          # New gd_pat tokens: auth format isn't documented consistently, so try the known variants.
-          for AUTH in "Bearer $GODADDY_PAT" "sso-key $GODADDY_PAT" "sso-key $GODADDY_PAT:"; do
-            LABEL="${AUTH%% *}"
-            echo "→ PUT $URL  (auth: $LABEL...)"
-            code=$(curl -sS -o resp.txt -w "%{http_code}" -X PUT "$URL" \
-              -H "Authorization: $AUTH" -H "Content-Type: application/json" -d "$BODY" || echo 000)
-            echo "   HTTP $code — $(head -c 300 resp.txt)"
-            if [ "$code" -ge 200 ] && [ "$code" -lt 300 ]; then ok=1; WORKING_AUTH="$AUTH"; echo "   ✅ CNAME set"; break; fi
-          done
-          if [ "$ok" -ne 1 ]; then
-            echo "❌ GoDaddy DNS write failed with every auth format (see responses above)."
-            echo "   Most likely: this GoDaddy account isn't eligible for API DNS writes, or the token scope is wrong."
+          echo "→ PUT $URL"
+          code=$(curl -sS -o resp.txt -w "%{http_code}" -X PUT "$URL" \
+            -H "Authorization: $AUTH" -H "Content-Type: application/json" -d "$BODY" || echo 000)
+          echo "   HTTP $code — $(head -c 300 resp.txt)"
+          if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
+            echo "❌ CNAME write failed for '$ROOT'. If it's not in the domain list above, re-run with the correct root domain."
             exit 1
           fi
-          echo "--- verify record ---"
-          curl -sS "$URL" -H "Authorization: $WORKING_AUTH" | head -c 400; echo
+          echo "✅ CNAME set"
+          curl -sS "$URL" -H "Authorization: $AUTH" | head -c 400; echo
 
       - name: Set Netlify primary domain + provision SSL
         env:
