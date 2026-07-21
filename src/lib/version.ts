@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.25.1'
+export const APP_VERSION = '1.25.2'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,15 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.25.2',
+    date: '2026-07-20',
+    time: '9:40 PM ET',
+    title: 'Sign out now always works (hard reset)',
+    changes: [
+      'On installed phone apps (especially Android), Sign out could still leave you looking signed in. It now clears the saved session and hard-reloads straight to the login screen, every time.',
+    ],
+  },
   {
     version: '1.25.1',
     date: '2026-07-20',

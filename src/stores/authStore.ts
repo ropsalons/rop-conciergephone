@@ -102,14 +102,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       void (supabase.rpc as any)('touch_last_seen', { p_presence: 'offline' }).catch(() => {})
     }
-    // Clear local state FIRST so the app returns to the login screen instantly, even if the
-    // network is slow/offline. scope:'local' just wipes the stored session (no server round-trip
-    // that could hang forever — the cause of the "Sign out does nothing" bug on mobile).
+    // Clear local state + stored session. scope:'local' wipes the stored token without a server
+    // round-trip that could hang.
     set({ session: null, user: null, profile: null })
     try {
       await supabase.auth.signOut({ scope: 'local' })
     } catch {
       /* already cleared local state above */
+    }
+    // Belt-and-suspenders: drop any persisted Supabase auth keys directly, then HARD-RELOAD to the
+    // login screen. On an installed PWA (esp. Android), a stuck service worker or cached React state
+    // could otherwise keep the app looking "signed in" even after state cleared — a full reload
+    // guarantees we land on the login page every time.
+    try {
+      for (const k of Object.keys(localStorage)) {
+        if (k.startsWith('sb-') || k.includes('supabase.auth')) localStorage.removeItem(k)
+      }
+    } catch {
+      /* ignore storage errors */
+    }
+    try {
+      window.location.assign(import.meta.env.BASE_URL || '/')
+    } catch {
+      /* ignore */
     }
   },
 
