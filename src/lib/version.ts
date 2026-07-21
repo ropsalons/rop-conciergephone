@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.26.0'
+export const APP_VERSION = '1.27.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.27.0',
+    date: '2026-07-21',
+    time: '8:50 AM ET',
+    title: 'Custom address: chat.ropsalons.com',
+    changes: [
+      'ROP Chat now has its own clean web address — chat.ropsalons.com — with a secure SSL certificate. The old rop-connect.netlify.app address still works and forwards to it, so nothing breaks.',
+      'Invite links now hand out the chat.ropsalons.com address.',
+    ],
+  },
   {
     version: '1.26.0',
     date: '2026-07-20',

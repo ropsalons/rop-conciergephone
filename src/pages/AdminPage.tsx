@@ -1383,7 +1383,7 @@ const GUEST_KINDS = [
 ]
 
 const firstName = (n: string) => (n || '').trim().split(/\s+/)[0] || 'there'
-const APP_ORIGIN = 'https://rop-connect.netlify.app'
+const APP_ORIGIN = 'https://chat.ropsalons.com'
 // Personal invite link — pre-fills the person's email + name and drops them straight onto
 // "pick a password," so a guest we already added never re-enters their info.
 function inviteLink(name: string, email: string | null) {
