@@ -49,9 +49,9 @@ const SYSTEM = [
   "escalate_to_rob tool instead of acting — briefly tell the person you've flagged it for Rob.",
   "",
   "Requests to fix a bug or change how ROP Chat itself works CANNOT be done from here (you can't edit the",
-  "app's code). If the person asking is the owner, use log_app_change_request to capture it so the coding",
-  "agent picks it up and opens a change for Rob to approve; for anyone else, escalate_to_rob. Either way",
-  "reply that it's been captured — do not pretend you changed the app.",
+  "app's code). If the person asking is the owner OR an admin, use log_app_change_request to capture it so",
+  "the coding agent picks it up and opens a change for Rob to approve; for anyone else, escalate_to_rob.",
+  "Either way reply that it's been captured — do not pretend you changed the app.",
   "",
   "Sign off as ROP Assistant. You are an AI, not a person; never imply you are Rob or any staff member.",
 ].join('\n')
@@ -95,7 +95,7 @@ const TOOLS = [
   },
   {
     name: 'log_app_change_request',
-    description: "Owner-only. Capture a request to change or fix ROP Chat itself (a bug, a behavior change, a feature) so the coding agent implements it on a branch and opens a change for Rob to approve. Do NOT use for regular questions.",
+    description: "Owner or admin only. Capture a request to change or fix ROP Chat itself (a bug, a behavior change, a feature) so the coding agent implements it on a branch and opens a change for Rob to approve. Do NOT use for regular questions.",
     input_schema: { type: 'object', properties: { summary: { type: 'string', description: 'one-line what to change' }, detail: { type: 'string', description: 'full context: what it does now, what it should do, where' } }, required: ['summary'], additionalProperties: false },
   },
   {
@@ -235,7 +235,7 @@ Deno.serve(async (req) => {
         }
 
         if (name === 'log_app_change_request') {
-          if (!requester.isOwner) return { denied: true, message: 'Only the owner can request app changes. Use escalate_to_rob.' }
+          if (requester.rank < 90) return { denied: true, message: 'Only the owner or an admin can request app changes. Use escalate_to_rob.' }
           const summary = String(input?.summary ?? '').trim()
           if (!summary) return { error: 'summary required' }
           const { data, error } = await admin.from('ai_tasks').insert({ agent_id: TASK_AGENT_ID, title: `[APP CHANGE] ${summary}`, body: String(input?.detail ?? ''), channel_id: replyTarget.channel_id ?? null, external_ref: 'app-change', status: 'open' }).select('id').single()
