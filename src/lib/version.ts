@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.24.2'
+export const APP_VERSION = '1.25.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.25.0',
+    date: '2026-07-20',
+    time: '7:05 PM ET',
+    title: 'Much simpler invites — guests just pick a password',
+    changes: [
+      'Invites now include a personal link that pre-fills the person’s email and name and drops them straight onto “pick a password.” Guests we already added no longer re-enter their name, role, or location — because we already have it.',
+      'The login screen no longer defaults new people into the wrong place: invited guests get a clear “Welcome — just set a password” screen instead of the Sign In / Create Account tabs, and everyone else gets a plain hint about which to use.',
+      'Invite text/email rewritten to say who it’s from (Rob), exactly what to do, and that there’s nothing to fill out but a password.',
+    ],
+  },
   {
     version: '1.24.2',
     date: '2026-07-20',

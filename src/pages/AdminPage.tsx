@@ -1383,11 +1383,22 @@ const GUEST_KINDS = [
 ]
 
 const firstName = (n: string) => (n || '').trim().split(/\s+/)[0] || 'there'
-function defaultInviteText(name: string) {
-  return `Hey ${firstName(name)}, it's Rob. I built us our own private team app — ROP Chat (our own version of Slack). To join: open rop-connect.netlify.app and tap Sign up. Then install it as an app so you get alerts:\n• iPhone (Safari): Share → Add to Home Screen\n• Android (Chrome): menu ⋮ → Install app\nOpen it from that new icon, then in Profile → Notifications turn ON notifications — otherwise you won't know when someone messages you. Tap the ? in the app for help. — Rob`
+const APP_ORIGIN = 'https://rop-connect.netlify.app'
+// Personal invite link — pre-fills the person's email + name and drops them straight onto
+// "pick a password," so a guest we already added never re-enters their info.
+function inviteLink(name: string, email: string | null) {
+  const p = new URLSearchParams({ invite: '1' })
+  if (email) p.set('email', email)
+  if (name) p.set('name', name)
+  return `${APP_ORIGIN}/?${p.toString()}`
 }
-function defaultInviteEmail(name: string) {
-  return `Hi ${firstName(name)},\n\nI'd like to welcome you into ROP Chat — our private team app for Robert of Philadelphia (think of it as our own personal Slack).\n\nGetting in takes about a minute:\n1) Go to rop-connect.netlify.app\n2) Tap "Sign up" and register with this email\n3) You'll land in your channels\n\nInstall it as an app so you get notifications:\n• iPhone: open the site in Safari → tap Share → Add to Home Screen → Add, then open ROP Chat from the new Home Screen icon.\n• Android: open in Chrome → tap the ⋮ menu → Install app (or Add to Home screen), then open it from the app icon.\nIMPORTANT — turn on notifications: open Profile → Notifications and turn them ON for that device. Otherwise you won't know when someone messages you.\n\nTap the "?" button anytime for a full guide, and DM "Rob" to reach me directly.\n\nGlad to have you.\n— Rob DiLella`
+function defaultInviteText(name: string, email?: string | null) {
+  const link = inviteLink(name, email ?? null)
+  return `Hey ${firstName(name)}, it's Rob. I've set you up on ROP Chat — our private team app (our own version of Slack). Tap your personal link to finish — I've already added your name, so you just pick a password:\n${link}\nThen add it to your phone so you get alerts:\n• iPhone: Share → Add to Home Screen\n• Android: menu ⋮ → Install app\nOpen it from that new icon, then Profile → Notifications → turn ON. Reply here if anything's confusing. — Rob`
+}
+function defaultInviteEmail(name: string, email?: string | null) {
+  const link = inviteLink(name, email ?? null)
+  return `Hi ${firstName(name)},\n\nIt's Rob. I've added you to ROP Chat — our private team app for Robert of Philadelphia (think of it as our own personal Slack).\n\nTo finish takes about 30 seconds: tap your personal link below. Your info is already in there, so you just pick a password — there's nothing else to fill out.\n\n${link}\n${email ? `\n(If it ever asks, your login email is ${email}.)\n` : ''}\nThen add it to your phone so you get notifications:\n• iPhone: open the link in Safari → Share → Add to Home Screen → Add, then open ROP Chat from the new icon.\n• Android: open in Chrome → ⋮ menu → Install app, then open it from the icon.\nIMPORTANT — turn on notifications: open Profile → Notifications and turn them ON, or you won't know when someone messages you.\n\nAny trouble at all, just reply to me here. Glad to have you.\n— Rob DiLella`
 }
 
 function GuestsTab({ logAudit }: { logAudit: LogAudit }) {
@@ -1576,7 +1587,7 @@ function InviteModal({ contact, method, onClose, onSent, logAudit }: { contact: 
   const toast = useUIStore((s) => s.toast)
   const myEmail = useAuthStore((s) => s.profile?.email)
   const [subject, setSubject] = useState("You're invited to ROP Chat")
-  const [message, setMessage] = useState(method === 'sms' ? defaultInviteText(contact.full_name) : defaultInviteEmail(contact.full_name))
+  const [message, setMessage] = useState(method === 'sms' ? defaultInviteText(contact.full_name, contact.email) : defaultInviteEmail(contact.full_name, contact.email))
   const [sending, setSending] = useState(false)
 
   async function send() {
