@@ -17,6 +17,11 @@ jobs:
           dig +short NS "$D" || true
           echo "=== SOA ==="
           dig +short SOA "$D" || true
+          echo "=== Live website? (apex A + www) ==="
+          dig +short "$D" A || echo "(no A record)"
+          dig +short "www.$D" || echo "(no www)"
+          echo "=== Live email? (MX) ==="
+          dig +short "$D" MX || echo "(no MX — no email on this domain)"
           echo "=== Existing chat.$D ==="
           dig +short "chat.$D" || echo "(none)"
           echo "=== whois registrar / name servers ==="
