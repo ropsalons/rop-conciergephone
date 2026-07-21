@@ -35,10 +35,10 @@ jobs:
         run: |
           set -uo pipefail
           AUTH="Bearer $GODADDY_PAT"   # confirmed working (Bearer authenticates; sso-key = 401)
-          echo "=== Domains this GoDaddy account owns ==="
-          curl -sS "https://api.godaddy.com/v1/domains?limit=200" -H "Authorization: $AUTH" \
-            | jq -r 'if type=="array" then (.[].domain) else . end' || echo "(could not list)"
-          echo "========================================="
+          echo "=== $ROOT registration + nameservers (where DNS actually lives) ==="
+          curl -sS "https://api.godaddy.com/v1/domains/$ROOT" -H "Authorization: $AUTH" \
+            | jq '{domain, status, nameServers}' || echo "(could not read domain)"
+          echo "=================================================================="
           URL="https://api.godaddy.com/v1/domains/$ROOT/records/CNAME/$HOST"
           BODY="[{\"data\":\"$TARGET\",\"ttl\":3600}]"
           echo "→ PUT $URL"
