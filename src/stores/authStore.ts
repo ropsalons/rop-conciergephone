@@ -95,14 +95,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signOut: async () => {
     const uid = get().user?.id
+    // Best-effort logging — fire and forget, never await (a hung request must not block sign-out).
     if (uid) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabase.rpc as any)('log_event', { p_action: 'logout', p_entity_type: 'session', p_metadata: {} }).catch(() => {})
+      void (supabase.rpc as any)('log_event', { p_action: 'logout', p_entity_type: 'session', p_metadata: {} }).catch(() => {})
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabase.rpc as any)('touch_last_seen', { p_presence: 'offline' }).catch(() => {})
+      void (supabase.rpc as any)('touch_last_seen', { p_presence: 'offline' }).catch(() => {})
     }
-    await supabase.auth.signOut()
+    // Clear local state FIRST so the app returns to the login screen instantly, even if the
+    // network is slow/offline. scope:'local' just wipes the stored session (no server round-trip
+    // that could hang forever — the cause of the "Sign out does nothing" bug on mobile).
     set({ session: null, user: null, profile: null })
+    try {
+      await supabase.auth.signOut({ scope: 'local' })
+    } catch {
+      /* already cleared local state above */
+    }
   },
 
   refreshProfile: async () => {

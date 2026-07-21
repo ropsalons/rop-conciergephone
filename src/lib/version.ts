@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.25.0'
+export const APP_VERSION = '1.25.1'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,15 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.25.1',
+    date: '2026-07-20',
+    time: '9:15 PM ET',
+    title: 'Fixed “Sign out” doing nothing on mobile',
+    changes: [
+      'Sign out could hang on a phone (it waited on a server call that sometimes never returned), so the button looked dead. It now signs you out instantly and returns to the login screen every time.',
+    ],
+  },
   {
     version: '1.25.0',
     date: '2026-07-20',
