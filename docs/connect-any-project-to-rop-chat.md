@@ -5,9 +5,14 @@
 **Authorized by** the owner of all systems involved. This is an internal, owner-authorized
 integration across a small set of privately-owned projects.
 
-This is the **reusable standard**. Every project uses the same endpoint and the same shared
-"Internal Projects" token, and identifies itself per-message with `author_name`. Drop the prompt in
-`§7` into any project and it's connected.
+This is the **reusable standard** for **two-way** projects — ones that both post to ROP Chat *and*
+receive commands back (dashboards, hosted apps). Every project uses the same endpoint and identifies
+itself per-message with `author_name`. Drop the prompt in `§7` into any project and it's connected.
+
+> **Only need to SEND?** If your thing just needs to *push* messages/notifications into a channel and
+> does **not** need to receive commands — e.g. Home Assistant, a script, a cron job, a device — use the
+> much simpler **[send-only guide](./post-to-rop-chat-send-only.md)** instead. It's one HTTPS request,
+> no webhook, no listening. Both guides hit the same gateway; using one does not disable the other.
 
 ---
 
