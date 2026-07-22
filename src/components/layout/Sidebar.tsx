@@ -18,7 +18,7 @@ import { UnreadBadge, AccessBadge } from '@/components/ui/Badge'
 import {
   Hash, Lock, Megaphone, Home, MessageSquare, Users, Search, Bell, Plus,
   Star, LifeBuoy, Shield, Settings, Calendar, Link as LinkIcon, AlertTriangle,
-  Eye, EyeOff, ArrowUpDown, GripVertical, Bookmark, ChevronDown,
+  Eye, EyeOff, ArrowUpDown, GripVertical, Bookmark, ChevronDown, BellOff,
 } from '@/components/ui/Icons'
 import { conversationName, otherMembers } from '@/lib/dm'
 import { cn } from '@/lib/utils'
@@ -75,6 +75,7 @@ function ChannelRow({
       >
         <ChannelIcon type={c.type} className="h-4 w-4 shrink-0 opacity-70" />
         <span className={cn('flex-1 truncate', !!unread && 'font-semibold text-white')}>{c.name}</span>
+        {c.is_muted && <BellOff className="h-3.5 w-3.5 shrink-0 text-slate-500" aria-label="Muted" />}
         <UnreadBadge count={c.is_muted ? 0 : unread} />
       </NavLink>
       <button

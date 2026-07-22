@@ -4,7 +4,7 @@ import { useChatStore } from '@/stores/chatStore'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { UnreadBadge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/Feedback'
-import { Hash, Lock, Megaphone, Search, Plus, Star } from '@/components/ui/Icons'
+import { Hash, Lock, Megaphone, Search, Plus, Star, BellOff } from '@/components/ui/Icons'
 import { BrowseChannelsModal } from '@/components/channels/BrowseChannelsModal'
 import { CreateChannelModal } from '@/components/channels/CreateChannelModal'
 import { cn } from '@/lib/utils'
@@ -45,6 +45,7 @@ export function ChannelsHomePage() {
         <span className={cn('min-w-0 flex-1 truncate text-[15px]', unread ? 'font-semibold text-white' : 'text-slate-200')}>
           {c.name}
         </span>
+        {c.is_muted && <BellOff className="h-4 w-4 shrink-0 text-slate-500" aria-label="Muted" />}
         {c.is_favorite && <Star className="h-3.5 w-3.5 text-gold-400" fill="currentColor" />}
         <UnreadBadge count={unread} />
       </NavLink>
