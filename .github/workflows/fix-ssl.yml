@@ -1,0 +1,50 @@
+name: Fix SSL
+# On-demand: diagnose why the Let's Encrypt cert isn't issuing for the custom domain and force a
+# fresh provision. Checks CAA (which can silently block Let's Encrypt), shows Netlify's current SSL
+# record, then re-provisions.
+on:
+  workflow_dispatch:
+    inputs:
+      domain:
+        description: Custom domain
+        required: true
+        default: chat.ropsalons.com
+      delete_first:
+        description: Delete the existing cert before re-provisioning (yes/no)
+        required: true
+        default: 'no'
+
+jobs:
+  fixssl:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Diagnose + provision
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          SITE_ID: e6d7215b-dc6d-4adb-9300-124d114f1849
+          DOMAIN: ${{ github.event.inputs.domain }}
+          DELETE_FIRST: ${{ github.event.inputs.delete_first }}
+        run: |
+          set -uo pipefail
+          echo "===== CAA records (blockers if they exclude letsencrypt.org) ====="
+          echo "-- apex ropsalons.com CAA --"; dig +short CAA ropsalons.com || true
+          echo "-- $DOMAIN CAA --";           dig +short CAA "$DOMAIN" || true
+          echo ""
+          echo "===== DNS for $DOMAIN ====="; dig +short "$DOMAIN"
+          echo ""
+          echo "===== Current Netlify SSL record ====="
+          curl -sS -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN" \
+            "https://api.netlify.com/api/v1/sites/$SITE_ID/ssl" | head -c 1500; echo; echo ""
+          if [ "$DELETE_FIRST" = "yes" ]; then
+            echo "===== Deleting existing cert ====="
+            curl -sS -X DELETE -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN" \
+              "https://api.netlify.com/api/v1/sites/$SITE_ID/ssl" | head -c 600; echo; echo ""
+            sleep 3
+          fi
+          echo "===== Provision (POST /ssl) ====="
+          curl -sS -X POST -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN" \
+            "https://api.netlify.com/api/v1/sites/$SITE_ID/ssl" | head -c 1500; echo; echo ""
+          echo "===== SSL record after (waiting 8s) ====="
+          sleep 8
+          curl -sS -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN" \
+            "https://api.netlify.com/api/v1/sites/$SITE_ID/ssl" | head -c 1500; echo
