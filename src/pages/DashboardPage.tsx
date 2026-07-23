@@ -19,12 +19,20 @@ import {
   MessageSquare,
   ChevronLeft,
   Check,
-  Sparkles,
 } from '@/components/ui/Icons'
 import { RichText } from '@/components/messages/RichText'
+import { QuoteCard } from '@/components/home/QuoteCard'
 import { SHOUTOUT_CATEGORIES } from '@/lib/constants'
 import { displayName, timeAgo, cn } from '@/lib/utils'
-import type { UrgentAlertRow, AnnouncementRow, ShoutoutRow } from '@/types'
+import type { UrgentAlertRow, AnnouncementRow, ShoutoutRow, EventRow } from '@/types'
+
+// "Tue, Jul 29 · 6:00 PM" for an event's start.
+function eventWhen(e: EventRow): string {
+  const d = new Date(e.starts_at)
+  const day = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+  const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+  return `${day} · ${time}`
+}
 
 const CATEGORY_EMOJI: Record<string, string> = Object.fromEntries(
   SHOUTOUT_CATEGORIES.map((c) => [c.key, c.emoji]),
@@ -83,6 +91,7 @@ export function DashboardPage() {
   const [ackedAlerts, setAckedAlerts] = useState<Set<string>>(new Set())
   const [announcements, setAnnouncements] = useState<AnnouncementRow[]>([])
   const [shoutouts, setShoutouts] = useState<ShoutoutRow[]>([])
+  const [events, setEvents] = useState<EventRow[]>([])
   const [loading, setLoading] = useState(true)
 
   const firstName = useMemo(() => displayName(profile).split(/\s+/)[0], [profile])
@@ -122,7 +131,16 @@ export function DashboardPage() {
         .order('created_at', { ascending: false })
         .limit(5)
 
-      const [alertsRes, annRes, shoutRes] = await Promise.all([alertsQ, announcementsQ, shoutoutsQ])
+      // Upcoming events: not cancelled, starting from ~12h ago (to keep in-progress ones) onward.
+      const eventsQ = supabase
+        .from('events')
+        .select('*')
+        .eq('is_cancelled', false)
+        .gte('starts_at', new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString())
+        .order('starts_at', { ascending: true })
+        .limit(6)
+
+      const [alertsRes, annRes, shoutRes, evRes] = await Promise.all([alertsQ, announcementsQ, shoutoutsQ, eventsQ])
 
       // Which of these alerts has THIS user already acknowledged? Acknowledged ones drop off Home.
       const alertRows = (alertsRes.data as UrgentAlertRow[]) ?? []
@@ -141,6 +159,7 @@ export function DashboardPage() {
       setAlerts(alertRows)
       setAnnouncements((annRes.data as AnnouncementRow[]) ?? [])
       setShoutouts((shoutRes.data as ShoutoutRow[]) ?? [])
+      setEvents((evRes.data as EventRow[]) ?? [])
       setLoading(false)
     }
     load()
@@ -153,10 +172,12 @@ export function DashboardPage() {
     () => channels.filter((c) => (unreadByChannel[c.id] ?? 0) > 0 && !c.is_muted),
     [channels, unreadByChannel],
   )
-  const commandConsoles = useMemo(
-    () => channels.filter((c) => c.category === 'AI Command Consoles' && !c.is_archived).sort((a, b) => a.name.localeCompare(b.name)),
-    [channels],
-  )
+  const upcomingEvents = useMemo(() => {
+    const now = Date.now()
+    return events
+      .filter((e) => (e.ends_at ? Date.parse(e.ends_at) : Date.parse(e.starts_at)) >= now)
+      .slice(0, 3)
+  }, [events])
   const unreadConversations = useMemo(
     () => conversations.filter((c) => (unreadByConversation[c.id] ?? 0) > 0 && !c.is_muted),
     [conversations, unreadByConversation],
@@ -212,6 +233,9 @@ export function DashboardPage() {
               </div>
             </div>
           </div>
+
+          {/* Daily inspiration — rotates through the day; click ‹ › to browse. */}
+          <QuoteCard />
 
           {/* Urgent alerts — only ones you haven't cleared yet, dismissible right here. */}
           {unackedAlerts.length > 0 && (
@@ -272,23 +296,39 @@ export function DashboardPage() {
             </div>
           </SectionCard>
 
-          {/* AI Command Consoles */}
-          {commandConsoles.length > 0 && (
-            <SectionCard title="AI Command Consoles" icon={<Sparkles className="h-4 w-4 text-gold-300" />}>
-              <div className="space-y-1">
-                {commandConsoles.map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => navigate(`/channel/${c.id}`)}
-                    className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-white/5"
-                  >
-                    <Sparkles className="h-4 w-4 text-gold-300/80" />
-                    <span className="min-w-0 flex-1 truncate text-sm text-slate-200">{c.name}</span>
-                    <UnreadBadge count={c.is_muted ? 0 : unreadByChannel[c.id]} />
-                  </button>
-                ))}
+          {/* Upcoming events */}
+          {upcomingEvents.length > 0 && (
+            <SectionCard
+              title="Upcoming events"
+              icon={<Calendar className="h-4 w-4 text-sky-300" />}
+              onSeeAll={() => navigate('/events')}
+            >
+              <div className="space-y-2">
+                {upcomingEvents.map((e) => {
+                  const d = new Date(e.starts_at)
+                  return (
+                    <button
+                      key={e.id}
+                      onClick={() => navigate(`/events/${e.id}`)}
+                      className="flex w-full items-center gap-3 rounded-xl bg-white/5 p-3 text-left transition hover:bg-white/10"
+                    >
+                      <div className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-lg bg-sky-500/15 text-sky-200">
+                        <span className="text-[10px] font-semibold uppercase leading-none">
+                          {d.toLocaleDateString(undefined, { month: 'short' })}
+                        </span>
+                        <span className="text-base font-bold leading-tight">{d.getDate()}</span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-white">{e.title}</p>
+                        <p className="mt-0.5 truncate text-xs text-slate-400">
+                          {eventWhen(e)}
+                          {e.location ? ` · ${e.location}` : ''}
+                        </p>
+                      </div>
+                    </button>
+                  )
+                })}
               </div>
-              <p className="mt-1 px-2 text-[11px] text-slate-500">Type an instruction in one of these to command that project.</p>
             </SectionCard>
           )}
 

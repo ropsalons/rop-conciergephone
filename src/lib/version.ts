@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.28.1'
+export const APP_VERSION = '1.29.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.29.0',
+    date: '2026-07-23',
+    time: '12:20 AM ET',
+    title: 'A friendlier Home: daily inspiration + upcoming events',
+    changes: [
+      'Home now opens with a rotating inspirational quote — from voices like Wayne Dyer, Stephen Covey, Zig Ziglar, Jim Rohn, Alex Hormozi, Gary Vaynerchuk, Jordan Peterson and more. It changes a few times through the day, and you can click the arrows to browse others (and jump back to “Today”).',
+      'Added an “Upcoming events” card on Home showing the next few events, so what’s coming up is right there.',
+      'Removed the “AI Command Consoles” list from Home — it was clutter for most people. Those channels are still in the sidebar for anyone who uses them.',
+    ],
+  },
   {
     version: '1.28.1',
     date: '2026-07-22',
