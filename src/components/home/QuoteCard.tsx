@@ -1,83 +1,95 @@
 import { useMemo, useState } from 'react'
 import { ChevronLeft, Sparkles } from '@/components/ui/Icons'
 
-// Rob's rotation: a curated set of quotes from voices he follows (classic personal-development +
-// modern). Five different quotes surface across each day, and you can click ‹ › to browse the rest.
+// Rob's rotation: a wide mix of voices — classic personal-development, business, and thinkers.
+// Grouped by author here for readability; interleaveByAuthor() below spaces them out so the SAME
+// author never appears back-to-back in the rotation.
 type Quote = { text: string; author: string }
 
 const QUOTES: Quote[] = [
-  // Wayne Dyer
   { text: 'If you change the way you look at things, the things you look at change.', author: 'Wayne Dyer' },
   { text: 'How people treat you is their karma; how you react is yours.', author: 'Wayne Dyer' },
-  { text: 'Your problems are not the problem. Your way of looking at them is.', author: 'Wayne Dyer' },
-  // Stephen Covey
   { text: 'Begin with the end in mind.', author: 'Stephen Covey' },
-  { text: 'The main thing is to keep the main thing the main thing.', author: 'Stephen Covey' },
   { text: 'Seek first to understand, then to be understood.', author: 'Stephen Covey' },
-  { text: 'Most of us spend too much time on what is urgent and not enough on what is important.', author: 'Stephen Covey' },
-  // Dale Carnegie
   { text: 'You can make more friends in two months by becoming interested in other people than in two years trying to get people interested in you.', author: 'Dale Carnegie' },
-  { text: 'Most of the important things in the world have been accomplished by people who kept trying when there seemed to be no hope at all.', author: 'Dale Carnegie' },
   { text: 'People rarely succeed unless they have fun in what they are doing.', author: 'Dale Carnegie' },
-  // Zig Ziglar
   { text: 'You don’t have to be great to start, but you have to start to be great.', author: 'Zig Ziglar' },
   { text: 'Your attitude, not your aptitude, will determine your altitude.', author: 'Zig Ziglar' },
-  { text: 'You can have everything in life you want, if you will just help enough other people get what they want.', author: 'Zig Ziglar' },
-  { text: 'F-E-A-R has two meanings: Forget Everything And Run, or Face Everything And Rise. The choice is yours.', author: 'Zig Ziglar' },
-  // Jim Rohn
-  { text: 'Success is nothing more than a few simple disciplines, practiced every day.', author: 'Jim Rohn' },
-  { text: 'Don’t wish it were easier; wish you were better.', author: 'Jim Rohn' },
   { text: 'Either you run the day, or the day runs you.', author: 'Jim Rohn' },
-  { text: 'We must all suffer one of two things: the pain of discipline or the pain of regret.', author: 'Jim Rohn' },
-  // Alex Hormozi
+  { text: 'Don’t wish it were easier; wish you were better.', author: 'Jim Rohn' },
   { text: 'The successful person does what the unsuccessful person is unwilling to do.', author: 'Alex Hormozi' },
-  { text: 'The only difference between where you are and where you want to be is the behavior you’re willing to change.', author: 'Alex Hormozi' },
   { text: 'You do not get to have both your excuses and your dreams. You have to pick one.', author: 'Alex Hormozi' },
-  { text: 'The person willing to do the boring work for longer wins.', author: 'Alex Hormozi' },
-  // Gary Vaynerchuk
   { text: 'Skills are cheap. Passion is priceless.', author: 'Gary Vaynerchuk' },
   { text: 'Ideas are worthless until you execute them.', author: 'Gary Vaynerchuk' },
-  { text: 'Legacy is greater than currency.', author: 'Gary Vaynerchuk' },
-  // Jordan Peterson
   { text: 'Compare yourself to who you were yesterday, not to who someone else is today.', author: 'Jordan Peterson' },
-  { text: 'Set your house in perfect order before you criticize the world.', author: 'Jordan Peterson' },
   { text: 'Pursue what is meaningful, not what is expedient.', author: 'Jordan Peterson' },
-  { text: 'Treat yourself like someone you are responsible for helping.', author: 'Jordan Peterson' },
-  // Tony Robbins
   { text: 'The only impossible journey is the one you never begin.', author: 'Tony Robbins' },
   { text: 'It is in your moments of decision that your destiny is shaped.', author: 'Tony Robbins' },
-  // Simon Sinek
   { text: 'Working hard for something we don’t care about is stress; working hard for something we love is passion.', author: 'Simon Sinek' },
-  { text: 'Dream big. Start small. But most of all, start.', author: 'Simon Sinek' },
-  // John Maxwell
   { text: 'A leader is one who knows the way, goes the way, and shows the way.', author: 'John Maxwell' },
-  { text: 'Change is inevitable. Growth is optional.', author: 'John Maxwell' },
-  // Napoleon Hill
   { text: 'Whatever the mind can conceive and believe, it can achieve.', author: 'Napoleon Hill' },
-  { text: 'The starting point of all achievement is desire.', author: 'Napoleon Hill' },
-  // Earl Nightingale
   { text: 'You become what you think about most of the time.', author: 'Earl Nightingale' },
-  { text: 'Success is the progressive realization of a worthy ideal.', author: 'Earl Nightingale' },
+  { text: 'People will forget what you said and did, but they will never forget how you made them feel.', author: 'Maya Angelou' },
+  { text: 'Nothing will work unless you do.', author: 'Maya Angelou' },
+  { text: 'What lies behind us and what lies before us are tiny matters compared to what lies within us.', author: 'Ralph Waldo Emerson' },
+  { text: 'The only way to do great work is to love what you do.', author: 'Steve Jobs' },
+  { text: 'Stay hungry. Stay foolish.', author: 'Steve Jobs' },
+  { text: 'The way to get started is to quit talking and begin doing.', author: 'Walt Disney' },
+  { text: 'Perfection is not attainable, but if we chase perfection we can catch excellence.', author: 'Vince Lombardi' },
+  { text: 'You have power over your mind — not outside events. Realize this, and you will find strength.', author: 'Marcus Aurelius' },
+  { text: 'Believe you can and you’re halfway there.', author: 'Theodore Roosevelt' },
+  { text: 'Success is not final, failure is not fatal: it is the courage to continue that counts.', author: 'Winston Churchill' },
+  { text: 'If you’re going through hell, keep going.', author: 'Winston Churchill' },
+  { text: 'Whether you think you can, or you think you can’t — you’re right.', author: 'Henry Ford' },
+  { text: 'The secret of getting ahead is getting started.', author: 'Mark Twain' },
+  { text: 'It takes 20 years to build a reputation and five minutes to ruin it.', author: 'Warren Buffett' },
+  { text: 'The best way to predict the future is to create it.', author: 'Peter Drucker' },
+  { text: 'Change your thoughts and you change your world.', author: 'Norman Vincent Peale' },
+  { text: 'Vulnerability is the birthplace of innovation, creativity, and change.', author: 'Brené Brown' },
+  { text: 'Good is the enemy of great.', author: 'Jim Collins' },
+  { text: 'The goal as a company is to have customer service that is not just the best but legendary.', author: 'Sam Walton' },
+  { text: 'It does not matter how slowly you go as long as you do not stop.', author: 'Confucius' },
+  { text: 'We are what we repeatedly do. Excellence, then, is not an act, but a habit.', author: 'Aristotle' },
+  { text: 'Don’t count the days, make the days count.', author: 'Muhammad Ali' },
+  { text: 'I’ve failed over and over and over again in my life. And that is why I succeed.', author: 'Michael Jordan' },
+  { text: 'The biggest adventure you can take is to live the life of your dreams.', author: 'Oprah Winfrey' },
+  { text: 'Always do your best. What you plant now, you will harvest later.', author: 'Og Mandino' },
+  { text: 'Instead of wondering when your next vacation is, set up a life you don’t need to escape from.', author: 'Seth Godin' },
 ]
 
-// 5 quotes surface per day. The visible quote is chosen deterministically from the day + time-slot,
-// so it changes ~5 times a day and everyone on the team sees the same one at the same time.
+// Round-robin by author so the same name never lands next to itself (and gets spread far apart).
+function interleaveByAuthor(quotes: Quote[]): Quote[] {
+  const groups = new Map<string, Quote[]>()
+  for (const q of quotes) {
+    if (!groups.has(q.author)) groups.set(q.author, [])
+    groups.get(q.author)!.push(q)
+  }
+  const buckets = [...groups.values()]
+  const out: Quote[] = []
+  for (let i = 0; out.length < quotes.length; i++) {
+    for (const b of buckets) if (b[i]) out.push(b[i])
+  }
+  return out
+}
+
+const ROTATION = interleaveByAuthor(QUOTES)
+
+// 5 quotes surface per day. The visible one is chosen from the day + time-slot, so it changes ~5x a
+// day and everyone sees the same one at the same time.
 const SLOTS_PER_DAY = 5
 
 function baseIndexNow(): number {
   const now = new Date()
-  const dayNumber = Math.floor(
-    Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / 86_400_000,
-  )
+  const dayNumber = Math.floor(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / 86_400_000)
   const slot = Math.min(SLOTS_PER_DAY - 1, Math.floor(now.getHours() / (24 / SLOTS_PER_DAY)))
-  return (dayNumber * SLOTS_PER_DAY + slot) % QUOTES.length
+  return (dayNumber * SLOTS_PER_DAY + slot) % ROTATION.length
 }
 
 export function QuoteCard() {
   const base = useMemo(baseIndexNow, [])
   const [offset, setOffset] = useState(0)
-  const idx = ((base + offset) % QUOTES.length + QUOTES.length) % QUOTES.length
-  const q = QUOTES[idx]
+  const idx = ((base + offset) % ROTATION.length + ROTATION.length) % ROTATION.length
+  const q = ROTATION[idx]
 
   return (
     <section className="card overflow-hidden p-5">
