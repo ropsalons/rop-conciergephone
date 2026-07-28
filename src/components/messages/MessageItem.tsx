@@ -13,6 +13,7 @@ import { Smile, Reply, Pin, Edit, Trash, Check, X, MoreHorizontal, Link as LinkI
 import { supabase } from '@/lib/supabase'
 import { useUIStore } from '@/stores/uiStore'
 import { useSavedStore } from '@/stores/savedStore'
+import { useChatStore } from '@/stores/chatStore'
 import { RemindModal } from './RemindModal'
 import { ForwardModal } from './ForwardModal'
 
@@ -68,29 +69,40 @@ export function MessageItem({ message, grouped, showThread = true, parentPreview
   const isMine = message.user_id === me
   const canModerate = isMine || canManage(myAccess)
   const canForward = isAdmin(myAccess) // admins can forward any message to a connected project
-  // In a DM, a leader/admin can text the other person a link to this message (nudge someone who
-  // doesn't check ROP Chat often). Channels don't have a single "other person," so it's DM-only.
+  // A leader/admin can text the other people on this message a link to it (nudge someone who doesn't
+  // check ROP Chat often). Works in DMs and in PRIVATE channels (small groups) — NOT public channels,
+  // where "text everyone" would be a mass blast.
+  const channelType = useChatStore(
+    (s) => (message.channel_id ? s.channels.find((c) => c.id === message.channel_id)?.type : undefined),
+  )
   const isDM = !message.channel_id && !!message.conversation_id
-  const canTextLink = isDM && canManage(myAccess)
+  const canTextLink = canManage(myAccess) && (isDM || channelType === 'private')
   const [texting, setTexting] = useState(false)
 
   async function textLink(done?: () => void) {
-    if (texting || !message.conversation_id) return
+    if (texting) return
     setTexting(true)
     try {
-      const { data: members } = await supabase
-        .from('direct_conversation_members')
-        .select('user_id')
-        .eq('conversation_id', message.conversation_id)
-      const otherIds = (members ?? []).map((m: { user_id: string }) => m.user_id).filter((id) => id !== me)
-      if (!otherIds.length) throw new Error('No one to text in this conversation.')
+      // Who else is on this thread? DMs → conversation members; private channels → channel members.
+      let otherIds: string[] = []
+      if (message.channel_id) {
+        const { data } = await supabase.from('channel_members').select('user_id').eq('channel_id', message.channel_id)
+        otherIds = (data ?? []).map((m: { user_id: string }) => m.user_id).filter((id) => id !== me)
+      } else if (message.conversation_id) {
+        const { data } = await supabase.from('direct_conversation_members').select('user_id').eq('conversation_id', message.conversation_id)
+        otherIds = (data ?? []).map((m: { user_id: string }) => m.user_id).filter((id) => id !== me)
+      }
+      if (!otherIds.length) { toast({ kind: 'error', title: 'No one to text here' }); return }
       const { data: profs } = await supabase
         .from('profiles').select('id, phone, full_name, display_name').in('id', otherIds)
       const recips = (profs ?? []).filter((p) => p.phone && String(p.phone).trim())
       if (!recips.length) {
-        toast({ kind: 'error', title: 'No phone number on file', body: 'That person has no phone number saved, so I can’t text them.' })
+        toast({ kind: 'error', title: 'No phone number on file', body: 'Nobody here has a phone number saved, so I can’t text a link.' })
         return
       }
+      const names = recips.map((r) => (r.display_name || r.full_name || 'them').split(/\s+/)[0]).join(', ')
+      // Guard against an accidental group blast: confirm when it's more than one person.
+      if (recips.length > 1 && !window.confirm(`Text a link to this message to ${recips.length} people (${names})?`)) return
       const link = messageLink()
       const myName = displayName(useAuthStore.getState().profile).split(/\s+/)[0]
       const body = `${myName} sent you a message in ROP Chat: ${link}`
@@ -98,7 +110,6 @@ export function MessageItem({ message, grouped, showThread = true, parentPreview
         body: { to: recips.map((r) => r.phone), body },
       })
       if (error || !data?.ok) throw new Error(error?.message || data?.error || 'Text failed to send.')
-      const names = recips.map((r) => (r.display_name || r.full_name || 'them').split(/\s+/)[0]).join(', ')
       toast({ kind: 'success', title: 'Text sent', body: `Sent ${names} a link to this message.` })
     } catch (e) {
       toast({ kind: 'error', title: 'Could not send text', body: String((e as Error).message ?? e) })

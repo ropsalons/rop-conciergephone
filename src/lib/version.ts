@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.30.0'
+export const APP_VERSION = '1.30.1'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.30.1',
+    date: '2026-07-25',
+    time: '11:58 PM ET',
+    title: 'Text-a-link now works in private group channels too',
+    changes: [
+      'The “Text them a link” button now shows in private group channels (like “Operations Lexi Robert”), not just one-on-one DMs — so you can nudge a small group.',
+      'When it would text more than one person, it asks you to confirm first (with their names), so there’s no accidental group blast.',
+      'Still leaders/admins only, and still hidden in big public channels.',
+    ],
+  },
   {
     version: '1.30.0',
     date: '2026-07-25',
