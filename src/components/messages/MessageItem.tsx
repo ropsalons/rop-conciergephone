@@ -9,7 +9,8 @@ import { RichCard } from './RichCard'
 import { FileChip } from '@/components/files/FileChip'
 import { messageTime, displayName, cn } from '@/lib/utils'
 import { QUICK_EMOJIS, canManage, isAdmin } from '@/lib/constants'
-import { Smile, Reply, Pin, Edit, Trash, Check, X, MoreHorizontal, Link as LinkIcon, Bookmark, Clock, ClipboardList } from '@/components/ui/Icons'
+import { Smile, Reply, Pin, Edit, Trash, Check, X, MoreHorizontal, Link as LinkIcon, Bookmark, Clock, ClipboardList, Smartphone } from '@/components/ui/Icons'
+import { supabase } from '@/lib/supabase'
 import { useUIStore } from '@/stores/uiStore'
 import { useSavedStore } from '@/stores/savedStore'
 import { RemindModal } from './RemindModal'
@@ -67,6 +68,45 @@ export function MessageItem({ message, grouped, showThread = true, parentPreview
   const isMine = message.user_id === me
   const canModerate = isMine || canManage(myAccess)
   const canForward = isAdmin(myAccess) // admins can forward any message to a connected project
+  // In a DM, a leader/admin can text the other person a link to this message (nudge someone who
+  // doesn't check ROP Chat often). Channels don't have a single "other person," so it's DM-only.
+  const isDM = !message.channel_id && !!message.conversation_id
+  const canTextLink = isDM && canManage(myAccess)
+  const [texting, setTexting] = useState(false)
+
+  async function textLink(done?: () => void) {
+    if (texting || !message.conversation_id) return
+    setTexting(true)
+    try {
+      const { data: members } = await supabase
+        .from('direct_conversation_members')
+        .select('user_id')
+        .eq('conversation_id', message.conversation_id)
+      const otherIds = (members ?? []).map((m: { user_id: string }) => m.user_id).filter((id) => id !== me)
+      if (!otherIds.length) throw new Error('No one to text in this conversation.')
+      const { data: profs } = await supabase
+        .from('profiles').select('id, phone, full_name, display_name').in('id', otherIds)
+      const recips = (profs ?? []).filter((p) => p.phone && String(p.phone).trim())
+      if (!recips.length) {
+        toast({ kind: 'error', title: 'No phone number on file', body: 'That person has no phone number saved, so I can’t text them.' })
+        return
+      }
+      const link = messageLink()
+      const myName = displayName(useAuthStore.getState().profile).split(/\s+/)[0]
+      const body = `${myName} sent you a message in ROP Chat: ${link}`
+      const { data, error } = await supabase.functions.invoke('send-sms', {
+        body: { to: recips.map((r) => r.phone), body },
+      })
+      if (error || !data?.ok) throw new Error(error?.message || data?.error || 'Text failed to send.')
+      const names = recips.map((r) => (r.display_name || r.full_name || 'them').split(/\s+/)[0]).join(', ')
+      toast({ kind: 'success', title: 'Text sent', body: `Sent ${names} a link to this message.` })
+    } catch (e) {
+      toast({ kind: 'error', title: 'Could not send text', body: String((e as Error).message ?? e) })
+    } finally {
+      setTexting(false)
+      done?.()
+    }
+  }
   const isTemp = message.id.startsWith('temp-')
   // When rendered in the channel flow, a reply is indented with a left bar and shows a small
   // "replying to …" chip. Inside the thread panel no preview is passed, so it renders normally.
@@ -328,6 +368,11 @@ export function MessageItem({ message, grouped, showThread = true, parentPreview
               <ClipboardList className="h-4 w-4" />
             </button>
           )}
+          {canTextLink && (
+            <button onClick={() => textLink()} disabled={texting} className="rounded p-1.5 text-emerald-300 hover:bg-white/10 disabled:opacity-50" title="Text them a link to this message">
+              <Smartphone className="h-4 w-4" />
+            </button>
+          )}
           {onTogglePin && canManage(myAccess) && (
             <button onClick={() => onTogglePin(!message.is_pinned)} className="rounded p-1.5 text-slate-300 hover:bg-white/10" title={message.is_pinned ? 'Unpin' : 'Pin'}>
               <Pin className={cn('h-4 w-4', message.is_pinned && 'text-gold-400')} />
@@ -388,6 +433,13 @@ export function MessageItem({ message, grouped, showThread = true, parentPreview
                   icon={<ClipboardList className="h-5 w-5 text-brand-300" />}
                   label="Send to a project (Command Center…)"
                   onClick={() => { setSheetOpen(false); setForwardOpen(true) }}
+                />
+              )}
+              {canTextLink && (
+                <SheetItem
+                  icon={<Smartphone className="h-5 w-5 text-emerald-300" />}
+                  label={texting ? 'Texting…' : 'Text them a link to this message'}
+                  onClick={() => textLink(() => setSheetOpen(false))}
                 />
               )}
               {showThread && onReply && (

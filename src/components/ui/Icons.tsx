@@ -152,3 +152,6 @@ export const EyeOff = (p: P) => (
 export const ArrowUpDown = (p: P) => (
   <svg {...base(p)}><path d="m7 15 3 3 3-3" /><path d="M10 6v12" /><path d="m17 9-3-3-3 3" /><path d="M14 18V6" /></svg>
 )
+export const Smartphone = (p: P) => (
+  <svg {...base(p)}><rect x="5" y="2" width="14" height="20" rx="2.5" ry="2.5" /><line x1="11" y1="18" x2="13" y2="18" /></svg>
+)

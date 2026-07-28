@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.29.0'
+export const APP_VERSION = '1.30.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.30.0',
+    date: '2026-07-25',
+    time: '11:40 PM ET',
+    title: 'Text someone a link to a DM',
+    changes: [
+      'In a direct message, leaders and admins now get a 📱 “Text them a link” button on any message (hover on desktop, or long-press → menu on mobile).',
+      'It sends the other person a text with a link straight to that message — handy for nudging someone who doesn’t check ROP Chat often. They tap the link and land right on the message.',
+      'DM-only, and only for leaders/admins. If the person has no phone number on file, it tells you instead of failing silently.',
+    ],
+  },
   {
     version: '1.29.0',
     date: '2026-07-23',
