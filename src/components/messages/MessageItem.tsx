@@ -395,9 +395,13 @@ export function MessageItem({ message, grouped, showThread = true, parentPreview
             </button>
           )}
           {canModerate && (
-            <button onClick={() => setConfirmDel(true)} className="ml-0.5 rounded p-1.5 text-slate-500 hover:bg-red-500/10 hover:text-red-400" title="Delete">
-              <Trash className="h-4 w-4" />
-            </button>
+            <>
+              {/* Set Delete apart so it isn't accidentally tapped when reaching for the other actions. */}
+              <div className="mx-1.5 h-5 w-px bg-white/15" aria-hidden />
+              <button onClick={() => setConfirmDel(true)} className="rounded p-1.5 text-slate-600 hover:bg-red-500/10 hover:text-red-400" title="Delete">
+                <Trash className="h-4 w-4" />
+              </button>
+            </>
           )}
         </div>
       )}
