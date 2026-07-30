@@ -4,10 +4,11 @@ import { useDirectoryStore } from '@/stores/directoryStore'
 import { useUIStore } from '@/stores/uiStore'
 import { Avatar } from '@/components/ui/Avatar'
 import { Spinner } from '@/components/ui/Feedback'
-import { Send, Paperclip, Smile, X, Code, Image, Camera } from '@/components/ui/Icons'
+import { Send, Paperclip, Smile, X, Code, Image, Camera, Users } from '@/components/ui/Icons'
 import { QUICK_EMOJIS } from '@/lib/constants'
 import { cn, displayName, extractMentionQuery } from '@/lib/utils'
 import { uploadAttachment, type PendingFile } from '@/lib/files'
+import { resolveGroups, type ResolvedGroup } from '@/lib/groups'
 import type { Profile } from '@/types'
 
 interface Props {
@@ -15,11 +16,15 @@ interface Props {
   placeholder?: string
   disabled?: boolean
   autoFocus?: boolean
+  // When set, an @group mention only pings people who are actually in THIS channel (so you never
+  // notify someone about a message they can't open). Omit in DMs/threads.
+  memberIds?: Set<string>
 }
 
-export function MessageComposer({ onSend, placeholder = 'Write a message…', disabled, autoFocus }: Props) {
+export function MessageComposer({ onSend, placeholder = 'Write a message…', disabled, autoFocus, memberIds }: Props) {
   const me = useAuthStore((s) => s.user?.id)
   const profiles = useDirectoryStore((s) => s.profiles)
+  const locations = useDirectoryStore((s) => s.locations)
   const toast = useUIStore((s) => s.toast)
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
@@ -44,13 +49,21 @@ export function MessageComposer({ onSend, placeholder = 'Write a message…', di
     ta.style.height = Math.min(ta.scrollHeight, 180) + 'px'
   }, [text])
 
+  const groups = resolveGroups(profiles, locations)
+  const q = mentionQuery !== null ? mentionQuery.toLowerCase() : null
+  // Groups (@stylists, @bayfront …) show first in the autocomplete, then individual people.
+  const groupMatches: ResolvedGroup[] =
+    q !== null
+      ? groups.filter((g) => g.handle.toLowerCase().includes(q) || g.label.toLowerCase().includes(q)).slice(0, 4)
+      : []
   const mentionMatches: Profile[] =
-    mentionQuery !== null
+    q !== null
       ? profiles
           .filter((p) => p.id !== me && p.is_active)
-          .filter((p) => displayName(p).toLowerCase().includes(mentionQuery.toLowerCase()))
+          .filter((p) => displayName(p).toLowerCase().includes(q))
           .slice(0, 6)
       : []
+  const anyMatches = groupMatches.length > 0 || mentionMatches.length > 0
 
   function onChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     const val = e.target.value
@@ -67,6 +80,25 @@ export function MessageComposer({ onSend, placeholder = 'Write a message…', di
     const after = text.slice(caret)
     const next = `${before}${token} ${after}`
     mentionsRef.current.push({ token: token.slice(1).toLowerCase(), id: p.id })
+    setText(next)
+    setMentionQuery(null)
+    setTimeout(() => ta.focus(), 0)
+  }
+
+  // Insert an @group. The pretty "@stylists" stays in the text; behind it we record one mention
+  // entry per member (all sharing the group's handle as their token) so every person gets pinged.
+  // In a channel we only include members who are actually in it, so nobody is notified about a
+  // message they can't see.
+  function insertGroup(g: ResolvedGroup) {
+    const ta = taRef.current
+    if (!ta) return
+    const caret = ta.selectionStart ?? text.length
+    const before = text.slice(0, caret).replace(/@[\w.'-]*$/, '')
+    const token = `@${g.handle}`
+    const after = text.slice(caret)
+    const next = `${before}${token} ${after}`
+    const targets = g.memberIds.filter((id) => id !== me && (!memberIds || memberIds.has(id)))
+    for (const id of targets) mentionsRef.current.push({ token: g.handle.toLowerCase(), id })
     setText(next)
     setMentionQuery(null)
     setTimeout(() => ta.focus(), 0)
@@ -143,7 +175,7 @@ export function MessageComposer({ onSend, placeholder = 'Write a message…', di
   }
 
   function onKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Enter' && !e.shiftKey && !mentionMatches.length) {
+    if (e.key === 'Enter' && !e.shiftKey && !anyMatches) {
       e.preventDefault()
       submit()
     }
@@ -163,8 +195,26 @@ export function MessageComposer({ onSend, placeholder = 'Write a message…', di
           <p className="text-sm font-semibold text-brand-100">Drop to attach</p>
         </div>
       )}
-      {mentionMatches.length > 0 && (
-        <div className="absolute bottom-full left-3 mb-1 w-64 overflow-hidden rounded-xl border border-white/10 bg-brand-800 shadow-2xl">
+      {anyMatches && (
+        <div className="absolute bottom-full left-3 mb-1 w-72 overflow-hidden rounded-xl border border-white/10 bg-brand-800 shadow-2xl">
+          {groupMatches.length > 0 && (
+            <div className="border-b border-white/10">
+              <p className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Groups</p>
+              {groupMatches.map((g) => (
+                <button
+                  key={g.handle}
+                  onClick={() => insertGroup(g)}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-white/10"
+                >
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-brand-400/20 text-brand-200">
+                    <Users className="h-3.5 w-3.5" />
+                  </span>
+                  <span className="truncate font-medium text-slate-100">@{g.handle}</span>
+                  <span className="ml-auto shrink-0 text-[11px] text-slate-500">{g.count} {g.count === 1 ? 'person' : 'people'}</span>
+                </button>
+              ))}
+            </div>
+          )}
           {mentionMatches.map((p) => (
             <button
               key={p.id}

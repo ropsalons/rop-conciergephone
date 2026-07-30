@@ -8,6 +8,7 @@ import { RichText } from './RichText'
 import { RichCard } from './RichCard'
 import { FileChip } from '@/components/files/FileChip'
 import { messageTime, displayName, cn } from '@/lib/utils'
+import { groupHandleSet } from '@/lib/groups'
 import { QUICK_EMOJIS, canManage, isAdmin } from '@/lib/constants'
 import { Smile, Reply, Pin, Edit, Trash, Check, X, MoreHorizontal, Link as LinkIcon, Bookmark, Clock, ClipboardList, Smartphone } from '@/components/ui/Icons'
 import { useUIStore } from '@/stores/uiStore'
@@ -61,7 +62,10 @@ export function MessageItem({ message, grouped, showThread = true, parentPreview
 
   const mentionNames = useMemo(() => {
     const set = new Set<string>()
-    useDirectoryStore.getState().profiles.forEach((p) => set.add(displayName(p).toLowerCase()))
+    const dir = useDirectoryStore.getState()
+    dir.profiles.forEach((p) => set.add(displayName(p).toLowerCase()))
+    // Group handles (@stylists, @bayfront …) highlight just like a person mention.
+    groupHandleSet(dir.locations).forEach((h) => set.add(h))
     return set
   }, [])
 

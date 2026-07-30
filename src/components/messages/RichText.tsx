@@ -33,8 +33,17 @@ function inline(text: string, mentionNames: Set<string>, keyPrefix: string): Rea
     if (best.index > 0) {
       nodes.push(<Fragment key={`${keyPrefix}-t${idx++}`}>{rest.slice(0, best.index)}</Fragment>)
     }
-    const content = best.match[1] ?? best.match[2] ?? best.match[0]
+    let content = best.match[1] ?? best.match[2] ?? best.match[0]
+    let consumed = best.match[0].length
     const key = `${keyPrefix}-m${idx++}`
+    // The mention pattern greedily grabs a following word so "@John Smith" highlights as one. When
+    // that two-word phrase isn't a known name/group (e.g. "@stylists heads"), fall back to just the
+    // first word so single-word group/person handles still highlight mid-sentence.
+    if (best.name === 'mention' && content.includes(' ') && !mentionNames.has(content.slice(1).toLowerCase())) {
+      const first = content.split(' ')[0]
+      content = first
+      consumed = first.length
+    }
     switch (best.name) {
       case 'code':
         nodes.push(<code key={key} className="rounded bg-black/40 px-1 py-0.5 font-mono text-[0.85em] text-gold-200">{content}</code>)
@@ -65,7 +74,7 @@ function inline(text: string, mentionNames: Set<string>, keyPrefix: string): Rea
         break
       }
     }
-    rest = rest.slice(best.index + best.match[0].length)
+    rest = rest.slice(best.index + consumed)
   }
   return nodes
 }

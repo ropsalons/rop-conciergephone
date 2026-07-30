@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.30.3'
+export const APP_VERSION = '1.31.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,19 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.31.0',
+    date: '2026-07-30',
+    time: '11:15 AM ET',
+    title: 'Group @mentions, channel clean-up, and default channels',
+    changes: [
+      'Group mentions (like Slack): type @ and a group name to ping a whole team at once — @stylists, @associates, @concierge, and one per salon (@bayfront, @village, @promenade). Everyone in that group gets notified.',
+      'Groups update themselves — they’re based on each person’s role and salon location, so when someone moves or changes role the groups stay correct with nothing to maintain.',
+      'In a channel, a group @mention only pings people who are actually in that channel, so nobody gets a buzz about a message they can’t open.',
+      'Clean up a channel: open Members → “Clean up”, keep just yourself plus any groups you choose (e.g. keep @bayfront), and remove everyone else in one tap. Nobody’s messages are deleted and people can be re-added anytime.',
+      'Default channels: new staff now automatically land in their salon location channel plus Announcements, Education, Resources Hub, ROP Calendar, and Featured Products. Everyone already here was backfilled to match.',
+    ],
+  },
   {
     version: '1.30.3',
     date: '2026-07-30',
