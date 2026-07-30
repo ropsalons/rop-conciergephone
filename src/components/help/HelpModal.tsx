@@ -320,7 +320,7 @@ export function HelpModal() {
 
               <p className="mt-3 font-semibold text-white">On iPhone (iOS 16.4 or newer)</p>
               <ol className="mt-1 list-decimal space-y-1 pl-5">
-                <li>Open <b>rop-connect.netlify.app</b> in <b>Safari</b> (it must be Safari).</li>
+                <li>Open <b>chat.ropsalons.com</b> in <b>Safari</b> (it must be Safari).</li>
                 <li>Tap the <b>Share</b> button (square with an up-arrow) at the bottom.</li>
                 <li>Scroll down, tap <b>Add to Home Screen</b>, then <b>Add</b>.</li>
                 <li>Open ROP Chat from the <b>new Home Screen icon</b> (not the Safari tab).</li>
@@ -331,7 +331,7 @@ export function HelpModal() {
 
               <p className="mt-3 font-semibold text-white">On Android (Pixel & others)</p>
               <ol className="mt-1 list-decimal space-y-1 pl-5">
-                <li>Open <b>rop-connect.netlify.app</b> in <b>Chrome</b>.</li>
+                <li>Open <b>chat.ropsalons.com</b> in <b>Chrome</b>.</li>
                 <li>Tap the <b>⋮</b> menu (top-right) → <b>Add to Home screen</b> / <b>Install app</b> → <b>Install</b>. (Recommended, so it opens like a real app.)</li>
                 <li>Open ROP Chat from its <b>Home Screen / app-drawer icon</b>.</li>
                 <li>Go to <b>Profile → Notifications</b> and tap <b>“Turn on notifications for this device.”</b></li>

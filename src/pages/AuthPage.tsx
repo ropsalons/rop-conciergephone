@@ -6,7 +6,7 @@ import { APP_NAME, COMPANY_NAME, SIGNUP_ROLES, ROLE_LABELS } from '@/lib/constan
 import type { LocationRow, DepartmentRow } from '@/types'
 import { Spinner } from '@/components/ui/Feedback'
 
-// An invite link looks like:  https://rop-connect.netlify.app/?invite=1&email=<email>&name=<name>
+// An invite link looks like:  https://chat.ropsalons.com/?invite=1&email=<email>&name=<name>
 // When present we drop the person straight onto "Create account" with their email (and name)
 // pre-filled and the employee-only fields hidden — a guest we already know just picks a password.
 function readInvite() {

@@ -6,7 +6,7 @@ import { Send } from '@/components/ui/Icons'
 import { displayName } from '@/lib/utils'
 import type { Profile } from '@/types'
 
-const APP_URL = 'https://rop-connect.netlify.app'
+const APP_URL = 'https://chat.ropsalons.com'
 
 // Pre-filled "you have a message waiting" text with a link + how-to-log-in/install instructions.
 // Admins use this to nudge someone who isn't in the app yet to come read a DM.

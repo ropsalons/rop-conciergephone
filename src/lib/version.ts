@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.31.2'
+export const APP_VERSION = '1.31.3'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.31.3',
+    date: '2026-07-30',
+    time: '2:05 PM ET',
+    title: 'Install & notifications now use chat.ropsalons.com',
+    changes: [
+      'The in-app install and notification instructions now point to chat.ropsalons.com instead of the old rop-connect.netlify.app address. Both are the same app, but installing from the clean address makes your phone/desktop notifications show “chat.ropsalons.com”.',
+      'If your notifications still show the old netlify address, it just means that device was set up on the old address — re-install from chat.ropsalons.com and turn notifications on there to switch it.',
+    ],
+  },
   {
     version: '1.31.2',
     date: '2026-07-30',
