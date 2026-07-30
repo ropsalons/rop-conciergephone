@@ -93,13 +93,36 @@ export function ChannelPage() {
     await loadMembers()
   }
 
+  // Add a whole group at once (e.g. all concierge). Only inserts people not already in the channel.
+  const [addingGroup, setAddingGroup] = useState<string | null>(null)
+  async function addGroup(handle: string, label: string, ids: string[]) {
+    if (!channelId || addingGroup) return
+    const toAdd = ids.filter((id) => !memberIds.has(id))
+    if (toAdd.length === 0) return toast({ kind: 'info', title: `All of @${handle} are already here` })
+    setAddingGroup(handle)
+    const { error } = await supabase
+      .from('channel_members')
+      .insert(toAdd.map((id) => ({ channel_id: channelId, user_id: id })) as never)
+    setAddingGroup(null)
+    if (error) return toast({ kind: 'error', title: 'Could not add group', body: error.message })
+    await loadMembers()
+    toast({ kind: 'success', title: `Added ${label}`, body: `${toAdd.length} ${toAdd.length === 1 ? 'person' : 'people'} added to #${channel?.name}.` })
+  }
+
+  const allGroups = useMemo(
+    () => (directoryLoaded ? resolveGroups(directory, locations) : []),
+    [directory, locations, directoryLoaded],
+  )
   // Groups whose members overlap this channel — offered as "keep" options in the cleanup panel.
-  const channelGroups = useMemo(() => {
-    if (!directoryLoaded) return []
-    return resolveGroups(directory, locations)
-      .map((g) => ({ ...g, present: g.memberIds.filter((id) => memberIds.has(id)).length }))
-      .filter((g) => g.present > 0)
-  }, [directory, locations, directoryLoaded, memberIds])
+  const channelGroups = useMemo(
+    () => allGroups.map((g) => ({ ...g, present: g.memberIds.filter((id) => memberIds.has(id)).length })).filter((g) => g.present > 0),
+    [allGroups, memberIds],
+  )
+  // Groups with at least one person not yet in the channel — offered as one-tap adds.
+  const addableGroups = useMemo(
+    () => allGroups.map((g) => ({ ...g, missing: g.memberIds.filter((id) => !memberIds.has(id)).length })).filter((g) => g.missing > 0),
+    [allGroups, memberIds],
+  )
 
   // Everyone who'd be removed if we keep me + the currently-selected groups.
   const cleanupTargets = useMemo(() => {
@@ -345,6 +368,24 @@ export function ChannelPage() {
 
         {showAddPeople && iCanManageMembers && (
           <div className="mb-3 rounded-xl border border-white/10 bg-brand-950/50 p-2">
+            {addableGroups.length > 0 && (
+              <div className="mb-2">
+                <p className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Add a whole group</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {addableGroups.map((g) => (
+                    <button
+                      key={g.handle}
+                      disabled={addingGroup === g.handle}
+                      onClick={() => addGroup(g.handle, g.label, g.memberIds)}
+                      className="flex items-center gap-1.5 rounded-full border border-brand-400/40 bg-brand-400/10 px-2.5 py-1 text-xs text-brand-100 hover:bg-brand-400/20 disabled:opacity-50"
+                    >
+                      <Plus className="h-3 w-3" />
+                      {addingGroup === g.handle ? `Adding @${g.handle}…` : <>@{g.handle} <span className="text-brand-300/70">· {g.missing}</span></>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="mb-2 flex items-center gap-2 rounded-lg border border-white/10 bg-brand-900 px-3">
               <Search className="h-4 w-4 text-slate-400" />
               <input

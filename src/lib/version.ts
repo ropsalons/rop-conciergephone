@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.31.0'
+export const APP_VERSION = '1.31.1'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.31.1',
+    date: '2026-07-30',
+    time: '12:05 PM ET',
+    title: 'Add a whole group to a channel in one tap',
+    changes: [
+      'Open a channel → Members → “Add people”, and you’ll see a row of group chips (@concierge, @stylists, @bayfront, …). Tap one to add everyone in that group who isn’t already in the channel.',
+      'The number on each chip shows how many people it would add, and anyone already in the channel is skipped automatically.',
+    ],
+  },
   {
     version: '1.31.0',
     date: '2026-07-30',
