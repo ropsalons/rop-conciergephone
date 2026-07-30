@@ -102,18 +102,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       void (supabase.rpc as any)('touch_last_seen', { p_presence: 'offline' }).catch(() => {})
     }
-    // Clear local state + stored session. scope:'local' wipes the stored token without a server
-    // round-trip that could hang.
+    // Clear in-memory state immediately.
     set({ session: null, user: null, profile: null })
+    // Revoke the stored token as FIRE-AND-FORGET. Never await it: on an installed PWA this call can
+    // hang, and awaiting it was blocking the whole sign-out so the button "did nothing".
     try {
-      await supabase.auth.signOut({ scope: 'local' })
+      void supabase.auth.signOut({ scope: 'local' }).catch(() => {})
     } catch {
-      /* already cleared local state above */
+      /* ignore */
     }
-    // Belt-and-suspenders: drop any persisted Supabase auth keys directly, then HARD-RELOAD to the
-    // login screen. On an installed PWA (esp. Android), a stuck service worker or cached React state
-    // could otherwise keep the app looking "signed in" even after state cleared — a full reload
-    // guarantees we land on the login page every time.
+    // Belt-and-suspenders: drop any persisted Supabase auth keys directly so the app can't re-hydrate
+    // a session on reload.
     try {
       for (const k of Object.keys(localStorage)) {
         if (k.startsWith('sb-') || k.includes('supabase.auth')) localStorage.removeItem(k)
@@ -121,10 +120,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch {
       /* ignore storage errors */
     }
+    // HARD-reload to the login screen. We change the QUERY STRING (not just the hash): this app is
+    // hash-routed, so assigning '/' from '/#/channel/x' only strips the hash and does NOT reload on
+    // desktop — leaving the app looking signed in. A changed search param forces a real full reload.
     try {
-      window.location.assign(import.meta.env.BASE_URL || '/')
+      const base = import.meta.env.BASE_URL || '/'
+      window.location.replace(`${base}?loggedout=${Date.now()}`)
     } catch {
-      /* ignore */
+      try {
+        window.location.reload()
+      } catch {
+        /* ignore */
+      }
     }
   },
 
