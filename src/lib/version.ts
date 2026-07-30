@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.30.2'
+export const APP_VERSION = '1.30.3'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,18 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.30.3',
+    date: '2026-07-30',
+    time: '9:30 AM ET',
+    title: 'Text a link to anyone — from any channel',
+    changes: [
+      'The 📱 “Text a link” button now shows on every message — in any channel (including big public ones like Media) and in DMs — for leaders and admins.',
+      'Tapping it opens a searchable people picker: type a name, tap who you want, and send. No more mass blast — you text exactly the person you mean (e.g. just Zach).',
+      'If your message @mentions someone, they’re pre-selected, so the usual case is one tap → Send.',
+      'You can pick more than one person at once too, and everyone gets a text with a link straight to the message.',
+    ],
+  },
   {
     version: '1.30.2',
     date: '2026-07-25',

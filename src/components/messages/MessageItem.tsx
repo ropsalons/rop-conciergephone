@@ -10,12 +10,11 @@ import { FileChip } from '@/components/files/FileChip'
 import { messageTime, displayName, cn } from '@/lib/utils'
 import { QUICK_EMOJIS, canManage, isAdmin } from '@/lib/constants'
 import { Smile, Reply, Pin, Edit, Trash, Check, X, MoreHorizontal, Link as LinkIcon, Bookmark, Clock, ClipboardList, Smartphone } from '@/components/ui/Icons'
-import { supabase } from '@/lib/supabase'
 import { useUIStore } from '@/stores/uiStore'
 import { useSavedStore } from '@/stores/savedStore'
-import { useChatStore } from '@/stores/chatStore'
 import { RemindModal } from './RemindModal'
 import { ForwardModal } from './ForwardModal'
+import { TextLinkModal } from './TextLinkModal'
 
 interface Props {
   message: MessageWithAuthor
@@ -69,55 +68,17 @@ export function MessageItem({ message, grouped, showThread = true, parentPreview
   const isMine = message.user_id === me
   const canModerate = isMine || canManage(myAccess)
   const canForward = isAdmin(myAccess) // admins can forward any message to a connected project
-  // A leader/admin can text the other people on this message a link to it (nudge someone who doesn't
-  // check ROP Chat often). Works in DMs and in PRIVATE channels (small groups) — NOT public channels,
-  // where "text everyone" would be a mass blast.
-  const channelType = useChatStore(
-    (s) => (message.channel_id ? s.channels.find((c) => c.id === message.channel_id)?.type : undefined),
-  )
-  const isDM = !message.channel_id && !!message.conversation_id
-  const canTextLink = canManage(myAccess) && (isDM || channelType === 'private')
-  const [texting, setTexting] = useState(false)
-
-  async function textLink(done?: () => void) {
-    if (texting) return
-    setTexting(true)
-    try {
-      // Who else is on this thread? DMs → conversation members; private channels → channel members.
-      let otherIds: string[] = []
-      if (message.channel_id) {
-        const { data } = await supabase.from('channel_members').select('user_id').eq('channel_id', message.channel_id)
-        otherIds = (data ?? []).map((m: { user_id: string }) => m.user_id).filter((id) => id !== me)
-      } else if (message.conversation_id) {
-        const { data } = await supabase.from('direct_conversation_members').select('user_id').eq('conversation_id', message.conversation_id)
-        otherIds = (data ?? []).map((m: { user_id: string }) => m.user_id).filter((id) => id !== me)
-      }
-      if (!otherIds.length) { toast({ kind: 'error', title: 'No one to text here' }); return }
-      const { data: profs } = await supabase
-        .from('profiles').select('id, phone, full_name, display_name').in('id', otherIds)
-      const recips = (profs ?? []).filter((p) => p.phone && String(p.phone).trim())
-      if (!recips.length) {
-        toast({ kind: 'error', title: 'No phone number on file', body: 'Nobody here has a phone number saved, so I can’t text a link.' })
-        return
-      }
-      const names = recips.map((r) => (r.display_name || r.full_name || 'them').split(/\s+/)[0]).join(', ')
-      // Guard against an accidental group blast: confirm when it's more than one person.
-      if (recips.length > 1 && !window.confirm(`Text a link to this message to ${recips.length} people (${names})?`)) return
-      const link = messageLink()
-      const myName = displayName(useAuthStore.getState().profile).split(/\s+/)[0]
-      const body = `${myName} sent you a message in ROP Chat: ${link}`
-      const { data, error } = await supabase.functions.invoke('send-sms', {
-        body: { to: recips.map((r) => r.phone), body },
-      })
-      if (error || !data?.ok) throw new Error(error?.message || data?.error || 'Text failed to send.')
-      toast({ kind: 'success', title: 'Text sent', body: `Sent ${names} a link to this message.` })
-    } catch (e) {
-      toast({ kind: 'error', title: 'Could not send text', body: String((e as Error).message ?? e) })
-    } finally {
-      setTexting(false)
-      done?.()
-    }
-  }
+  // A leader/admin can text a link to this message to one or more people — a nudge for someone who
+  // doesn't check ROP Chat often. Works from ANY channel or DM: you pick exactly who to text (no
+  // mass blast), so it's safe even in a big public channel.
+  const canTextLink = canManage(myAccess)
+  const [textOpen, setTextOpen] = useState(false)
+  // Anyone @mentioned in this message is pre-selected in the picker (first-name tokens).
+  const mentionSuggest = useMemo(() => {
+    const out = new Set<string>()
+    for (const m of message.body.matchAll(/@([A-Za-z][\w'-]*)/g)) out.add(m[1].toLowerCase())
+    return [...out]
+  }, [message.body])
   const isTemp = message.id.startsWith('temp-')
   // When rendered in the channel flow, a reply is indented with a left bar and shows a small
   // "replying to …" chip. Inside the thread panel no preview is passed, so it renders normally.
@@ -380,7 +341,7 @@ export function MessageItem({ message, grouped, showThread = true, parentPreview
             </button>
           )}
           {canTextLink && (
-            <button onClick={() => textLink()} disabled={texting} className="rounded p-1.5 text-emerald-300 hover:bg-white/10 disabled:opacity-50" title="Text them a link to this message">
+            <button onClick={() => setTextOpen(true)} className="rounded p-1.5 text-emerald-300 hover:bg-white/10" title="Text someone a link to this message">
               <Smartphone className="h-4 w-4" />
             </button>
           )}
@@ -453,8 +414,8 @@ export function MessageItem({ message, grouped, showThread = true, parentPreview
               {canTextLink && (
                 <SheetItem
                   icon={<Smartphone className="h-5 w-5 text-emerald-300" />}
-                  label={texting ? 'Texting…' : 'Text them a link to this message'}
-                  onClick={() => textLink(() => setSheetOpen(false))}
+                  label="Text someone a link to this message"
+                  onClick={() => { setSheetOpen(false); setTextOpen(true) }}
                 />
               )}
               {showThread && onReply && (
@@ -480,6 +441,7 @@ export function MessageItem({ message, grouped, showThread = true, parentPreview
 
       {remindOpen && <RemindModal messageId={message.id} onClose={() => setRemindOpen(false)} />}
       {forwardOpen && <ForwardModal messageId={message.id} onClose={() => setForwardOpen(false)} />}
+      {textOpen && <TextLinkModal link={messageLink()} suggest={mentionSuggest} onClose={() => setTextOpen(false)} />}
 
       {/* Delete confirmation — a tap never deletes on its own; you have to confirm here. */}
       {confirmDel && (
