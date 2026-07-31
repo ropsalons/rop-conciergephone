@@ -320,7 +320,7 @@ export function MessageComposer({ onSend, placeholder = 'Write a message…', di
             <Smile className="h-5 w-5" />
           </button>
           {emojiOpen && (
-            <div className="absolute bottom-full right-0 mb-1 flex flex-wrap gap-1 rounded-xl border border-white/10 bg-brand-800 p-2 shadow-2xl">
+            <div className="absolute bottom-full right-0 mb-1 grid w-72 grid-cols-8 gap-1 rounded-xl border border-white/10 bg-brand-800 p-2 shadow-2xl">
               {QUICK_EMOJIS.map((e) => (
                 <button
                   key={e}

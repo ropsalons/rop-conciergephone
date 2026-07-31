@@ -85,7 +85,14 @@ export const RESOURCE_CATEGORIES = [
   { key: 'other', label: 'Other', emoji: '📁' },
 ] as const
 
-export const QUICK_EMOJIS = ['👍', '❤️', '🎉', '🙌', '🔥', '💈', '✨', '😂', '👏', '✅']
+// Reaction / quick-emoji palette. A fun, expressive mix — approval, love, celebration, laughter,
+// gratitude (🙏), encouragement, a little salon flair, and some softer/sad ones for the moments
+// that call for it. Ordered most-used first; the pickers wrap into a grid so the whole set shows.
+export const QUICK_EMOJIS = [
+  '👍', '❤️', '😂', '🎉', '🙏', '🔥', '👏', '✅',
+  '🙌', '💯', '🥳', '😍', '🥰', '💪', '⭐', '🚀',
+  '✨', '💖', '🤩', '😮', '🫶', '😢', '🥺', '😔',
+]
 
 export const MAX_FILE_BYTES = 25 * 1024 * 1024 // 25MB — matches the storage bucket cap
 

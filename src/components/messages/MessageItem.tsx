@@ -316,7 +316,7 @@ export function MessageItem({ message, grouped, showThread = true, parentPreview
               <Smile className="h-4 w-4" />
             </button>
             {showEmoji && (
-              <div className="absolute right-0 top-full z-10 mt-1 flex gap-1 rounded-xl border border-white/10 bg-brand-800 p-1.5 shadow-2xl">
+              <div className="absolute right-0 top-full z-10 mt-1 grid w-72 grid-cols-8 gap-0.5 rounded-xl border border-white/10 bg-brand-800 p-1.5 shadow-2xl">
                 {QUICK_EMOJIS.map((e) => (
                   <button key={e} onClick={() => { onReact(e); setShowEmoji(false) }} className="rounded p-1 text-base hover:bg-white/10">
                     {e}
@@ -381,12 +381,12 @@ export function MessageItem({ message, grouped, showThread = true, parentPreview
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/20" />
-            <div className="mb-2 flex justify-center gap-2">
+            <div className="mb-2 flex flex-wrap justify-center gap-2">
               {QUICK_EMOJIS.map((e) => (
                 <button
                   key={e}
                   onClick={() => { onReact(e); setSheetOpen(false) }}
-                  className="rounded-xl bg-white/5 px-3 py-2 text-xl active:bg-white/15"
+                  className="rounded-xl bg-white/5 px-2.5 py-2 text-xl active:bg-white/15"
                 >
                   {e}
                 </button>
