@@ -6,7 +6,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { Avatar } from '@/components/ui/Avatar'
 import { UnreadBadge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/Feedback'
-import { Plus, MessageSquare } from '@/components/ui/Icons'
+import { Plus, MessageSquare, BellOff } from '@/components/ui/Icons'
 import { NewDMModal } from '@/components/dms/NewDMModal'
 import { conversationName, otherMembers } from '@/lib/dm'
 import { timeAgo } from '@/lib/utils'
@@ -48,10 +48,14 @@ export function DMListPage() {
                 >
                   {others[0] ? <Avatar profile={others[0]} size="md" showPresence={!c.is_group} /> : <MessageSquare className="h-6 w-6" />}
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-white">{conversationName(c, me)}</p>
+                    <p className="flex items-center gap-1 truncate text-sm font-semibold text-white">
+                      <span className="truncate">{conversationName(c, me)}</span>
+                      {c.is_muted && <BellOff className="h-3.5 w-3.5 shrink-0 text-slate-500" aria-label="Muted" />}
+                    </p>
                     <p className="truncate text-xs text-slate-400">Updated {timeAgo(c.last_message_at)}</p>
                   </div>
-                  <UnreadBadge count={c.is_muted ? 0 : unread} />
+                  {/* Muted conversations still show the unread count — you just don't get a phone buzz. */}
+                  <UnreadBadge count={unread} />
                 </button>
               )
             })}

@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.31.3'
+export const APP_VERSION = '1.32.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.32.0',
+    date: '2026-07-30',
+    time: '3:10 PM ET',
+    title: 'Mute a direct message / group DM',
+    changes: [
+      'You can now mute a one-on-one or group DM: open the conversation and tap the bell in the top bar. Muted means your phone won’t buzz on new messages there.',
+      'You still see everything — a muted conversation keeps showing its unread count (and a small 🔕 icon) in your Messages list, so you can check it when you want instead of getting pinged on every one-line reply.',
+      'Great for busy group chats with lots of people replying. Un-mute anytime by tapping the bell again. This is per-conversation and only affects you.',
+    ],
+  },
   {
     version: '1.31.3',
     date: '2026-07-30',
