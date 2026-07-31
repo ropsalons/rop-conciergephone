@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.32.1'
+export const APP_VERSION = '1.32.2'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,15 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.32.2',
+    date: '2026-07-30',
+    time: '4:35 PM ET',
+    title: 'A few more reaction emojis',
+    changes: [
+      'Added champagne 🥂, heart-eyes cat 😻, and a hairstyle 💇‍♀️ to the reactions.',
+    ],
+  },
   {
     version: '1.32.1',
     date: '2026-07-30',

@@ -90,8 +90,9 @@ export const RESOURCE_CATEGORIES = [
 // that call for it. Ordered most-used first; the pickers wrap into a grid so the whole set shows.
 export const QUICK_EMOJIS = [
   '👍', '❤️', '😂', '🎉', '🙏', '🔥', '👏', '✅',
-  '🙌', '💯', '🥳', '😍', '🥰', '💪', '⭐', '🚀',
-  '✨', '💖', '🤩', '😮', '🫶', '😢', '🥺', '😔',
+  '🙌', '💯', '🥳', '🥂', '😍', '😻', '🥰', '💪',
+  '⭐', '🚀', '✨', '💇‍♀️', '💖', '🤩', '🫶', '😮',
+  '😢', '🥺', '😔',
 ]
 
 export const MAX_FILE_BYTES = 25 * 1024 * 1024 // 25MB — matches the storage bucket cap
