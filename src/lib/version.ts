@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.32.2'
+export const APP_VERSION = '1.32.3'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.32.3',
+    date: '2026-07-31',
+    time: '4:45 PM ET',
+    title: 'Notifications open the exact message',
+    changes: [
+      'Tapping a message notification now jumps straight to that specific message and highlights it — not just the top of the channel or DM.',
+      'If a notification ever drops you at the home screen instead (most often on iPhone after an app update), fully close and reopen the app so it’s on the latest version; if it persists, re-install from chat.ropsalons.com and turn notifications back on.',
+    ],
+  },
   {
     version: '1.32.2',
     date: '2026-07-30',
