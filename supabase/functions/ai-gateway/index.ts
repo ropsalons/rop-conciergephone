@@ -201,10 +201,27 @@ Deno.serve(async (req) => {
   // Channel resolution + access helpers.
   async function resolveChannel(sel: string): Promise<{ id: string; slug: string; name: string; type: string; is_archived: boolean; ai_excluded: boolean } | null> {
     if (!sel) return null
-    let q = admin.from('channels').select('id,slug,name,type,is_archived,ai_excluded')
-    q = uuidRe.test(sel) ? q.eq('id', sel) : q.or(`slug.eq.${sel},name.eq.${sel}`)
-    const { data } = await q.maybeSingle()
-    return (data as any) ?? null
+    const s = sel.trim()
+    if (uuidRe.test(s)) {
+      const { data } = await admin.from('channels').select('id,slug,name,type,is_archived,ai_excluded').eq('id', s).maybeSingle()
+      return (data as any) ?? null
+    }
+    // Match by slug OR name, forgiving about case, a leading '#', and slug-vs-name differences
+    // (e.g. "rop-scorecard" resolving to the channel named "ROP Scorecard" / slug "daily-numbers").
+    // Done in code so a channel name with commas/spaces/punctuation can't break a PostgREST filter.
+    const { data } = await admin.from('channels').select('id,slug,name,type,is_archived,ai_excluded')
+    const list = (data ?? []) as Array<{ id: string; slug: string; name: string; type: string; is_archived: boolean; ai_excluded: boolean }>
+    const norm = (x: string) => x.toLowerCase().replace(/^#/, '').trim()
+    const slugify = (x: string) => norm(x).replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+    const t = norm(s)
+    const ts = slugify(s)
+    return (
+      list.find((c) => c.slug.toLowerCase() === t) ??
+      list.find((c) => c.name.toLowerCase() === t) ??
+      list.find((c) => slugify(c.name) === ts) ??
+      list.find((c) => c.slug.toLowerCase() === ts) ??
+      null
+    )
   }
   async function allowedChannelIds(): Promise<string[]> {
     // 'all' → every channel of any type (announcements, location, department, private…) that isn't
