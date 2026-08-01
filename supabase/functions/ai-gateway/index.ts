@@ -11,8 +11,8 @@
 //   Body:    { "action": "<action>", ...params, "idempotency_key"?: "<uuid>" }
 //
 // Actions: list_channels · list_users · read_channel_messages · read_thread · search_messages ·
-//          post_message · reply_thread · send_dm · send_group_dm · create_task · update_task ·
-//          register_webhook · request_approval · list_approvals
+//          post_message · reply_thread · send_dm · send_group_dm · create_channel · create_task ·
+//          update_task · register_webhook · request_approval · list_approvals
 //
 // The endpoint uses the service role (bypassing RLS) but ONLY after validating the agent and
 // enforcing its scope in code — content the agent isn't allowed to see is never returned.
@@ -552,6 +552,44 @@ Deno.serve(async (req) => {
       }
       await audit('ok', true, { project: projectName, command_channel: ch!.slug })
       return json({ ok: true, command_channel: ch!.slug, command_channel_id: ch!.id, events, correlation_id: correlationId })
+    }
+
+    if (action === 'create_channel') {
+      const name = String(body.name ?? body.channel_name ?? body.title ?? '').trim()
+      if (!name) return deny('Provide "name"', 400)
+      const vis = String(body.type ?? body.visibility ?? 'public').toLowerCase()
+      const type = vis === 'private' ? 'private' : 'public'
+      const description = typeof body.description === 'string' ? body.description.trim().slice(0, 300) : null
+
+      // Policy: the owner is ALWAYS a member of any agent-created channel (plus the BOT that posts).
+      async function addOwnersAndBot(channelId: string) {
+        const { data: owners } = await admin.from('profiles').select('id').eq('access_level', 'owner').eq('is_active', true)
+        const ids = [...new Set([BOT_ID, ...((owners ?? []) as any[]).map((o) => o.id)])]
+        await admin.from('channel_members').upsert(ids.map((uid) => ({ channel_id: channelId, user_id: uid })), { onConflict: 'channel_id,user_id', ignoreDuplicates: true })
+      }
+
+      // Idempotent: if a channel with this name/slug already exists, reuse it (and make sure the owner is in it).
+      const found = await resolveChannel(name)
+      if (found) {
+        await addOwnersAndBot(found.id)
+        await audit('ok', true, { channel: found.slug, existed: true }, found.id)
+        return json({ ok: true, channel: { id: found.id, slug: found.slug, name: found.name, type: found.type }, existed: true, correlation_id: correlationId })
+      }
+
+      const base = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'channel'
+      let created: { id: string; slug: string; name: string; type: string } | null = null
+      for (let i = 0; i < 6 && !created; i++) {
+        const trySlug = (i === 0 ? base : `${base}-${i + 1}`).slice(0, 48)
+        const { data, error } = await admin.from('channels')
+          .insert({ slug: trySlug, name, type, description, created_by: BOT_ID })
+          .select('id,slug,name,type').single()
+        if (!error && data) { created = data as any; break }
+        if (error && !/duplicate|unique/i.test(String(error.message))) throw error
+      }
+      if (!created) return deny('Could not create channel — that name is already taken.', 409)
+      await addOwnersAndBot(created.id)
+      await audit('ok', true, { channel: created.slug, type }, created.id)
+      return json({ ok: true, channel: created, correlation_id: correlationId })
     }
 
     if (action === 'list_approvals') {
