@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.32.3'
+export const APP_VERSION = '1.33.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.33.0',
+    date: '2026-07-31',
+    time: '5:40 PM ET',
+    title: 'Edit channel details from the channel itself',
+    changes: [
+      'Admins/owners can now edit a channel right from its top bar — tap the pencil icon to rename it, set its topic and description, and switch it between public and private. No trip to the Admin portal.',
+      'Renaming keeps the channel’s address (its slug) the same, so existing links and integrations that post to it keep working.',
+    ],
+  },
   {
     version: '1.32.3',
     date: '2026-07-31',

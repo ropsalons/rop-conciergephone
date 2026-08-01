@@ -13,18 +13,19 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { FullPageLoader, EmptyState } from '@/components/ui/Feedback'
 import { Avatar } from '@/components/ui/Avatar'
 import { AccessBadge } from '@/components/ui/Badge'
-import { Hash, Lock, Megaphone, Users, Pin, Plus, X, LogOut, Search, Star, Bell, BellOff, Check } from '@/components/ui/Icons'
+import { Hash, Lock, Megaphone, Users, Pin, Plus, X, LogOut, Search, Star, Bell, BellOff, Check, Edit } from '@/components/ui/Icons'
 import { Modal } from '@/components/ui/Modal'
 import { PinnedMessagesModal } from '@/components/channels/PinnedMessagesModal'
+import { EditChannelModal } from '@/components/channels/EditChannelModal'
 import { displayName, cn } from '@/lib/utils'
-import { canManage, titleLabel } from '@/lib/constants'
+import { canManage, isAdmin, titleLabel } from '@/lib/constants'
 import { resolveGroups } from '@/lib/groups'
 
 export function ChannelPage() {
   const { channelId } = useParams()
   const [searchParams] = useSearchParams()
   const highlightId = searchParams.get('m') ?? undefined
-  const { channel, members, isMember, loading, join, leave, loadMembers, setNotifyLevel } = useChannel(channelId)
+  const { channel, members, isMember, loading, join, leave, loadMembers, setNotifyLevel, reload } = useChannel(channelId)
   const me = useAuthStore((s) => s.user?.id)
   const myAccess = useAuthStore((s) => s.profile?.access_level)
   const markChannelRead = useChatStore((s) => s.markChannelRead)
@@ -42,6 +43,7 @@ export function ChannelPage() {
   const [peopleQuery, setPeopleQuery] = useState('')
   const [busyUser, setBusyUser] = useState<string | null>(null)
   const [notifyOpen, setNotifyOpen] = useState(false)
+  const [showEdit, setShowEdit] = useState(false)
   const [showCleanup, setShowCleanup] = useState(false)
   const [keepGroups, setKeepGroups] = useState<Set<string>>(new Set())
   const [cleaning, setCleaning] = useState(false)
@@ -231,6 +233,11 @@ export function ChannelPage() {
                   </>
                 )}
               </div>
+            )}
+            {isAdmin(myAccess) && (
+              <button onClick={() => setShowEdit(true)} className="rounded-lg p-2 text-slate-300 hover:bg-white/10" title="Edit channel details">
+                <Edit className="h-5 w-5" />
+              </button>
             )}
             <button onClick={() => setShowPinned(true)} className="rounded-lg p-2 text-slate-300 hover:bg-white/10" title="Pinned">
               <Pin className="h-5 w-5" />
@@ -449,6 +456,10 @@ export function ChannelPage() {
           ))}
         </div>
       </Modal>
+
+      {showEdit && channel && (
+        <EditChannelModal channel={channel} onClose={() => setShowEdit(false)} onSaved={reload} />
+      )}
 
       <PinnedMessagesModal
         open={showPinned}
