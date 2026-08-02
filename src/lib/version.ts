@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.34.0'
+export const APP_VERSION = '1.35.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.35.0',
+    date: '2026-08-02',
+    time: '2:45 PM ET',
+    title: 'Automatic birthday & anniversary shout-outs',
+    changes: [
+      'ROP Chat now posts an automatic, emoji-filled Happy Birthday in #Announcements on each teammate’s birthday — tagging them so it’s front and center. Work anniversaries get their own “Happy Nth Anniversary” shout-out too.',
+      'It runs every morning and covers the whole team automatically (dates come from Gusto). Each person gets one birthday and one anniversary post per year — never a repeat.',
+      'We only ever use the month and day — no age or birth year is shown.',
+    ],
+  },
   {
     version: '1.34.0',
     date: '2026-07-31',
