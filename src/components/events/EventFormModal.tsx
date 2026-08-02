@@ -39,6 +39,10 @@ export function EventFormModal({
   const [endAt, setEndAt] = useState(existing ? utcToZonedInput(existing.ends_at, TZ) : '')
   const [organizer, setOrganizer] = useState(existing?.organizer ?? '')
   const [price, setPrice] = useState(existing?.price ?? '')
+  const [capacity, setCapacity] = useState(existing?.capacity != null ? String(existing.capacity) : '')
+  const [registrationOpen, setRegistrationOpen] = useState(existing?.registration_open ?? true)
+  const [coverUrl, setCoverUrl] = useState(existing?.cover_url ?? '')
+  const [uploadingCover, setUploadingCover] = useState(false)
   const [audience, setAudience] = useState<EventAudience>(existing?.audience ?? 'all')
   const [locationId, setLocationId] = useState(existing?.location_id ?? '')
   const [departmentId, setDepartmentId] = useState(existing?.department_id ?? '')
@@ -59,9 +63,30 @@ export function EventFormModal({
   const valid =
     title.trim() &&
     startAt &&
+    location.trim() && // location is now required (a salon or free text)
     (audience !== 'location' || locationId) &&
     (audience !== 'department' || departmentId) &&
     (audience !== 'users' || targetIds.length > 0)
+
+  async function onPickCover(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || !me) return
+    if (!file.type.startsWith('image/')) return toast({ kind: 'error', title: 'Pick an image file' })
+    if (file.size > 5 * 1024 * 1024) return toast({ kind: 'error', title: 'Too large', body: 'Cover images must be under 5 MB.' })
+    setUploadingCover(true)
+    try {
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+      const path = `${me}/events/${crypto.randomUUID()}.${ext}`
+      const { error } = await supabase.storage.from('avatars').upload(path, file, { contentType: file.type })
+      if (error) throw error
+      setCoverUrl(supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl)
+    } catch (err) {
+      toast({ kind: 'error', title: 'Cover upload failed', body: String((err as Error).message ?? err) })
+    } finally {
+      setUploadingCover(false)
+    }
+  }
 
   async function submit() {
     if (!valid || !me || saving) return
@@ -71,12 +96,15 @@ export function EventFormModal({
       description: description.trim() || null,
       category,
       format,
-      location: location.trim() || null,
+      location: location.trim(),
       starts_at: zonedInputToUtc(startAt, TZ) as string,
       ends_at: endAt ? zonedInputToUtc(endAt, TZ) : null,
       timezone: TZ,
       organizer: organizer.trim() || null,
       price: price.trim() || null,
+      capacity: capacity.trim() ? Math.max(0, Math.floor(Number(capacity)) || 0) : null,
+      registration_open: registrationOpen,
+      cover_url: coverUrl || null,
       audience,
       location_id: audience === 'location' ? locationId : null,
       department_id: audience === 'department' ? departmentId : null,
@@ -156,8 +184,25 @@ export function EventFormModal({
         <p className="-mt-2 text-[11px] text-slate-500">Times are Eastern (ET).</p>
 
         <div>
-          <label className="label">{format === 'virtual' ? 'Link or platform' : 'Location'} <span className="text-slate-500">(optional)</span></label>
-          <input className="input" value={location} onChange={(e) => setLocation(e.target.value)} placeholder={format === 'virtual' ? 'Zoom / Google Meet link' : 'Address'} />
+          <label className="label">{format === 'virtual' ? 'Link or platform' : 'Location'} <span className="text-rose-300">*</span></label>
+          <input className="input" value={location} onChange={(e) => setLocation(e.target.value)} placeholder={format === 'virtual' ? 'Zoom / Google Meet link' : 'A salon below, or type an address'} />
+          {format !== 'virtual' && locations.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {locations.map((l) => (
+                <button
+                  key={l.id}
+                  type="button"
+                  onClick={() => setLocation(l.name)}
+                  className={cn(
+                    'rounded-full border px-2.5 py-1 text-xs transition',
+                    location.trim() === l.name ? 'border-brand-400 bg-brand-400/10 text-white' : 'border-white/15 text-slate-300 hover:bg-white/5',
+                  )}
+                >
+                  {l.name}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div>
@@ -171,10 +216,36 @@ export function EventFormModal({
             <input className="input" value={organizer} onChange={(e) => setOrganizer(e.target.value)} placeholder="e.g. Jenn and Rob" />
           </div>
           <div>
-            <label className="label">Price <span className="text-slate-500">(optional)</span></label>
-            <input className="input" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="e.g. $295" />
+            <label className="label">Cost <span className="text-slate-500">(optional)</span></label>
+            <input className="input" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="e.g. Covered by ROP or $45" />
           </div>
         </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="label">Capacity <span className="text-slate-500">(optional)</span></label>
+            <input type="number" min="0" className="input" value={capacity} onChange={(e) => setCapacity(e.target.value)} placeholder="Blank = unlimited" />
+          </div>
+          <div>
+            <label className="label">Cover image <span className="text-slate-500">(optional)</span></label>
+            {coverUrl ? (
+              <div className="flex items-center gap-2">
+                <img src={coverUrl} alt="" className="h-9 w-14 rounded object-cover" />
+                <button type="button" onClick={() => setCoverUrl('')} className="text-xs text-rose-300 hover:underline">Remove</button>
+              </div>
+            ) : (
+              <label className="btn-ghost inline-flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm">
+                {uploadingCover ? 'Uploading…' : 'Upload image'}
+                <input type="file" accept="image/*" className="hidden" onChange={onPickCover} disabled={uploadingCover} />
+              </label>
+            )}
+          </div>
+        </div>
+
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-100">
+          <input type="checkbox" className="h-4 w-4 accent-gold-500" checked={registrationOpen} onChange={(e) => setRegistrationOpen(e.target.checked)} />
+          <span>Registration open <span className="text-slate-400">— turn off to close sign-ups</span></span>
+        </label>
 
         <div>
           <label className="label">Who's invited</label>

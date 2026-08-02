@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.33.0'
+export const APP_VERSION = '1.34.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.34.0',
+    date: '2026-07-31',
+    time: '6:45 PM ET',
+    title: 'Structured events + Team App events API',
+    changes: [
+      'The event form now has real, structured fields: a required Location (pick a salon or type your own), Capacity (blank = unlimited), Cost (e.g. “Covered by ROP” or “$45”), a Registration open toggle, and a Cover image upload — alongside the existing name, date/time, and description.',
+      'ROP Chat is now the single source of truth for company events: a separate app (the ROP Team App) can securely read all events and write registrations back, and each event gets a chat thread in #Events showing who’s coming.',
+      'Existing events were left untouched — new fields default sensibly and nothing was overwritten.',
+    ],
+  },
   {
     version: '1.33.0',
     date: '2026-07-31',

@@ -354,6 +354,11 @@ export type EventRow = {
   organizer: string | null
   price: string | null
   cover_url: string | null
+  capacity: number | null
+  registration_open: boolean
+  registration_count: number
+  channel_id: string | null
+  root_message_id: string | null
   audience: EventAudience
   location_id: string | null
   department_id: string | null
