@@ -311,20 +311,9 @@ export function MessageItem({ message, grouped, showThread = true, parentPreview
       {/* Desktop hover actions */}
       {!editing && !isTemp && (
         <div className="absolute -top-3 right-3 hidden items-center gap-0.5 rounded-lg border border-white/10 bg-brand-800 px-1 py-0.5 shadow-lg group-hover:flex">
-          <div className="relative">
-            <button onClick={() => setShowEmoji((v) => !v)} className="rounded p-1.5 text-slate-300 hover:bg-white/10" title="React">
-              <Smile className="h-4 w-4" />
-            </button>
-            {showEmoji && (
-              <div className="absolute right-0 top-full z-10 mt-1 grid w-72 grid-cols-8 gap-0.5 rounded-xl border border-white/10 bg-brand-800 p-1.5 shadow-2xl">
-                {QUICK_EMOJIS.map((e) => (
-                  <button key={e} onClick={() => { onReact(e); setShowEmoji(false) }} className="rounded p-1 text-base hover:bg-white/10">
-                    {e}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <button onClick={() => setShowEmoji((v) => !v)} className="rounded p-1.5 text-slate-300 hover:bg-white/10" title="React">
+            <Smile className="h-4 w-4" />
+          </button>
           {showThread && onReply && (
             <button onClick={onReply} className="rounded p-1.5 text-slate-300 hover:bg-white/10" title="Reply in thread">
               <Reply className="h-4 w-4" />
@@ -367,6 +356,21 @@ export function MessageItem({ message, grouped, showThread = true, parentPreview
                 <Trash className="h-4 w-4" />
               </button>
             </>
+          )}
+          {/* Reaction picker — anchored to the toolbar's right edge and width-clamped to the screen
+              so it never runs off the side (it used to spill off the left edge on phones). Wraps. */}
+          {showEmoji && (
+            <div className="absolute right-0 top-full z-20 mt-1 flex w-72 max-w-[calc(100vw-1.25rem)] flex-wrap justify-center gap-1 rounded-xl border border-white/10 bg-brand-800 p-2 shadow-2xl">
+              {QUICK_EMOJIS.map((e) => (
+                <button
+                  key={e}
+                  onClick={() => { onReact(e); setShowEmoji(false) }}
+                  className="rounded-lg px-1.5 py-1 text-xl hover:bg-white/10 active:bg-white/15"
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
           )}
         </div>
       )}

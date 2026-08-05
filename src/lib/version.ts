@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.35.0'
+export const APP_VERSION = '1.35.1'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.35.1',
+    date: '2026-08-05',
+    time: '3:45 PM ET',
+    title: 'Fixed the emoji reaction picker on phones',
+    changes: [
+      'When you react to a message, the emoji picker no longer runs off the side of the screen on mobile — it now stays fully on-screen and wraps so you can see and tap every emoji.',
+      'Reaction emojis are also a bit bigger and easier to tap.',
+    ],
+  },
   {
     version: '1.35.0',
     date: '2026-08-02',
