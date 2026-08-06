@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.35.1'
+export const APP_VERSION = '1.35.2'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.35.2',
+    date: '2026-08-05',
+    time: '4:20 PM ET',
+    title: 'Tagging someone by name always notifies them',
+    changes: [
+      'Whenever anyone is @mentioned by name in a channel — whether you type it or an automated report posts it — that person now actually gets notified. Before, only tags picked from the pop-up list would notify.',
+      'Smart matching: “@Rob” pings Rob (not Robert), and an email address like name@example.com never accidentally tags anyone.',
+    ],
+  },
   {
     version: '1.35.1',
     date: '2026-08-05',
