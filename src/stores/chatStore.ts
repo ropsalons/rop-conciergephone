@@ -23,6 +23,7 @@ interface ChatState {
   markConversationRead: (conversationId: string) => Promise<void>
   bumpConversation: (conversationId: string) => void
   toggleFavorite: (channelId: string, value: boolean) => Promise<void>
+  toggleConversationFavorite: (conversationId: string, value: boolean) => Promise<void>
 }
 
 // Favorites float to the top; within each group channels are alphabetical by name.
@@ -87,10 +88,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     // Conversations I belong to.
     const { data: convRows } = await supabase
       .from('direct_conversation_members')
-      .select('is_muted, direct_conversations(*)')
+      .select('is_muted, is_favorite, direct_conversations(*)')
       .eq('user_id', me)
     const conversations: ConversationWithMeta[] = (convRows ?? [])
-      .map((r: any) => ({ ...(r.direct_conversations as ConversationWithMeta), is_muted: r.is_muted }))
+      .map((r: any) => ({ ...(r.direct_conversations as ConversationWithMeta), is_muted: r.is_muted, is_favorite: r.is_favorite }))
       .filter((c: ConversationWithMeta) => c && c.id)
 
     // Resolve members for every conversation in one query.
@@ -174,6 +175,25 @@ export const useChatStore = create<ChatState>((set, get) => ({
         channels: sortChannels(
           s.channels.map((c) => (c.id === channelId ? { ...c, is_favorite: !value } : c)),
         ),
+      }))
+    }
+  },
+
+  toggleConversationFavorite: async (conversationId, value) => {
+    const me = useAuthStore.getState().user?.id
+    if (!me) return
+    // Optimistic update.
+    set((s) => ({
+      conversations: s.conversations.map((c) => (c.id === conversationId ? { ...c, is_favorite: value } : c)),
+    }))
+    const { error } = await supabase
+      .from('direct_conversation_members')
+      .update({ is_favorite: value } as never)
+      .eq('conversation_id', conversationId)
+      .eq('user_id', me)
+    if (error) {
+      set((s) => ({
+        conversations: s.conversations.map((c) => (c.id === conversationId ? { ...c, is_favorite: !value } : c)),
       }))
     }
   },

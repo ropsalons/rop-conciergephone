@@ -27,7 +27,7 @@ import { APP_VERSION } from '@/lib/version'
 import { CreateChannelModal } from '@/components/channels/CreateChannelModal'
 import { BrowseChannelsModal } from '@/components/channels/BrowseChannelsModal'
 import { NewDMModal } from '@/components/dms/NewDMModal'
-import type { ChannelWithMeta } from '@/types'
+import type { ChannelWithMeta, ConversationWithMeta } from '@/types'
 
 function ChannelIcon({ type, className }: { type: string; className?: string }) {
   if (type === 'private' || type === 'admin') return <Lock className={className} />
@@ -75,6 +75,52 @@ function ChannelRow({
       >
         <ChannelIcon type={c.type} className="h-4 w-4 shrink-0 opacity-70" />
         <span className={cn('flex-1 truncate', !!unread && 'font-semibold text-white')}>{c.name}</span>
+        {c.is_muted && <BellOff className="h-3.5 w-3.5 shrink-0 text-slate-500" aria-label="Muted" />}
+        <UnreadBadge count={c.is_muted ? 0 : unread} />
+      </NavLink>
+      <button
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleFav() }}
+        title={fav ? 'Remove from favorites' : 'Favorite — pin to top'}
+        aria-label={fav ? 'Remove from favorites' : 'Add to favorites'}
+        className={cn(
+          'absolute right-1 rounded p-1.5 transition',
+          fav
+            ? 'text-gold-400 hover:text-gold-300'
+            : 'text-slate-500 opacity-60 hover:text-gold-300 focus:opacity-100 lg:opacity-0 lg:group-hover:opacity-100',
+        )}
+      >
+        <Star className="h-4 w-4" {...(fav ? { fill: 'currentColor' } : {})} />
+      </button>
+    </div>
+  )
+}
+
+// One direct-message row. Mirrors ChannelRow: tapping navigates; the star (shown on hover, always
+// visible once starred) toggles the DM into/out of Favorites.
+function DMRow({
+  c, unread, me, onNavigate, onToggleFav,
+}: {
+  c: ConversationWithMeta
+  unread: number
+  me?: string
+  onNavigate: () => void
+  onToggleFav: () => void
+}) {
+  const fav = !!c.is_favorite
+  const others = otherMembers(c, me)
+  return (
+    <div className="group relative flex items-center">
+      <NavLink
+        to={`/dm/${c.id}`}
+        onClick={onNavigate}
+        className={({ isActive }) => cn(NAV_LINK, 'flex-1 py-1.5 pr-8', isActive ? active : idle)}
+      >
+        {others[0] ? (
+          <Avatar profile={others[0]} size="xs" showPresence={!c.is_group} />
+        ) : (
+          <MessageSquare className="h-4 w-4" />
+        )}
+        <span className={cn('flex-1 truncate', !!unread && 'font-semibold text-white')}>{conversationName(c, me)}</span>
         {c.is_muted && <BellOff className="h-3.5 w-3.5 shrink-0 text-slate-500" aria-label="Muted" />}
         <UnreadBadge count={c.is_muted ? 0 : unread} />
       </NavLink>
@@ -197,7 +243,7 @@ const idle = 'text-slate-300 hover:bg-white/5 hover:text-white'
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { profile, signOut } = useAuthStore()
   const me = profile?.id
-  const { channels, conversations, unreadByChannel, unreadByConversation, notificationsCount, toggleFavorite } =
+  const { channels, conversations, unreadByChannel, unreadByConversation, notificationsCount, toggleFavorite, toggleConversationFavorite } =
     useChatStore()
   const savedCount = useSavedStore((s) => s.reminders.length)
   const setSearchOpen = useUIStore((s) => s.setSearchOpen)
@@ -209,6 +255,8 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const channelOrder = useUIStore((s) => s.channelOrder)
   const setChannelOrder = useUIStore((s) => s.setChannelOrder)
   const sectionOrder = useUIStore((s) => s.sectionOrder)
+  const sectionCollapsed = useUIStore((s) => s.sectionCollapsed)
+  const resetSidebarLayout = useUIStore((s) => s.resetSidebarLayout)
   const navigate = useNavigate()
 
   const manual = channelSort === 'manual'
@@ -320,9 +368,15 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         : 'name',
     )
 
+  // Favorited DMs live in the Favorites section; the rest stay under Direct Messages.
+  const favoriteConversations = conversations.filter((c) => c.is_favorite)
+  const normalConversations = conversations.filter((c) => !c.is_favorite)
+
   // Unread totals shown on a section's header while it's rolled up.
-  const dmUnread = Object.values(unreadByConversation).reduce((a, b) => a + b, 0)
-  const favUnread = favoriteChannels.reduce((n, c) => n + (c.is_muted ? 0 : unreadByChannel[c.id] ?? 0), 0)
+  const dmUnread = normalConversations.reduce((n, c) => n + (c.is_muted ? 0 : unreadByConversation[c.id] ?? 0), 0)
+  const favUnread =
+    favoriteChannels.reduce((n, c) => n + (c.is_muted ? 0 : unreadByChannel[c.id] ?? 0), 0) +
+    favoriteConversations.reduce((n, c) => n + (c.is_muted ? 0 : unreadByConversation[c.id] ?? 0), 0)
   const channelsUnread =
     normalChannels.reduce((n, c) => n + (c.is_muted ? 0 : unreadByChannel[c.id] ?? 0), 0) +
     channelGroups.reduce((n, [, list]) => n + list.reduce((m, c) => m + (unreadByChannel[c.id] ?? 0), 0), 0)
@@ -333,7 +387,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       label: 'Favorites',
       unread: favUnread,
       // Nothing starred yet → don't show an empty section at all.
-      hide: favoriteChannels.length === 0,
+      hide: favoriteChannels.length === 0 && favoriteConversations.length === 0,
       body: (
         <div className="space-y-0.5">
           {favoriteChannels.map((c) => (
@@ -344,6 +398,16 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
               manual={false}
               onNavigate={go}
               onToggleFav={() => void toggleFavorite(c.id, !c.is_favorite)}
+            />
+          ))}
+          {favoriteConversations.map((c) => (
+            <DMRow
+              key={c.id}
+              c={c}
+              unread={unreadByConversation[c.id] ?? 0}
+              me={me}
+              onNavigate={go}
+              onToggleFav={() => void toggleConversationFavorite(c.id, !c.is_favorite)}
             />
           ))}
         </div>
@@ -444,28 +508,16 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       ),
       body: (
         <div className="space-y-0.5">
-          {conversations.slice(0, 15).map((c) => {
-            const unread = unreadByConversation[c.id] ?? 0
-            const others = otherMembers(c, me)
-            return (
-              <NavLink
-                key={c.id}
-                to={`/dm/${c.id}`}
-                onClick={go}
-                className={({ isActive }) => cn(NAV_LINK, 'py-1.5', isActive ? active : idle)}
-              >
-                {others[0] ? (
-                  <Avatar profile={others[0]} size="xs" showPresence={!c.is_group} />
-                ) : (
-                  <MessageSquare className="h-4 w-4" />
-                )}
-                <span className={cn('flex-1 truncate', !!unread && 'font-semibold text-white')}>
-                  {conversationName(c, me)}
-                </span>
-                <UnreadBadge count={c.is_muted ? 0 : unread} />
-              </NavLink>
-            )
-          })}
+          {normalConversations.slice(0, 15).map((c) => (
+            <DMRow
+              key={c.id}
+              c={c}
+              unread={unreadByConversation[c.id] ?? 0}
+              me={me}
+              onNavigate={go}
+              onToggleFav={() => void toggleConversationFavorite(c.id, !c.is_favorite)}
+            />
+          ))}
           {conversations.length === 0 && (
             <p className="px-3 py-1 text-xs text-slate-500">Start a conversation.</p>
           )}
@@ -535,6 +587,17 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             </SectionShell>
           )
         })}
+
+        {/* Reset the section order + roll-ups back to default. Only shows once you've customized. */}
+        {(sectionOrder.join(',') !== 'favorites,channels,dms' || Object.values(sectionCollapsed).some(Boolean)) && (
+          <button
+            onClick={resetSidebarLayout}
+            className="w-full px-3 pt-1 text-left text-[11px] text-slate-500 hover:text-slate-300"
+            title="Put Favorites, Channels and Direct Messages back to the default order and expand them"
+          >
+            ↺ Reset sidebar layout
+          </button>
+        )}
 
         {isAdmin(profile?.access_level) && (
           <NavLink to="/admin" onClick={go} className={({ isActive }) => cn(NAV_LINK, isActive ? active : idle)}>

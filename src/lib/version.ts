@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.39.0'
+export const APP_VERSION = '1.40.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.40.0',
+    date: '2026-08-07',
+    time: '5:45 PM ET',
+    title: 'Favorite DMs + reset sidebar layout',
+    changes: [
+      'You can now star a direct message (or group DM), just like a channel — hover the DM in the sidebar and tap the star. Starred DMs join your Favorites section alongside starred channels.',
+      'Added a “Reset sidebar layout” link that snaps Favorites, Channels and Direct Messages back to the default order and expands them all. It only appears once you’ve customized the layout.',
+    ],
+  },
   {
     version: '1.39.0',
     date: '2026-08-07',

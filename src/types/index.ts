@@ -30,4 +30,5 @@ export interface ConversationWithMeta extends DirectConversationRow {
   members?: Profile[]
   unread?: number
   is_muted?: boolean
+  is_favorite?: boolean
 }

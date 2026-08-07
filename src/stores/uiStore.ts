@@ -94,6 +94,7 @@ interface UIState {
   setChannelOrder: (ids: string[]) => void
   moveSection: (key: SidebarSection, dir: -1 | 1) => void
   toggleSectionCollapsed: (key: SidebarSection) => void
+  resetSidebarLayout: () => void
   openThread: (id: string | null) => void
   toast: (t: Omit<Toast, 'id'>) => void
   dismissToast: (id: string) => void
@@ -143,6 +144,11 @@ export const useUIStore = create<UIState>((set, get) => ({
   toggleSectionCollapsed: (key) => {
     const next = { ...get().sectionCollapsed, [key]: !get().sectionCollapsed[key] }
     set({ sectionCollapsed: next })
+    persist(get())
+  },
+  // Snap sections back to the default order and expand them all.
+  resetSidebarLayout: () => {
+    set({ sectionOrder: ALL_SECTIONS.slice(), sectionCollapsed: {} })
     persist(get())
   },
   openThread: (id) => set({ threadRootId: id }),
