@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   DndContext, closestCenter, PointerSensor, TouchSensor, KeyboardSensor,
@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { useAuthStore } from '@/stores/authStore'
 import { useChatStore } from '@/stores/chatStore'
 import { useSavedStore } from '@/stores/savedStore'
-import { useUIStore } from '@/stores/uiStore'
+import { useUIStore, type SidebarSection } from '@/stores/uiStore'
 import { Avatar } from '@/components/ui/Avatar'
 import { UnreadBadge, AccessBadge } from '@/components/ui/Badge'
 import {
@@ -132,6 +132,64 @@ function CollapsibleChannelGroup({
   )
 }
 
+// A top-level sidebar section (Favorites / Channels / Direct Messages). The header rolls the whole
+// section up (chevron), shows an unread badge while collapsed, and has ↑/↓ buttons to move the
+// section above or below the others. `actions` are the section's own buttons (sort, new, etc.).
+function SectionShell({
+  sectionKey, label, unread, actions, children,
+}: {
+  sectionKey: SidebarSection
+  label: string
+  unread: number
+  actions?: ReactNode
+  children: ReactNode
+}) {
+  const sectionOrder = useUIStore((s) => s.sectionOrder)
+  const collapsed = useUIStore((s) => !!s.sectionCollapsed[sectionKey])
+  const moveSection = useUIStore((s) => s.moveSection)
+  const toggleSectionCollapsed = useUIStore((s) => s.toggleSectionCollapsed)
+  const idx = sectionOrder.indexOf(sectionKey)
+  const isFirst = idx <= 0
+  const isLast = idx === sectionOrder.length - 1
+  return (
+    <div className="group/section">
+      <div className="flex items-center justify-between px-3 pb-1">
+        <button
+          onClick={() => toggleSectionCollapsed(sectionKey)}
+          title={collapsed ? `Show ${label}` : `Hide ${label}`}
+          className="flex min-w-0 flex-1 items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-300"
+        >
+          <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 transition-transform', collapsed ? '-rotate-90' : '')} />
+          <span className="truncate text-left">{label}</span>
+          {collapsed && unread > 0 && <UnreadBadge count={unread} />}
+        </button>
+        <div className="flex shrink-0 items-center gap-0.5">
+          {actions}
+          <button
+            onClick={() => moveSection(sectionKey, -1)}
+            disabled={isFirst}
+            title="Move section up"
+            aria-label={`Move ${label} up`}
+            className={cn('rounded p-1 text-slate-400 hover:bg-white/5 hover:text-white', isFirst && 'cursor-default opacity-25 hover:bg-transparent hover:text-slate-400')}
+          >
+            <ChevronDown className="h-3.5 w-3.5 rotate-180" />
+          </button>
+          <button
+            onClick={() => moveSection(sectionKey, 1)}
+            disabled={isLast}
+            title="Move section down"
+            aria-label={`Move ${label} down`}
+            className={cn('rounded p-1 text-slate-400 hover:bg-white/5 hover:text-white', isLast && 'cursor-default opacity-25 hover:bg-transparent hover:text-slate-400')}
+          >
+            <ChevronDown className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+      {!collapsed && children}
+    </div>
+  )
+}
+
 const NAV_LINK = 'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition'
 const active = 'bg-brand-500/25 text-white'
 const idle = 'text-slate-300 hover:bg-white/5 hover:text-white'
@@ -150,6 +208,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const setHideInactive = useUIStore((s) => s.setHideInactive)
   const channelOrder = useUIStore((s) => s.channelOrder)
   const setChannelOrder = useUIStore((s) => s.setChannelOrder)
+  const sectionOrder = useUIStore((s) => s.sectionOrder)
   const navigate = useNavigate()
 
   const manual = channelSort === 'manual'
@@ -215,8 +274,17 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channels, hideInactive, channelSort, unreadByChannel, manualOrderIds])
 
-  // Split into the normal (draggable) list and grouped "console" sections (by category).
-  const normalChannels = useMemo(() => visibleChannels.filter((c) => !c.category), [visibleChannels])
+  // Split into: starred favorites (their own section), the normal (draggable) list, and grouped
+  // "console" sections (by category). Favorites live in the Favorites section so they're never
+  // listed twice.
+  const favoriteChannels = useMemo(
+    () => visibleChannels.filter((c) => !c.category && c.is_favorite),
+    [visibleChannels],
+  )
+  const normalChannels = useMemo(
+    () => visibleChannels.filter((c) => !c.category && !c.is_favorite),
+    [visibleChannels],
+  )
   const channelGroups = useMemo(() => {
     const m = new Map<string, typeof channels>()
     for (const c of visibleChannels) {
@@ -251,6 +319,160 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         : channelSort === 'unread' ? 'manual'
         : 'name',
     )
+
+  // Unread totals shown on a section's header while it's rolled up.
+  const dmUnread = Object.values(unreadByConversation).reduce((a, b) => a + b, 0)
+  const favUnread = favoriteChannels.reduce((n, c) => n + (c.is_muted ? 0 : unreadByChannel[c.id] ?? 0), 0)
+  const channelsUnread =
+    normalChannels.reduce((n, c) => n + (c.is_muted ? 0 : unreadByChannel[c.id] ?? 0), 0) +
+    channelGroups.reduce((n, [, list]) => n + list.reduce((m, c) => m + (unreadByChannel[c.id] ?? 0), 0), 0)
+
+  // Each re-orderable/collapsible section, keyed the same as uiStore.sectionOrder.
+  const sections: Record<SidebarSection, { label: string; unread: number; actions?: ReactNode; body: ReactNode; hide?: boolean }> = {
+    favorites: {
+      label: 'Favorites',
+      unread: favUnread,
+      // Nothing starred yet → don't show an empty section at all.
+      hide: favoriteChannels.length === 0,
+      body: (
+        <div className="space-y-0.5">
+          {favoriteChannels.map((c) => (
+            <ChannelRow
+              key={c.id}
+              c={c}
+              unread={unreadByChannel[c.id] ?? 0}
+              manual={false}
+              onNavigate={go}
+              onToggleFav={() => void toggleFavorite(c.id, !c.is_favorite)}
+            />
+          ))}
+        </div>
+      ),
+    },
+    channels: {
+      label: 'Channels',
+      unread: channelsUnread,
+      actions: (
+        <>
+          <button
+            title={`Sort: ${SORT_LABEL[channelSort]} — tap to change`}
+            onClick={nextSort}
+            className="flex items-center gap-1 rounded p-1.5 text-slate-400 hover:bg-white/5 hover:text-white"
+          >
+            <ArrowUpDown className="h-4 w-4" />
+            <span className="text-[10px] font-semibold uppercase tracking-wide">{SORT_LABEL[channelSort]}</span>
+          </button>
+          <button
+            title={hideInactive ? 'Showing active channels only — tap to show all' : 'Hide quiet/empty channels'}
+            aria-pressed={hideInactive}
+            onClick={() => setHideInactive(!hideInactive)}
+            className={cn('rounded p-1.5 hover:bg-white/5 hover:text-white', hideInactive ? 'text-gold-400' : 'text-slate-400')}
+          >
+            {hideInactive ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+          <button title="Browse channels" onClick={() => setShowBrowse(true)} className="rounded p-1.5 text-slate-400 hover:bg-white/5 hover:text-white">
+            <Search className="h-4 w-4" />
+          </button>
+          <button title="Create channel" onClick={() => setShowCreate(true)} className="rounded p-1.5 text-slate-400 hover:bg-white/5 hover:text-white">
+            <Plus className="h-4 w-4" />
+          </button>
+        </>
+      ),
+      body: (
+        <>
+          {manual && (
+            <p className="px-3 pb-1 text-[10px] text-slate-500">Drag the ⣿ handle to reorder. Tap the sort button to switch back.</p>
+          )}
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+            <SortableContext items={normalChannels.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+              <div className="space-y-0.5">
+                {normalChannels.map((c) => (
+                  <ChannelRow
+                    key={c.id}
+                    c={c}
+                    unread={unreadByChannel[c.id] ?? 0}
+                    manual={manual}
+                    onNavigate={go}
+                    onToggleFav={() => void toggleFavorite(c.id, !c.is_favorite)}
+                  />
+                ))}
+                {channels.length === 0 && <p className="px-3 py-1 text-xs text-slate-500">No channels yet.</p>}
+                {channels.length > 0 && visibleChannels.length === 0 && (
+                  <p className="px-3 py-1 text-xs text-slate-500">All channels are quiet right now.</p>
+                )}
+                {hideInactive && hiddenCount > 0 && (
+                  <button
+                    onClick={() => setHideInactive(false)}
+                    className="w-full px-3 py-1 text-left text-[11px] text-slate-500 hover:text-slate-300"
+                  >
+                    + Show {hiddenCount} quiet channel{hiddenCount === 1 ? '' : 's'}
+                  </button>
+                )}
+              </div>
+            </SortableContext>
+          </DndContext>
+
+          {/* Grouped console channels (e.g. AI Command Consoles) — collapsible so they stay tidy. */}
+          {channelGroups.map(([label, list]) => (
+            <CollapsibleChannelGroup
+              key={label}
+              label={label}
+              count={list.reduce((n, c) => n + (unreadByChannel[c.id] ?? 0), 0)}
+            >
+              {list.map((c) => (
+                <ChannelRow
+                  key={c.id}
+                  c={c}
+                  unread={unreadByChannel[c.id] ?? 0}
+                  manual={false}
+                  onNavigate={go}
+                  onToggleFav={() => void toggleFavorite(c.id, !c.is_favorite)}
+                />
+              ))}
+            </CollapsibleChannelGroup>
+          ))}
+        </>
+      ),
+    },
+    dms: {
+      label: 'Direct Messages',
+      unread: dmUnread,
+      actions: (
+        <button title="New message" onClick={() => setShowNewDM(true)} className="rounded p-1.5 text-slate-400 hover:bg-white/5 hover:text-white">
+          <Plus className="h-4 w-4" />
+        </button>
+      ),
+      body: (
+        <div className="space-y-0.5">
+          {conversations.slice(0, 15).map((c) => {
+            const unread = unreadByConversation[c.id] ?? 0
+            const others = otherMembers(c, me)
+            return (
+              <NavLink
+                key={c.id}
+                to={`/dm/${c.id}`}
+                onClick={go}
+                className={({ isActive }) => cn(NAV_LINK, 'py-1.5', isActive ? active : idle)}
+              >
+                {others[0] ? (
+                  <Avatar profile={others[0]} size="xs" showPresence={!c.is_group} />
+                ) : (
+                  <MessageSquare className="h-4 w-4" />
+                )}
+                <span className={cn('flex-1 truncate', !!unread && 'font-semibold text-white')}>
+                  {conversationName(c, me)}
+                </span>
+                <UnreadBadge count={c.is_muted ? 0 : unread} />
+              </NavLink>
+            )
+          })}
+          {conversations.length === 0 && (
+            <p className="px-3 py-1 text-xs text-slate-500">Start a conversation.</p>
+          )}
+        </div>
+      ),
+    },
+  }
 
   return (
     <div className="flex h-full flex-col bg-brand-900/95">
@@ -303,124 +525,16 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           </button>
         </div>
 
-        {/* Channels */}
-        <div>
-          <div className="flex items-center justify-between px-3 pb-1">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Channels</p>
-            <div className="flex items-center gap-0.5">
-              <button
-                title={`Sort: ${SORT_LABEL[channelSort]} — tap to change`}
-                onClick={nextSort}
-                className="flex items-center gap-1 rounded p-1.5 text-slate-400 hover:bg-white/5 hover:text-white"
-              >
-                <ArrowUpDown className="h-4 w-4" />
-                <span className="text-[10px] font-semibold uppercase tracking-wide">{SORT_LABEL[channelSort]}</span>
-              </button>
-              <button
-                title={hideInactive ? 'Showing active channels only — tap to show all' : 'Hide quiet/empty channels'}
-                aria-pressed={hideInactive}
-                onClick={() => setHideInactive(!hideInactive)}
-                className={cn('rounded p-1.5 hover:bg-white/5 hover:text-white', hideInactive ? 'text-gold-400' : 'text-slate-400')}
-              >
-                {hideInactive ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-              <button title="Browse channels" onClick={() => setShowBrowse(true)} className="rounded p-1.5 text-slate-400 hover:bg-white/5 hover:text-white">
-                <Search className="h-4 w-4" />
-              </button>
-              <button title="Create channel" onClick={() => setShowCreate(true)} className="rounded p-1.5 text-slate-400 hover:bg-white/5 hover:text-white">
-                <Plus className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-          {manual && (
-            <p className="px-3 pb-1 text-[10px] text-slate-500">Drag the ⣿ handle to reorder. Tap the sort button to switch back.</p>
-          )}
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-            <SortableContext items={normalChannels.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-              <div className="space-y-0.5">
-                {normalChannels.map((c) => (
-                  <ChannelRow
-                    key={c.id}
-                    c={c}
-                    unread={unreadByChannel[c.id] ?? 0}
-                    manual={manual}
-                    onNavigate={go}
-                    onToggleFav={() => void toggleFavorite(c.id, !c.is_favorite)}
-                  />
-                ))}
-                {channels.length === 0 && <p className="px-3 py-1 text-xs text-slate-500">No channels yet.</p>}
-                {channels.length > 0 && visibleChannels.length === 0 && (
-                  <p className="px-3 py-1 text-xs text-slate-500">All channels are quiet right now.</p>
-                )}
-                {hideInactive && hiddenCount > 0 && (
-                  <button
-                    onClick={() => setHideInactive(false)}
-                    className="w-full px-3 py-1 text-left text-[11px] text-slate-500 hover:text-slate-300"
-                  >
-                    + Show {hiddenCount} quiet channel{hiddenCount === 1 ? '' : 's'}
-                  </button>
-                )}
-              </div>
-            </SortableContext>
-          </DndContext>
-
-          {/* Grouped console channels (e.g. AI Command Consoles) — collapsible so they stay tidy. */}
-          {channelGroups.map(([label, list]) => (
-            <CollapsibleChannelGroup
-              key={label}
-              label={label}
-              count={list.reduce((n, c) => n + (unreadByChannel[c.id] ?? 0), 0)}
-            >
-              {list.map((c) => (
-                <ChannelRow
-                  key={c.id}
-                  c={c}
-                  unread={unreadByChannel[c.id] ?? 0}
-                  manual={false}
-                  onNavigate={go}
-                  onToggleFav={() => void toggleFavorite(c.id, !c.is_favorite)}
-                />
-              ))}
-            </CollapsibleChannelGroup>
-          ))}
-        </div>
-
-        {/* Direct messages */}
-        <div>
-          <div className="flex items-center justify-between px-3 pb-1">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Direct Messages</p>
-            <button title="New message" onClick={() => setShowNewDM(true)} className="text-slate-400 hover:text-white">
-              <Plus className="h-4 w-4" />
-            </button>
-          </div>
-          <div className="space-y-0.5">
-            {conversations.slice(0, 15).map((c) => {
-              const unread = unreadByConversation[c.id] ?? 0
-              const others = otherMembers(c, me)
-              return (
-                <NavLink
-                  key={c.id}
-                  to={`/dm/${c.id}`}
-                  onClick={go}
-                  className={({ isActive }) => cn(NAV_LINK, 'py-1.5', isActive ? active : idle)}
-                >
-                  {others[0] ? (
-                    <Avatar profile={others[0]} size="xs" showPresence={!c.is_group} />
-                  ) : (
-                    <MessageSquare className="h-4 w-4" />
-                  )}
-                  <span className={cn('flex-1 truncate', !!unread && 'font-semibold text-white')}>
-                    {conversationName(c, me)}
-                  </span>
-                  <UnreadBadge count={c.is_muted ? 0 : unread} />
-                </NavLink>
-              )
-            })}
-            {conversations.length === 0 && (
-              <p className="px-3 py-1 text-xs text-slate-500">Start a conversation.</p>
-            )}
-          </div>
-        </div>
+        {/* Favorites / Channels / Direct Messages — each collapsible and re-orderable. */}
+        {sectionOrder.map((key) => {
+          const s = sections[key]
+          if (s.hide) return null
+          return (
+            <SectionShell key={key} sectionKey={key} label={s.label} unread={s.unread} actions={s.actions}>
+              {s.body}
+            </SectionShell>
+          )
+        })}
 
         {isAdmin(profile?.access_level) && (
           <NavLink to="/admin" onClick={go} className={({ isActive }) => cn(NAV_LINK, isActive ? active : idle)}>

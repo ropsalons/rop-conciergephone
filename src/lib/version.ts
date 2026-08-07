@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.38.0'
+export const APP_VERSION = '1.39.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,18 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.39.0',
+    date: '2026-08-07',
+    time: '5:00 PM ET',
+    title: 'Roll up and rearrange your sidebar',
+    changes: [
+      'You can now collapse (roll up) the Favorites, Channels, and Direct Messages sections in the sidebar — just tap the section name. Rolled-up sections show a badge if there’s anything unread, the same way the AI console groups already worked.',
+      'You can reorder those sections with the ↑ / ↓ buttons on each header — put Direct Messages above Channels, or Favorites wherever you like.',
+      'Starred favorites now live in their own “Favorites” section (instead of just floating at the top of Channels), so you can position them where you want. It only appears once you’ve starred something.',
+      'Your layout choices are remembered on each device.',
+    ],
+  },
   {
     version: '1.38.0',
     date: '2026-08-07',

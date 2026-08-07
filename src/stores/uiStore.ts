@@ -13,6 +13,19 @@ export interface Toast {
 // 'manual' = the user's own drag-and-drop order (see channelOrder).
 export type ChannelSort = 'name' | 'activity' | 'unread' | 'manual'
 
+// The re-orderable / collapsible sidebar sections. The user can move these up or down and
+// roll each one up, the same way the AI console groups collapse.
+export type SidebarSection = 'favorites' | 'channels' | 'dms'
+const ALL_SECTIONS: SidebarSection[] = ['favorites', 'channels', 'dms']
+// Normalize a stored order: keep known keys in their saved order, then append any missing ones,
+// so a partial/old value can never drop a section.
+function normalizeSections(raw: unknown): SidebarSection[] {
+  const arr = Array.isArray(raw) ? raw.filter((x): x is SidebarSection => (ALL_SECTIONS as string[]).includes(x)) : []
+  const seen = new Set(arr)
+  for (const k of ALL_SECTIONS) if (!seen.has(k)) arr.push(k)
+  return arr
+}
+
 // Persisted sidebar preferences (survive reloads). Kept tiny + defensive so a bad/empty
 // localStorage value can never break boot.
 const PREF_KEY = 'rop.sidebarPrefs'
@@ -20,6 +33,8 @@ interface SidebarPrefs {
   channelSort: ChannelSort
   hideInactive: boolean
   channelOrder: string[] // channel ids, in the user's manual drag order
+  sectionOrder: SidebarSection[] // top-to-bottom order of the Favorites / Channels / DMs sections
+  sectionCollapsed: Record<string, boolean> // which sections are rolled up
 }
 function loadPrefs(): SidebarPrefs {
   try {
@@ -28,9 +43,11 @@ function loadPrefs(): SidebarPrefs {
     const valid = ['name', 'activity', 'unread', 'manual']
     const channelSort: ChannelSort = valid.includes(raw.channelSort) ? raw.channelSort : 'activity'
     const channelOrder = Array.isArray(raw.channelOrder) ? raw.channelOrder.filter((x: unknown) => typeof x === 'string') : []
-    return { channelSort, hideInactive: !!raw.hideInactive, channelOrder }
+    const sectionCollapsed =
+      raw.sectionCollapsed && typeof raw.sectionCollapsed === 'object' ? (raw.sectionCollapsed as Record<string, boolean>) : {}
+    return { channelSort, hideInactive: !!raw.hideInactive, channelOrder, sectionOrder: normalizeSections(raw.sectionOrder), sectionCollapsed }
   } catch {
-    return { channelSort: 'activity', hideInactive: false, channelOrder: [] }
+    return { channelSort: 'activity', hideInactive: false, channelOrder: [], sectionOrder: ALL_SECTIONS.slice(), sectionCollapsed: {} }
   }
 }
 function savePrefs(p: SidebarPrefs) {
@@ -39,6 +56,22 @@ function savePrefs(p: SidebarPrefs) {
   } catch {
     /* ignore quota / privacy-mode errors */
   }
+}
+// Snapshot the current preference-bearing state to localStorage.
+function persist(s: {
+  channelSort: ChannelSort
+  hideInactive: boolean
+  channelOrder: string[]
+  sectionOrder: SidebarSection[]
+  sectionCollapsed: Record<string, boolean>
+}) {
+  savePrefs({
+    channelSort: s.channelSort,
+    hideInactive: s.hideInactive,
+    channelOrder: s.channelOrder,
+    sectionOrder: s.sectionOrder,
+    sectionCollapsed: s.sectionCollapsed,
+  })
 }
 
 interface UIState {
@@ -50,6 +83,8 @@ interface UIState {
   channelSort: ChannelSort
   hideInactive: boolean
   channelOrder: string[]
+  sectionOrder: SidebarSection[]
+  sectionCollapsed: Record<string, boolean>
   setMobileSidebar: (open: boolean) => void
   toggleMobileSidebar: () => void
   setSearchOpen: (open: boolean) => void
@@ -57,6 +92,8 @@ interface UIState {
   setChannelSort: (sort: ChannelSort) => void
   setHideInactive: (hide: boolean) => void
   setChannelOrder: (ids: string[]) => void
+  moveSection: (key: SidebarSection, dir: -1 | 1) => void
+  toggleSectionCollapsed: (key: SidebarSection) => void
   openThread: (id: string | null) => void
   toast: (t: Omit<Toast, 'id'>) => void
   dismissToast: (id: string) => void
@@ -73,22 +110,40 @@ export const useUIStore = create<UIState>((set, get) => ({
   channelSort: initialPrefs.channelSort,
   hideInactive: initialPrefs.hideInactive,
   channelOrder: initialPrefs.channelOrder,
+  sectionOrder: initialPrefs.sectionOrder,
+  sectionCollapsed: initialPrefs.sectionCollapsed,
   setMobileSidebar: (open) => set({ mobileSidebarOpen: open }),
   toggleMobileSidebar: () => set((s) => ({ mobileSidebarOpen: !s.mobileSidebarOpen })),
   setSearchOpen: (open) => set({ searchOpen: open }),
   setHelpOpen: (open) => set({ helpOpen: open }),
   setChannelSort: (sort) => {
     set({ channelSort: sort })
-    savePrefs({ channelSort: sort, hideInactive: get().hideInactive, channelOrder: get().channelOrder })
+    persist(get())
   },
   setHideInactive: (hide) => {
     set({ hideInactive: hide })
-    savePrefs({ channelSort: get().channelSort, hideInactive: hide, channelOrder: get().channelOrder })
+    persist(get())
   },
   // Dragging a channel writes a new manual order and switches the list into manual mode.
   setChannelOrder: (ids) => {
     set({ channelOrder: ids, channelSort: 'manual' })
-    savePrefs({ channelSort: 'manual', hideInactive: get().hideInactive, channelOrder: ids })
+    persist(get())
+  },
+  // Move a whole section (Favorites / Channels / DMs) up or down in the sidebar.
+  moveSection: (key, dir) => {
+    const order = get().sectionOrder.slice()
+    const i = order.indexOf(key)
+    const j = i + dir
+    if (i < 0 || j < 0 || j >= order.length) return
+    ;[order[i], order[j]] = [order[j], order[i]]
+    set({ sectionOrder: order })
+    persist(get())
+  },
+  // Roll a section up (collapse) or open it back.
+  toggleSectionCollapsed: (key) => {
+    const next = { ...get().sectionCollapsed, [key]: !get().sectionCollapsed[key] }
+    set({ sectionCollapsed: next })
+    persist(get())
   },
   openThread: (id) => set({ threadRootId: id }),
   toast: (t) => {
