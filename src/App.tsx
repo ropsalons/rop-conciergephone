@@ -31,6 +31,7 @@ import { ResourcesPage } from '@/pages/ResourcesPage'
 import { AdminPage } from '@/pages/AdminPage'
 import { DeactivatedPage } from '@/pages/DeactivatedPage'
 import { ShareTargetModal } from '@/components/share/ShareTargetModal'
+import { AppBadge } from '@/components/AppBadge'
 
 export default function App() {
   const { initialized, session, profile, init } = useAuthStore()
@@ -99,6 +100,8 @@ export default function App() {
       </Routes>
       {/* Opens only when the app was launched from the phone's share sheet (Android). */}
       <ShareTargetModal />
+      {/* Unread count on the app's Dock/taskbar/home-screen icon. */}
+      <AppBadge />
       <Toaster />
       <UpdatePrompt />
     </>
