@@ -60,14 +60,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     })
   },
 
-  signIn: async (email, password) => {
+  signIn: async (identifier, password) => {
     set({ loading: true })
+    // People can log in with their PHONE NUMBER or their email. Supabase auth is email-based, so map a
+    // phone to that person's email first (RPC returns the email as-is when they typed one already).
+    let email = identifier.trim()
+    if (!email.includes('@')) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data } = await (supabase.rpc as any)('resolve_login_email', { p_identifier: email })
+        if (typeof data === 'string' && data) email = data
+      } catch {
+        /* fall through — signInWithPassword will just fail with a normal error below */
+      }
+    }
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     set({ loading: false })
     // Record the login in the audit log (fire-and-forget; security-definer RPC so it works for all staff).
     if (!error) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ;(supabase.rpc as any)('log_event', { p_action: 'login', p_entity_type: 'session', p_metadata: {} }).then(
+      void (supabase.rpc as any)('log_event', { p_action: 'login', p_entity_type: 'session', p_metadata: {} }).then(
         () => {},
         () => {},
       )

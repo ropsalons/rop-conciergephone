@@ -34,6 +34,9 @@ export function AuthPage() {
   const [departments, setDepartments] = useState<DepartmentRow[]>([])
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [forgotOpen, setForgotOpen] = useState(false)
+  const [forgotId, setForgotId] = useState('')
+  const [forgotBusy, setForgotBusy] = useState(false)
   const { signIn, signUp, loading } = useAuthStore()
   const toast = useUIStore((s) => s.toast)
 
@@ -73,6 +76,27 @@ export function AuthPage() {
         }
         toast({ kind: 'success', title: 'Welcome to ROP Chat', body: 'You’re all set.' })
       }
+    }
+  }
+
+  // Forgot passcode: we text a fresh 6-digit code to the phone on file. Public reset endpoint always
+  // replies the same way (whether or not the handle is on file), so it can't be used to probe accounts.
+  async function handleForgot() {
+    const id = forgotId.trim() || email.trim()
+    if (!id) return setError('Enter your phone number or email first.')
+    setError(null)
+    setNotice(null)
+    setForgotBusy(true)
+    const fallback = 'If that phone or email is on file, we just texted a reset code to the phone on record.'
+    try {
+      const { data } = await supabase.functions.invoke('reset-passcode', { body: { identifier: id } })
+      setNotice((data as { message?: string } | null)?.message ?? fallback)
+    } catch {
+      setNotice(fallback)
+    } finally {
+      setForgotOpen(false)
+      setForgotId('')
+      setForgotBusy(false)
     }
   }
 
@@ -126,30 +150,77 @@ export function AuthPage() {
           )}
 
           <div>
-            <label className="label">Work email</label>
+            <label className="label">{mode === 'signin' && !invited ? 'Phone number or email' : 'Work email'}</label>
             <input
-              type="email"
+              type={mode === 'signin' && !invited ? 'text' : 'email'}
+              inputMode={mode === 'signin' && !invited ? 'text' : 'email'}
+              autoComplete="username"
               required
               className="input"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@ropsalons.com"
+              placeholder={mode === 'signin' && !invited ? 'Phone number or you@ropsalons.com' : 'you@ropsalons.com'}
               readOnly={invited && !!invite.email}
             />
+            {mode === 'signin' && !invited && (
+              <p className="mt-1 text-[11px] text-slate-500">Use your phone number — everyone has one. Email works too.</p>
+            )}
           </div>
 
           <div>
-            <label className="label">{mode === 'signup' ? 'Create a password' : 'Password'}</label>
+            <div className="flex items-baseline justify-between">
+              <label className="label">{mode === 'signup' ? 'Create a passcode' : 'Passcode'}</label>
+              {mode === 'signin' && !invited && (
+                <button
+                  type="button"
+                  onClick={() => { setForgotOpen((v) => !v); setForgotId(email); setError(null); setNotice(null) }}
+                  className="text-[11px] font-semibold text-gold-300 hover:text-gold-200"
+                >
+                  Forgot passcode?
+                </button>
+              )}
+            </div>
             <input
               type="password"
               required
               minLength={6}
+              autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
               className="input"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder={mode === 'signup' ? 'Choose a password (at least 6 characters)' : 'Your password'}
+              placeholder={mode === 'signup' ? 'Choose a passcode (at least 6 characters)' : 'Your passcode'}
             />
+            {mode === 'signup' && !invited && (
+              <p className="mt-1 text-[11px] text-slate-500">Tip: the last 6 digits of your phone number is an easy one to remember.</p>
+            )}
           </div>
+
+          {forgotOpen && mode === 'signin' && !invited && (
+            <div className="rounded-lg border border-gold-400/30 bg-black/20 p-3">
+              <p className="text-[13px] font-semibold text-white">Reset your passcode</p>
+              <p className="mt-0.5 text-[12px] text-slate-400">
+                Enter your phone number (or email) and we’ll text a fresh 6-digit code to the phone on file. Sign in with
+                that code — you can keep using it.
+              </p>
+              <div className="mt-2 flex gap-2">
+                <input
+                  className="input flex-1"
+                  type="text"
+                  value={forgotId}
+                  onChange={(e) => setForgotId(e.target.value)}
+                  placeholder="Phone number or email"
+                />
+                <button
+                  type="button"
+                  onClick={handleForgot}
+                  disabled={forgotBusy}
+                  className="btn-primary whitespace-nowrap px-3 py-2 text-sm"
+                >
+                  {forgotBusy ? <Spinner /> : 'Text me a code'}
+                </button>
+              </div>
+            </div>
+          )}
 
           {mode === 'signup' && !invited && (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">

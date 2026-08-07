@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.37.0'
+export const APP_VERSION = '1.38.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,18 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.38.0',
+    date: '2026-08-07',
+    time: '3:30 PM ET',
+    title: 'Log in with your phone number + “Forgot passcode?”',
+    changes: [
+      'You can now sign in with your phone number — not just your email. Everyone has a phone, so it’s the easiest thing to remember. Email still works.',
+      'Added a “Forgot passcode?” link on the login screen. Enter your phone (or email) and we text a fresh 6-digit code to the phone on file — sign in with it and keep using it.',
+      'Renamed the password field to “Passcode,” with a tip that the last 6 digits of your phone is an easy one to remember.',
+      'Under the hood: one identity + your own passcode can now sign you in across ROP dashboards — you keep your own code (no shared password), it just works in more places.',
+    ],
+  },
   {
     version: '1.37.0',
     date: '2026-08-07',
