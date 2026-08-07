@@ -67,6 +67,35 @@ self.addEventListener('notificationclick', function (event) {
   )
 })
 
+// ── Web Share Target (Android) ────────────────────────────────────────────────────────────────
+// When a user shares photos/videos to ROP Chat from their phone's share sheet, the OS POSTs the
+// files to /share-target. We stash them in a cache and redirect into the app, which opens a
+// "Share to ROP Chat" screen (pick a channel + caption → post). Scoped strictly to POST
+// /share-target so it never touches any other request. (iOS/Safari has no share-target support.)
+self.addEventListener('fetch', function (event) {
+  var url
+  try { url = new URL(event.request.url) } catch (e) { return }
+  if (event.request.method !== 'POST' || url.pathname !== '/share-target') return
+  event.respondWith((async function () {
+    try {
+      var form = await event.request.formData()
+      var files = form.getAll('files')
+      var cache = await caches.open('rop-share')
+      var meta = []
+      for (var i = 0; i < files.length; i++) {
+        var f = files[i]
+        if (!f || typeof f === 'string') continue
+        var key = '/__share/' + i
+        await cache.put(new Request(key), new Response(f, { headers: { 'Content-Type': f.type || 'application/octet-stream' } }))
+        meta.push({ key: key, name: (f.name || 'shared-' + i), type: (f.type || '') })
+      }
+      var text = form.get('text') || form.get('title') || form.get('url') || ''
+      await cache.put(new Request('/__share/meta'), new Response(JSON.stringify({ files: meta, text: String(text || '') }), { headers: { 'Content-Type': 'application/json' } }))
+    } catch (e) { /* fall through to the app either way */ }
+    return Response.redirect('/?share=1', 303)
+  })())
+})
+
 // The freshly-launched app announces itself; hand it any pending deep link so a notification tap
 // lands on the exact conversation even on iOS (where a cold launch drops the openWindow target).
 self.addEventListener('message', function (event) {

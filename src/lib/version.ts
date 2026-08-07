@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.35.2'
+export const APP_VERSION = '1.36.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.36.0',
+    date: '2026-08-07',
+    time: '11:45 AM ET',
+    title: 'Share photos & videos straight into ROP Chat (Android)',
+    changes: [
+      'On Android, ROP Chat now shows up in your phone’s Share menu. Open a photo or video, tap Share, choose ROP Chat, pick a channel and add a caption — done. No more saving it first and uploading.',
+      'You can share several photos/videos at once.',
+      'iPhone note: Apple doesn’t let installed web apps appear in the iPhone Share menu, so on iPhone the quickest way is still to tap the 📎 in a channel, which opens your photo library directly.',
+    ],
+  },
   {
     version: '1.35.2',
     date: '2026-08-05',

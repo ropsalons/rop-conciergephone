@@ -50,6 +50,21 @@ export default defineConfig({
         orientation: 'portrait',
         start_url: '/',
         scope: '/',
+        // Web Share Target (Android): makes ROP Chat appear in the phone's share sheet so photos/
+        // videos can be shared straight into the app. The OS POSTs the files to /share-target, which
+        // our service worker (push-sw.js) catches and hands to the in-app "Share to ROP Chat" screen.
+        // (iOS/Safari does not support share targets for installed web apps — Android only.)
+        share_target: {
+          action: '/share-target',
+          method: 'POST',
+          enctype: 'multipart/form-data',
+          params: {
+            title: 'title',
+            text: 'text',
+            url: 'url',
+            files: [{ name: 'files', accept: ['image/*', 'video/*'] }],
+          },
+        },
         icons: [
           { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },

@@ -30,6 +30,7 @@ import { EventDetailPage } from '@/pages/EventDetailPage'
 import { ResourcesPage } from '@/pages/ResourcesPage'
 import { AdminPage } from '@/pages/AdminPage'
 import { DeactivatedPage } from '@/pages/DeactivatedPage'
+import { ShareTargetModal } from '@/components/share/ShareTargetModal'
 
 export default function App() {
   const { initialized, session, profile, init } = useAuthStore()
@@ -96,6 +97,8 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
+      {/* Opens only when the app was launched from the phone's share sheet (Android). */}
+      <ShareTargetModal />
       <Toaster />
       <UpdatePrompt />
     </>
