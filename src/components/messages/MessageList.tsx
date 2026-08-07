@@ -59,10 +59,14 @@ export function MessageList({
   highlightId,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const prevLen = useRef(0)
   const prevHeight = useRef(0)
   const flashedFor = useRef<string | null>(null)
+  // Whether we're "stuck" to the newest message. True on open and whenever the user is at the
+  // bottom; false once they scroll up to read history. Drives the auto-scroll below.
+  const stick = useRef(true)
   const profilesById = useDirectoryStore((s) => s.profilesById)
 
   // Preview of the message each reply is answering. Prefer the parent already loaded in this view;
@@ -117,6 +121,7 @@ export function MessageList({
     const el = scrollRef.current?.querySelector(`[data-mid="${CSS.escape(highlightId)}"]`) as HTMLElement | null
     if (!el) return
     flashedFor.current = highlightId
+    stick.current = false // stay on the linked message, don't let the auto-scroll pull to the bottom
     el.scrollIntoView({ behavior: 'smooth', block: 'center' })
     el.classList.add('msg-flash')
     window.setTimeout(() => el.classList.remove('msg-flash'), 2600)
@@ -127,26 +132,52 @@ export function MessageList({
     const el = scrollRef.current
     if (!el) return
     const appended = messages.length > prevLen.current
+    const grew = el.scrollHeight > prevHeight.current
     const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 160
     if (prevLen.current === 0 && messages.length) {
+      // First load in this channel. A deep link (…?m=<id>) positions itself on that message, so
+      // don't pin to the bottom in that case; otherwise land on the newest message.
+      if (highlightId) {
+        stick.current = false
+      } else {
+        el.scrollTop = el.scrollHeight
+        stick.current = true
+      }
+    } else if (appended && (nearBottom || stick.current)) {
+      // A new message arrived while we're at the bottom — follow it.
       el.scrollTop = el.scrollHeight
-    } else if (appended && nearBottom) {
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-    } else if (!appended && el.scrollHeight > prevHeight.current) {
-      // history prepended — keep viewport steady
+    } else if (!appended && grew && !stick.current) {
+      // Older history prepended while reading up — keep the viewport steady.
       el.scrollTop += el.scrollHeight - prevHeight.current
     }
     prevLen.current = messages.length
     prevHeight.current = el.scrollHeight
   }, [messages])
 
+  // Keep pinned to the bottom while content is still settling (images, rich cards, videos loading
+  // grow the page AFTER first render). Without this, opening an image-heavy channel scrolled to the
+  // "bottom" too early and then landed mid-list once the images pushed everything down.
+  useEffect(() => {
+    const el = scrollRef.current
+    const content = contentRef.current
+    if (!el || !content || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => {
+      if (stick.current) el.scrollTop = el.scrollHeight
+    })
+    ro.observe(content)
+    return () => ro.disconnect()
+  }, [])
+
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
     const onScroll = () => {
+      // Sticking = user is at (or near) the bottom. Scrolling up releases the stick so we don't
+      // yank them back down while they read; scrolling back to the bottom re-engages it.
+      stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120
       if (el.scrollTop < 80 && hasMore) loadMore()
     }
-    el.addEventListener('scroll', onScroll)
+    el.addEventListener('scroll', onScroll, { passive: true })
     return () => el.removeEventListener('scroll', onScroll)
   }, [hasMore, loadMore])
 
@@ -154,6 +185,7 @@ export function MessageList({
 
   return (
     <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto py-2">
+      <div ref={contentRef} className="min-h-full">
       {hasMore && (
         <div className="py-2 text-center">
           <button onClick={loadMore} className="btn-ghost px-3 py-1 text-xs">
@@ -208,6 +240,7 @@ export function MessageList({
         )
       })}
       <div ref={bottomRef} />
+      </div>
     </div>
   )
 }

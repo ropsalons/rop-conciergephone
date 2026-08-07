@@ -129,6 +129,7 @@ export function DMPage() {
         }
       />
       <MessageList
+        key={conversationId}
         messages={messages}
         loading={msgLoading}
         hasMore={hasMore}

@@ -261,6 +261,7 @@ export function ChannelPage() {
         <FullPageLoader label="Loading messages…" />
       ) : (
         <MessageList
+          key={channelId}
           messages={messages}
           loading={msgLoading}
           hasMore={hasMore}

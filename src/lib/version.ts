@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.36.0'
+export const APP_VERSION = '1.36.1'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.36.1',
+    date: '2026-08-07',
+    time: '12:30 PM ET',
+    title: 'Opening a channel now reliably lands on the newest message',
+    changes: [
+      'Fixed the bug where opening a channel sometimes dropped you into the middle instead of at the bottom. It happened on channels with photos/cards: the app jumped to the bottom before the images finished loading, and once they loaded they pushed everything down. Now it stays pinned to the newest message until everything has loaded.',
+      'Switching between channels reliably lands you at the latest message every time.',
+      'Opening a specific message from a notification or shared link still takes you right to that message.',
+    ],
+  },
   {
     version: '1.36.0',
     date: '2026-08-07',
