@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.41.0'
+export const APP_VERSION = '1.42.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,18 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.42.0',
+    date: '2026-08-11',
+    time: '1:15 PM ET',
+    title: 'Replies read clearly — and you can jump to what they answer',
+    changes: [
+      'Replies are back in the normal order (newest at the bottom), so a new reply is always easy to find where you’d expect it.',
+      'A reply is now clearly indented with a colored line down the side, so you can tell at a glance it’s a reply.',
+      'Each reply shows a bold, tappable “Replying to [name]” banner with a preview of the original — tap it to jump straight up to the message being answered (it flashes so you can spot it).',
+      'Reverses the brief experiment where replies were tucked under the original — that made new replies hard to find.',
+    ],
+  },
   {
     version: '1.41.0',
     date: '2026-08-11',

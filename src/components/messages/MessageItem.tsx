@@ -175,13 +175,18 @@ export function MessageItem({ message, grouped, showThread = true, parentPreview
         {showReplyContext && parentPreview && (
           <button
             onClick={onJumpToParent}
-            title="Go to the message this is replying to"
-            className="mb-0.5 flex max-w-full items-center gap-1 truncate text-left text-[11px] text-slate-500 hover:text-slate-300"
+            title="Tap to jump up to the message this is replying to"
+            className="mb-1 flex max-w-full items-center gap-1.5 rounded-md border-l-[3px] border-brand-400 bg-brand-500/10 py-1 pl-2 pr-2.5 text-left transition hover:bg-brand-500/20"
           >
-            <Reply className="h-3 w-3 shrink-0 -scale-x-100 text-brand-300/70" />
-            <span className="shrink-0 font-medium text-slate-400">{parentPreview.name}</span>
-            <span className="truncate text-slate-500">
+            <Reply className="h-3.5 w-3.5 shrink-0 -scale-x-100 text-brand-300" />
+            <span className="shrink-0 text-[11px] font-semibold text-brand-200">
+              Replying to {parentPreview.name}
+            </span>
+            <span className="truncate text-[11px] text-slate-300/80">
               {parentPreview.deleted ? 'deleted message' : parentPreview.snippet}
+            </span>
+            <span className="ml-auto hidden shrink-0 items-center gap-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-300 sm:flex">
+              Jump <span aria-hidden>↑</span>
             </span>
           </button>
         )}
