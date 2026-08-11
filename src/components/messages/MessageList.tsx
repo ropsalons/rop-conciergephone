@@ -105,27 +105,72 @@ export function MessageList({
     return fetchedParents[parentId]
   }
 
-  // Jump to (and flash) the original message a reply points at.
-  function jumpToMessage(id: string) {
-    const el = scrollRef.current?.querySelector(`[data-mid="${CSS.escape(id)}"]`) as HTMLElement | null
-    if (!el) return
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    el.classList.add('msg-flash')
-    window.setTimeout(() => el.classList.remove('msg-flash'), 2600)
+  // Center a message inside THIS scroll container. We do the math by hand (rect delta) rather than
+  // el.scrollIntoView(): on iOS Safari, scrollIntoView on an element inside a nested scroller often
+  // scrolls the wrong ancestor (or nothing), which is why tapping a notification "didn't bring me
+  // to it." Returns true when the message was on screen and we scrolled to it.
+  function focusMessage(id: string, flash: boolean): boolean {
+    const container = scrollRef.current
+    if (!container) return false
+    const el = container.querySelector(`[data-mid="${CSS.escape(id)}"]`) as HTMLElement | null
+    if (!el) return false
+    const cRect = container.getBoundingClientRect()
+    const eRect = el.getBoundingClientRect()
+    container.scrollTop += eRect.top - cRect.top - (container.clientHeight - el.clientHeight) / 2
+    if (flash) {
+      el.classList.add('msg-flash')
+      window.setTimeout(() => el.classList.remove('msg-flash'), 2600)
+    }
+    return true
   }
 
-  // Opened from a shared link (…?m=<id>): scroll to that exact message and flash it, once it's
-  // loaded. If it isn't in the loaded page, we simply stay in the conversation.
+  // Try now, then again as late content (images, rich cards) shifts offsets — re-centering each time
+  // so the target doesn't drift off screen. Flashes once.
+  const focusTimers = useRef<number[]>([])
+  function clearFocusTimers() {
+    focusTimers.current.forEach((t) => window.clearTimeout(t))
+    focusTimers.current = []
+  }
+  function focusMessageSoon(id: string, doFlash: boolean) {
+    stick.current = false // stay on the target, don't let auto-scroll yank to the bottom
+    clearFocusTimers()
+    let flashed = false
+    const attempt = () => {
+      const ok = focusMessage(id, doFlash && !flashed)
+      if (ok && doFlash) flashed = true
+    }
+    attempt()
+    focusTimers.current = [80, 250, 600, 1200].map((d) => window.setTimeout(attempt, d))
+  }
+  useEffect(() => () => clearFocusTimers(), [])
+
+  // Tap the reply banner → jump to (and flash) the message it answers.
+  function jumpToMessage(id: string) {
+    focusMessageSoon(id, true)
+  }
+
+  // Opened from a shared link / notification (…?m=<id>): scroll to that message and flash it. If it
+  // isn't in the loaded page yet, keep loading older pages until it appears (bounded), so an older
+  // linked message still lands instead of dumping you at the bottom.
+  const autoLoadTries = useRef(0)
+  useEffect(() => {
+    autoLoadTries.current = 0
+  }, [highlightId])
   useEffect(() => {
     if (!highlightId || flashedFor.current === highlightId) return
-    const el = scrollRef.current?.querySelector(`[data-mid="${CSS.escape(highlightId)}"]`) as HTMLElement | null
-    if (!el) return
-    flashedFor.current = highlightId
-    stick.current = false // stay on the linked message, don't let the auto-scroll pull to the bottom
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    el.classList.add('msg-flash')
-    window.setTimeout(() => el.classList.remove('msg-flash'), 2600)
-  }, [highlightId, messages])
+    const inDom = scrollRef.current?.querySelector(`[data-mid="${CSS.escape(highlightId)}"]`)
+    if (inDom) {
+      flashedFor.current = highlightId
+      focusMessageSoon(highlightId, true)
+      return
+    }
+    // Not on screen yet. If it's not even in memory, pull older pages until it shows up.
+    const inState = messages.some((m) => m.id === highlightId)
+    if (!inState && hasMore && autoLoadTries.current < 8) {
+      autoLoadTries.current++
+      loadMore()
+    }
+  }, [highlightId, messages, hasMore, loadMore])
 
   // Auto-scroll to newest when appropriate; preserve position when prepending history.
   useLayoutEffect(() => {

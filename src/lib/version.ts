@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.42.0'
+export const APP_VERSION = '1.43.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.43.0',
+    date: '2026-08-11',
+    time: '4:30 PM ET',
+    title: 'Tapping a notification now reliably lands on the message (iPhone fix)',
+    changes: [
+      'Fixed the big one: tapping a notification (or a “Replying to…” banner) sometimes opened the conversation but didn’t scroll to the actual message — especially on iPhone. It now jumps straight to the message and flashes it.',
+      'The scroll is calculated directly instead of relying on the browser, which was unreliable inside the message list on iOS Safari.',
+      'If the linked message is further back in the history, the app now loads older messages until it finds it, instead of leaving you at the bottom.',
+    ],
+  },
   {
     version: '1.42.0',
     date: '2026-08-11',
