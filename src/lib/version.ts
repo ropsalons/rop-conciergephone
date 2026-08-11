@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.40.0'
+export const APP_VERSION = '1.41.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,18 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.41.0',
+    date: '2026-08-11',
+    time: '12:30 PM ET',
+    title: 'Replies now nest under the message they answer',
+    changes: [
+      'When you reply to a specific message, your reply now appears indented right below that message — with a colored line down the side — instead of dropping to the bottom of the channel. All the replies to a comment stay grouped together under it, so a back-and-forth is easy to follow.',
+      'Nothing is hidden — every reply is shown inline (you can still open the thread view too).',
+      'If the original message is too far up to be loaded, the reply still shows its little “replying to …” chip so you can tap to jump to it.',
+      'Works the same in channels and direct messages.',
+    ],
+  },
   {
     version: '1.40.0',
     date: '2026-08-07',

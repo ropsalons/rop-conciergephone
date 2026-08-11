@@ -105,6 +105,27 @@ export function MessageList({
     return fetchedParents[parentId]
   }
 
+  // Nest replies UNDER the message they answer (indented), instead of dropping them at the bottom of
+  // the channel. `childrenOf` maps a parent id → its replies (chronological); `roots` are the
+  // top-level messages plus any reply whose parent isn't in the loaded page (shown with a jump chip).
+  const childrenOf = useMemo(() => {
+    const inPage = new Set(messages.map((m) => m.id))
+    const map = new Map<string, MessageWithAuthor[]>()
+    for (const m of messages) {
+      if (m.parent_message_id && inPage.has(m.parent_message_id)) {
+        const arr = map.get(m.parent_message_id) ?? []
+        arr.push(m)
+        map.set(m.parent_message_id, arr)
+      }
+    }
+    for (const arr of map.values()) arr.sort((a, b) => a.created_at.localeCompare(b.created_at))
+    return map
+  }, [messages])
+  const roots = useMemo(() => {
+    const inPage = new Set(messages.map((m) => m.id))
+    return messages.filter((m) => !m.parent_message_id || !inPage.has(m.parent_message_id))
+  }, [messages])
+
   // Jump to (and flash) the original message a reply points at.
   function jumpToMessage(id: string) {
     const el = scrollRef.current?.querySelector(`[data-mid="${CSS.escape(id)}"]`) as HTMLElement | null
@@ -183,6 +204,37 @@ export function MessageList({
 
   if (loading && messages.length === 0) return <FullPageLoader label="Loading messages…" />
 
+  // Render a message and, indented beneath it, its replies (recursively). Depth adds a left rule so
+  // a reply reads as sitting under the comment it answers. Nested replies don't repeat the "replying
+  // to" chip (the indent already shows it); an orphan reply whose parent isn't loaded keeps the chip.
+  function renderNode(m: MessageWithAuthor, depth: number, grouped: boolean) {
+    const kids = childrenOf.get(m.id) ?? []
+    const inPage = byId.has(m.parent_message_id as string)
+    const isOrphanReply = !!m.parent_message_id && !inPage
+    const parentPreview = isOrphanReply ? previewFor(m.parent_message_id as string) : undefined
+    return (
+      <div key={m.id}>
+        <MessageItem
+          message={m}
+          grouped={grouped}
+          showThread={showThreads}
+          parentPreview={parentPreview}
+          onJumpToParent={isOrphanReply ? () => jumpToMessage(m.parent_message_id as string) : undefined}
+          onReact={(e) => onReact(m.id, e)}
+          onReply={onOpenThread ? () => onOpenThread(m.id) : undefined}
+          onEdit={(body) => onEdit(m.id, body)}
+          onDelete={() => onDelete(m.id)}
+          onTogglePin={onTogglePin ? (p) => onTogglePin(m.id, p) : undefined}
+        />
+        {kids.length > 0 && (
+          <div className="ml-4 border-l-2 border-brand-500/30 pl-1 sm:ml-6 sm:pl-2">
+            {kids.map((k) => renderNode(k, Math.min(depth + 1, 4), false))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto py-2">
       <div ref={contentRef} className="min-h-full">
@@ -198,21 +250,17 @@ export function MessageList({
           No messages yet — say hello 👋
         </div>
       )}
-      {messages.map((m, i) => {
-        const prev = messages[i - 1]
+      {roots.map((m, i) => {
+        const prev = roots[i - 1]
         const newDay = !prev || !sameDay(prev.created_at, m.created_at)
-        const isReply = !!m.parent_message_id
         const grouped =
           !newDay &&
           prev &&
           prev.user_id === m.user_id &&
           new Date(m.created_at).getTime() - new Date(prev.created_at).getTime() < 5 * 60 * 1000 &&
           !prev.is_deleted &&
-          // Replies always stand on their own (avatar + "replying to" chip), and never absorb the
-          // message after them into a group.
-          !isReply &&
+          !m.parent_message_id &&
           !prev.parent_message_id
-        const parentPreview = isReply ? previewFor(m.parent_message_id as string) : undefined
         return (
           <div key={m.id}>
             {newDay && (
@@ -224,18 +272,7 @@ export function MessageList({
                 <div className="h-px flex-1 bg-white/10" />
               </div>
             )}
-            <MessageItem
-              message={m}
-              grouped={!!grouped}
-              showThread={showThreads}
-              parentPreview={parentPreview}
-              onJumpToParent={isReply ? () => jumpToMessage(m.parent_message_id as string) : undefined}
-              onReact={(e) => onReact(m.id, e)}
-              onReply={onOpenThread ? () => onOpenThread(m.id) : undefined}
-              onEdit={(body) => onEdit(m.id, body)}
-              onDelete={() => onDelete(m.id)}
-              onTogglePin={onTogglePin ? (p) => onTogglePin(m.id, p) : undefined}
-            />
+            {renderNode(m, 0, !!grouped)}
           </div>
         )
       })}
