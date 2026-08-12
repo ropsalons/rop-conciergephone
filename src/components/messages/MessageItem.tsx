@@ -10,7 +10,7 @@ import { FileChip } from '@/components/files/FileChip'
 import { messageTime, displayName, cn } from '@/lib/utils'
 import { groupHandleSet } from '@/lib/groups'
 import { QUICK_EMOJIS, canManage, isAdmin } from '@/lib/constants'
-import { Smile, Reply, Pin, Edit, Trash, Check, X, MoreHorizontal, Link as LinkIcon, Bookmark, Clock, ClipboardList, Smartphone } from '@/components/ui/Icons'
+import { Smile, Reply, Pin, Edit, Trash, Check, X, MoreHorizontal, Link as LinkIcon, Bookmark, Clock, ClipboardList, Smartphone, Copy } from '@/components/ui/Icons'
 import { useUIStore } from '@/stores/uiStore'
 import { useSavedStore } from '@/stores/savedStore'
 import { RemindModal } from './RemindModal'
@@ -108,6 +108,25 @@ export function MessageItem({ message, grouped, showThread = true, parentPreview
       toast({ kind: 'success', title: 'Link copied', body: 'Paste it into a text or email to share.' })
     } catch {
       window.prompt('Copy this link to the message:', url)
+    }
+    done?.()
+  }
+
+  // The plain text of the message (not the link) — for pasting elsewhere. HTML cards are flattened to
+  // readable text; everything else uses the message body as typed.
+  function messageText(): string {
+    const m = (message.metadata as Record<string, any>) ?? {}
+    const raw =
+      m?.format === 'html' && typeof m.html === 'string' ? m.html.replace(/<[^>]+>/g, ' ') : message.body ?? ''
+    return raw.replace(/[ \t]+\n/g, '\n').replace(/[ \t]{2,}/g, ' ').trim()
+  }
+  async function copyText(done?: () => void) {
+    const text = messageText()
+    try {
+      await navigator.clipboard.writeText(text)
+      toast({ kind: 'success', title: 'Text copied', body: 'Paste it wherever you like.' })
+    } catch {
+      window.prompt('Copy this message text:', text)
     }
     done?.()
   }
@@ -324,6 +343,9 @@ export function MessageItem({ message, grouped, showThread = true, parentPreview
               <Reply className="h-4 w-4" />
             </button>
           )}
+          <button onClick={() => copyText()} className="rounded p-1.5 text-slate-300 hover:bg-white/10" title="Copy the message text">
+            <Copy className="h-4 w-4" />
+          </button>
           <button onClick={() => shareLink()} className="rounded p-1.5 text-slate-300 hover:bg-white/10" title="Copy link to this message">
             <LinkIcon className="h-4 w-4" />
           </button>
@@ -402,6 +424,11 @@ export function MessageItem({ message, grouped, showThread = true, parentPreview
               ))}
             </div>
             <div className="divide-y divide-white/5">
+              <SheetItem
+                icon={<Copy className="h-5 w-5" />}
+                label="Copy text"
+                onClick={() => copyText(() => setSheetOpen(false))}
+              />
               <SheetItem
                 icon={<LinkIcon className="h-5 w-5" />}
                 label="Copy / share link to message"

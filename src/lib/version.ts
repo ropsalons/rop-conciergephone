@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.43.0'
+export const APP_VERSION = '1.44.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.44.0',
+    date: '2026-08-11',
+    time: '5:15 PM ET',
+    title: 'Copy the text of a message',
+    changes: [
+      'You can now copy just the text of any message to paste somewhere else. On a computer, hover the message and click the new copy icon; on a phone, press and hold the message and tap “Copy text.”',
+      'This copies the words only (not a link) — the “copy link” option is still there separately.',
+    ],
+  },
   {
     version: '1.43.0',
     date: '2026-08-11',
