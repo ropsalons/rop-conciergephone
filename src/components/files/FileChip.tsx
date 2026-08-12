@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import type { FileRow } from '@/types'
 import { formatBytes, isImage } from '@/lib/utils'
 import { signedUrl } from '@/lib/files'
-import { Paperclip } from '@/components/ui/Icons'
+import { Paperclip, Copy } from '@/components/ui/Icons'
+import { useUIStore } from '@/stores/uiStore'
 
 // Small download-arrow glyph (kept local so we don't need a new icon export).
 function DownloadIcon({ className }: { className?: string }) {
@@ -20,6 +21,8 @@ function DownloadIcon({ className }: { className?: string }) {
 export function FileChip({ file }: { file: FileRow }) {
   const [viewUrl, setViewUrl] = useState<string | null>(null)
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null)
+  const [copying, setCopying] = useState(false)
+  const toast = useUIStore((s) => s.toast)
 
   useEffect(() => {
     let alive = true
@@ -29,6 +32,40 @@ export function FileChip({ file }: { file: FileRow }) {
       alive = false
     }
   }, [file.path, file.bucket, file.name, file.mime_type])
+
+  // Copy the actual image to the clipboard so it can be pasted into a message/email/doc. The clipboard
+  // only reliably accepts PNG, so non-PNG images are re-encoded via canvas. We hand ClipboardItem a
+  // Promise<Blob> (not an awaited blob) so Safari keeps the copy tied to the click and doesn't reject
+  // it as "not user-initiated."
+  async function copyImage() {
+    const nav = navigator as Navigator & { clipboard?: { write?: (i: unknown[]) => Promise<void> } }
+    const CI = (window as unknown as { ClipboardItem?: any }).ClipboardItem
+    if (!viewUrl || !CI || !nav.clipboard?.write) {
+      toast({ kind: 'error', title: 'Copy not supported here', body: 'Try downloading the image instead.' })
+      return
+    }
+    setCopying(true)
+    try {
+      const asPng = (async () => {
+        const blob = await (await fetch(viewUrl)).blob()
+        if (blob.type === 'image/png') return blob
+        const bmp = await createImageBitmap(blob)
+        const canvas = document.createElement('canvas')
+        canvas.width = bmp.width
+        canvas.height = bmp.height
+        canvas.getContext('2d')!.drawImage(bmp, 0, 0)
+        return await new Promise<Blob>((resolve, reject) =>
+          canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('encode failed'))), 'image/png'),
+        )
+      })()
+      await nav.clipboard.write([new CI({ 'image/png': asPng })])
+      toast({ kind: 'success', title: 'Image copied', body: 'Paste it wherever you like.' })
+    } catch {
+      toast({ kind: 'error', title: 'Couldn’t copy the image', body: 'You can download it instead.' })
+    } finally {
+      setCopying(false)
+    }
+  }
 
   if (isImage(file.mime_type)) {
     return (
@@ -42,9 +79,19 @@ export function FileChip({ file }: { file: FileRow }) {
         </a>
         <div className="mt-1 flex items-center justify-between gap-2">
           <p className="truncate text-[11px] text-slate-400">{file.name}</p>
-          <a href={downloadUrl ?? undefined} download={file.name} className="flex shrink-0 items-center gap-1 text-[11px] text-brand-300 hover:text-brand-200" title="Download">
-            <DownloadIcon className="h-3.5 w-3.5" /> Download
-          </a>
+          <div className="flex shrink-0 items-center gap-3">
+            <button
+              onClick={copyImage}
+              disabled={!viewUrl || copying}
+              className="flex items-center gap-1 text-[11px] text-brand-300 hover:text-brand-200 disabled:opacity-50"
+              title="Copy the image (to paste elsewhere)"
+            >
+              <Copy className="h-3.5 w-3.5" /> {copying ? 'Copying…' : 'Copy'}
+            </button>
+            <a href={downloadUrl ?? undefined} download={file.name} className="flex items-center gap-1 text-[11px] text-brand-300 hover:text-brand-200" title="Download">
+              <DownloadIcon className="h-3.5 w-3.5" /> Download
+            </a>
+          </div>
         </div>
       </div>
     )
