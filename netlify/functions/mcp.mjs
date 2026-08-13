@@ -111,15 +111,22 @@ export const handler = async (event) => {
   const q = event.queryStringParameters || {}
 
   // ── OAuth discovery ──────────────────────────────────────────────────────
+  // We thread the agent token through the discovery chain via the URL path (…/as/<token>) rather
+  // than depending on the client to echo a `resource` param — some clients (Hyperagent) don't, which
+  // left the token unknown at /authorize. The token is known here (it's in the PRM path), so we point
+  // the client at a per-token authorization server whose authorize endpoint carries the token.
   if (path.includes('/.well-known/oauth-protected-resource')) {
     const token = tokenFromString(path)
     const resource = token ? `${ORIGIN}/mcp/${token}` : `${ORIGIN}/mcp`
-    return json({ resource, authorization_servers: [ORIGIN], bearer_methods_supported: ['header'], scopes_supported: ['ropchat'] })
+    const as = token ? `${ORIGIN}/as/${token}` : ORIGIN
+    return json({ resource, authorization_servers: [as], bearer_methods_supported: ['header'], scopes_supported: ['ropchat'] })
   }
   if (path.includes('/.well-known/oauth-authorization-server') || path.includes('/.well-known/openid-configuration')) {
+    const token = tokenFromString(path)
+    const issuer = token ? `${ORIGIN}/as/${token}` : ORIGIN
     return json({
-      issuer: ORIGIN,
-      authorization_endpoint: `${ORIGIN}/oauth/authorize`,
+      issuer,
+      authorization_endpoint: token ? `${ORIGIN}/oauth/authorize/${token}` : `${ORIGIN}/oauth/authorize`,
       token_endpoint: `${ORIGIN}/oauth/token`,
       registration_endpoint: `${ORIGIN}/oauth/register`,
       response_types_supported: ['code'],
@@ -148,7 +155,8 @@ export const handler = async (event) => {
     const redirectUri = q.redirect_uri
     const state = q.state
     const cc = q.code_challenge
-    const token = tokenFromString(q.resource) || tokenFromString(q.mcp_url) || tokenFromString(q.aud)
+    // Token comes from the authorize URL path (…/oauth/authorize/<token>), or a resource param if sent.
+    const token = tokenFromString(event.path) || tokenFromString(q.resource) || tokenFromString(q.mcp_url) || tokenFromString(q.aud)
     const bad = (err) => redirectUri
       ? { statusCode: 302, headers: { ...CORS, Location: `${redirectUri}?error=${err}${state ? `&state=${encodeURIComponent(state)}` : ''}` }, body: '' }
       : json({ error: err }, 400)

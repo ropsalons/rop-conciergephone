@@ -42,6 +42,12 @@
   to = "/.netlify/functions/mcp"
   status = 200
   force = true
+# Per-token authorization-server paths (…/as/<token> and its .well-known metadata).
+[[redirects]]
+  from = "/as/*"
+  to = "/.netlify/functions/mcp"
+  status = 200
+  force = true
 
 # SPA fallback: let React Router handle client-side routes on refresh/deep-link.
 [[redirects]]
