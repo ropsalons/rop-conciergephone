@@ -159,8 +159,9 @@ export function ChannelPage() {
     toast({ kind: 'success', title: 'You left the channel' })
   }
 
-  const { messages, loading: msgLoading, hasMore, loadMore, send, edit, remove, toggleReaction, togglePin } =
+  const { messages, loading: msgLoading, hasMore, loadMore, reload: reloadMessages, send, edit, remove, toggleReaction, togglePin } =
     useMessages(channelId ? { channelId } : {}, { focusId: highlightId })
+  const refreshUnread = useChatStore((s) => s.refreshUnread)
 
   // Mark read whenever the visible message set changes.
   useEffect(() => {
@@ -187,6 +188,7 @@ export function ChannelPage() {
         icon={<Icon className="h-5 w-5" />}
         title={channel.name}
         subtitle={channel.topic || channel.description || `${members.length} members`}
+        onRefresh={async () => { await reloadMessages(); await refreshUnread() }}
         actions={
           <>
             {isMember && (

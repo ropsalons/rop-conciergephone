@@ -1,7 +1,8 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUIStore } from '@/stores/uiStore'
-import { Menu, LifeBuoy, ChevronLeft } from '@/components/ui/Icons'
+import { Menu, LifeBuoy, ChevronLeft, Refresh } from '@/components/ui/Icons'
+import { cn } from '@/lib/utils'
 
 // Standard top bar. Shows the hamburger (mobile drawer) — or, when `backTo` is set,
 // a back chevron for full-screen conversation views (Slack-style).
@@ -12,6 +13,7 @@ export function PageHeader({
   actions,
   backTo,
   backAlways,
+  onRefresh,
 }: {
   title: ReactNode
   subtitle?: ReactNode
@@ -21,10 +23,19 @@ export function PageHeader({
   // When true, the back chevron shows on every screen size (not just mobile). Use on
   // workflow pages reached from Home so there's always an obvious way back.
   backAlways?: boolean
+  // When provided, an always-visible refresh button that re-fetches this view's data (used on
+  // channels/DMs to pull new messages if the live connection dropped) — no full app relaunch needed.
+  onRefresh?: () => void | Promise<void>
 }) {
   const toggle = useUIStore((s) => s.toggleMobileSidebar)
   const openHelp = useUIStore((s) => s.setHelpOpen)
   const navigate = useNavigate()
+  const [refreshing, setRefreshing] = useState(false)
+  async function doRefresh() {
+    if (!onRefresh || refreshing) return
+    setRefreshing(true)
+    try { await onRefresh() } finally { window.setTimeout(() => setRefreshing(false), 500) }
+  }
   return (
     <header className="relative z-30 flex items-center gap-2 border-b border-white/10 bg-brand-900/60 px-3 py-3 backdrop-blur safe-top sm:px-4">
       {backTo ? (
@@ -42,6 +53,17 @@ export function PageHeader({
         {subtitle && <p className="truncate text-xs text-slate-400">{subtitle}</p>}
       </div>
       {actions && <div className="flex items-center gap-2">{actions}</div>}
+      {onRefresh && (
+        <button
+          onClick={doRefresh}
+          disabled={refreshing}
+          title="Refresh — load new messages"
+          aria-label="Refresh"
+          className="rounded-lg border border-white/10 p-2 text-slate-300 hover:bg-white/10 hover:text-white"
+        >
+          <Refresh className={cn('h-5 w-5', refreshing && 'animate-spin')} />
+        </button>
+      )}
       <button
         onClick={() => openHelp(true)}
         title="Help & Guide"

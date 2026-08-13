@@ -157,6 +157,23 @@ export function useMessages(target: Target, opts: { parentId?: string | null; fo
     load()
   }, [load])
 
+  // Self-heal the "new messages don't load" problem: the realtime socket can quietly drop while the
+  // app is backgrounded or the network blips, so re-fetch whenever the app comes back to the
+  // foreground or the connection returns. (Skipped for deep-linked views so we don't yank the user
+  // off a message they navigated to.)
+  useEffect(() => {
+    if (!key || parentFilter || focusId) return
+    const refetch = () => { if (document.visibilityState === 'visible') load() }
+    window.addEventListener('focus', refetch)
+    document.addEventListener('visibilitychange', refetch)
+    window.addEventListener('online', refetch)
+    return () => {
+      window.removeEventListener('focus', refetch)
+      document.removeEventListener('visibilitychange', refetch)
+      window.removeEventListener('online', refetch)
+    }
+  }, [key, parentFilter, focusId, load])
+
   // Realtime: messages + reactions -------------------------------------------
   useEffect(() => {
     if (!key) return

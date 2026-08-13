@@ -73,10 +73,11 @@ export function DMPage() {
     })
   }
 
-  const { messages, loading: msgLoading, hasMore, loadMore, send, edit, remove, toggleReaction } = useMessages(
+  const { messages, loading: msgLoading, hasMore, loadMore, reload: reloadMessages, send, edit, remove, toggleReaction } = useMessages(
     conversationId ? { conversationId } : {},
     { focusId: highlightId },
   )
+  const refreshUnread = useChatStore((s) => s.refreshUnread)
 
   useEffect(() => {
     if (conversationId) markConversationRead(conversationId)
@@ -93,6 +94,7 @@ export function DMPage() {
         backTo="/"
         icon={lead ? <Avatar profile={lead} size="sm" showPresence={!conv.is_group} /> : undefined}
         title={conversationName(conv, me)}
+        onRefresh={async () => { await reloadMessages(); await refreshUnread() }}
         subtitle={
           conv.is_group
             ? `${conv.members?.length ?? 0} people`

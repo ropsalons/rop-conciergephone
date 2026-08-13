@@ -149,6 +149,9 @@ export const Eye = (p: P) => (
 export const Copy = (p: P) => (
   <svg {...base(p)}><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
 )
+export const Refresh = (p: P) => (
+  <svg {...base(p)}><path d="M23 4v6h-6" /><path d="M1 20v-6h6" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10" /><path d="M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>
+)
 export const EyeOff = (p: P) => (
   <svg {...base(p)}><path d="M9.9 4.2A9.1 9.1 0 0 1 12 4c6.5 0 10 7 10 7a13 13 0 0 1-2.4 3.1" /><path d="M6.1 6.1A13 13 0 0 0 2 11s3.5 7 10 7a9 9 0 0 0 4-.9" /><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" /><line x1="2" y1="2" x2="22" y2="22" /></svg>
 )

@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.46.0'
+export const APP_VERSION = '1.47.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.47.0',
+    date: '2026-08-13',
+    time: '3:30 PM ET',
+    title: 'Refresh button + auto-reload for new messages',
+    changes: [
+      'Added a Refresh button (↻) in the top bar of every channel and DM — tap it to pull in new messages without closing and reopening the app.',
+      'Fixed the root cause too: when you switch back to ROP Chat (or your connection comes back), it now re-checks for new messages automatically. The live connection can quietly drop when the app is in the background — this catches it.',
+    ],
+  },
   {
     version: '1.46.0',
     date: '2026-08-13',
