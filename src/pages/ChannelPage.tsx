@@ -160,7 +160,7 @@ export function ChannelPage() {
   }
 
   const { messages, loading: msgLoading, hasMore, loadMore, send, edit, remove, toggleReaction, togglePin } =
-    useMessages(channelId ? { channelId } : {})
+    useMessages(channelId ? { channelId } : {}, { focusId: highlightId })
 
   // Mark read whenever the visible message set changes.
   useEffect(() => {

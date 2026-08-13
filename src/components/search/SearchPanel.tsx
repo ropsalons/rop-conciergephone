@@ -97,8 +97,13 @@ export function SearchPanel({ onNavigate }: { onNavigate?: () => void }) {
     onNavigate?.()
     navigate(path)
   }
-  const locate = (m: MessageRow | FileRow) =>
-    go(m.channel_id ? `/channel/${m.channel_id}` : `/dm/${m.conversation_id}`)
+  const locate = (m: MessageRow | FileRow) => {
+    const base = m.channel_id ? `/channel/${m.channel_id}` : `/dm/${m.conversation_id}`
+    // Jump to the exact message: for a message hit that's its id; for a file hit it's the message the
+    // file is attached to. The ?m= deep link makes the conversation scroll to (and flash) it.
+    const mid = 'message_id' in m ? (m as FileRow).message_id : (m as MessageRow).id
+    go(mid ? `${base}?m=${mid}` : base)
+  }
 
   const counts: Record<Tab, number> = {
     messages: results.messages.length,

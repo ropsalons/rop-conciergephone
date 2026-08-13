@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.45.0'
+export const APP_VERSION = '1.46.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.46.0',
+    date: '2026-08-13',
+    time: '9:00 AM ET',
+    title: 'Search now takes you to the exact message',
+    changes: [
+      'Clicking a search result now jumps you straight to that message — even one from months ago — and flashes it, instead of dropping you at the bottom of the channel.',
+      'The app loads the conversation around that message (with context above and below), so an old result lands in the right place instead of making you scroll.',
+      'Same for file search results — they take you to the message the file was posted in.',
+    ],
+  },
   {
     version: '1.45.0',
     date: '2026-08-11',

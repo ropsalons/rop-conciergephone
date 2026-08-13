@@ -75,6 +75,7 @@ export function DMPage() {
 
   const { messages, loading: msgLoading, hasMore, loadMore, send, edit, remove, toggleReaction } = useMessages(
     conversationId ? { conversationId } : {},
+    { focusId: highlightId },
   )
 
   useEffect(() => {

@@ -29,11 +29,12 @@ interface SendInput {
 const stripHtml = (s: string) =>
   s.replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 500)
 
-export function useMessages(target: Target, opts: { parentId?: string | null } = {}) {
+export function useMessages(target: Target, opts: { parentId?: string | null; focusId?: string | null } = {}) {
   const me = useAuthStore((s) => s.user?.id)
   const key = target.channelId ?? target.conversationId ?? ''
   const column = target.channelId ? 'channel_id' : 'conversation_id'
   const parentFilter = opts.parentId ?? null
+  const focusId = opts.focusId ?? null
   const cacheKey = `${column}:${key}:${parentFilter ?? 'root'}`
   const [messages, setMessages] = useState<MessageWithAuthor[]>(() => messageCache.get(cacheKey) ?? [])
   const [loading, setLoading] = useState(() => !messageCache.has(cacheKey))
@@ -84,6 +85,35 @@ export function useMessages(target: Target, opts: { parentId?: string | null } =
     if (!key) return
     // Only show the loader when we have nothing cached to display; otherwise refresh silently.
     if (!messageCache.has(cacheKey)) setLoading(true)
+
+    // Deep-linked to a specific message (search result / notification / shared link)? Load the page
+    // AROUND it — the target plus context on both sides — instead of the newest page. This lets a
+    // click on a search hit from months ago land ON that message, not at the bottom of the channel.
+    // (Skips the thread panel, and only kicks in when the target isn't already in view.)
+    if (focusId && !parentFilter && !messageCache.get(cacheKey)?.some((m) => m.id === focusId)) {
+      const { data: tgt } = await supabase.from('messages').select('created_at').eq('id', focusId).eq(column, key).maybeSingle()
+      const at = (tgt as { created_at?: string } | null)?.created_at
+      if (at) {
+        const [olderRes, newerRes] = await Promise.all([
+          supabase.from('messages').select('*').eq(column, key).lte('created_at', at).order('created_at', { ascending: false }).limit(PAGE),
+          supabase.from('messages').select('*').eq(column, key).gt('created_at', at).order('created_at', { ascending: true }).limit(15),
+        ])
+        const older = ((olderRes.data as MessageRow[]) ?? []).reverse() // …oldest → target
+        const newer = (newerRes.data as MessageRow[]) ?? [] // a little context below the target
+        const rows = [...older, ...newer]
+        if (rows.length) {
+          setHasMore(((olderRes.data as MessageRow[]) ?? []).length === PAGE)
+          oldestRef.current = rows[0]?.created_at ?? null
+          const hydrated = await hydrate(rows)
+          messageCache.set(cacheKey, hydrated)
+          setMessages(hydrated)
+          setLoading(false)
+          return
+        }
+      }
+      // Target not found/visible — fall through to a normal newest-page load.
+    }
+
     let q = supabase
       .from('messages')
       .select('*')
@@ -101,7 +131,7 @@ export function useMessages(target: Target, opts: { parentId?: string | null } =
     messageCache.set(cacheKey, hydrated)
     setMessages(hydrated)
     setLoading(false)
-  }, [key, column, parentFilter, hydrate, cacheKey])
+  }, [key, column, parentFilter, hydrate, cacheKey, focusId])
 
   const loadMore = useCallback(async () => {
     if (!key || !oldestRef.current) return
