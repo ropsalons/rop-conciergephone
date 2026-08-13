@@ -198,8 +198,16 @@ export const handler = async (event) => {
   // ── MCP endpoint ─────────────────────────────────────────────────────────
   const accept = (event.headers?.accept || event.headers?.Accept || '')
   const wantsSSE = accept.includes('text/event-stream')
+  // Streamable-HTTP session id. Some clients treat the session as unestablished (and discard the tool
+  // manifest) if the server never returns one. We're stateless, so make it stable per token: echo an
+  // incoming id, else derive one deterministically.
+  const sid =
+    event.headers?.['mcp-session-id'] || event.headers?.['Mcp-Session-Id'] ||
+    'rop-' + createHash('sha256').update(extractToken(event) || tokenFromString(event.path) || 'anon').digest('hex').slice(0, 24)
+  const S = { 'Mcp-Session-Id': sid, 'MCP-Protocol-Version': PROTOCOL_VERSION }
+
   if (method === 'GET') {
-    return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-transform' }, body: ': ok\n\n' }
+    return { statusCode: 200, headers: { ...CORS, ...S, 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-transform' }, body: ': ok\n\n' }
   }
   if (method !== 'POST') return { statusCode: 405, headers: CORS, body: 'Method Not Allowed' }
 
@@ -211,13 +219,13 @@ export const handler = async (event) => {
 
   let payload
   const raw = event.isBase64Encoded ? Buffer.from(event.body || '', 'base64').toString('utf8') : (event.body || '')
-  try { payload = JSON.parse(raw) } catch { return json({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } }, 400) }
+  try { payload = JSON.parse(raw) } catch { return { statusCode: 400, headers: { ...CORS, ...S, 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } }) } }
   const requests = Array.isArray(payload) ? payload : [payload]
   const out = (await Promise.all(requests.map((m) => handleRpc(m, token)))).filter((x) => x !== null)
-  if (!out.length) return { statusCode: 202, headers: CORS, body: '' }
+  if (!out.length) return { statusCode: 202, headers: { ...CORS, ...S }, body: '' }
   if (wantsSSE) {
     const b = out.map((o) => `event: message\ndata: ${JSON.stringify(o)}\n\n`).join('')
-    return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-transform' }, body: b }
+    return { statusCode: 200, headers: { ...CORS, ...S, 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-transform' }, body: b }
   }
-  return json(Array.isArray(payload) ? out : out[0])
+  return { statusCode: 200, headers: { ...CORS, ...S, 'Content-Type': 'application/json' }, body: JSON.stringify(Array.isArray(payload) ? out : out[0]) }
 }
