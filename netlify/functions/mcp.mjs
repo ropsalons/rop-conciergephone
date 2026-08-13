@@ -20,6 +20,7 @@ import { createHash } from 'node:crypto'
 
 const ORIGIN = 'https://chat.ropsalons.com'
 const GATEWAY_URL = 'https://qrigzwactbwbpuufehxo.supabase.co/functions/v1/ai-gateway'
+const SF_QUERY_URL = 'https://qrigzwactbwbpuufehxo.supabase.co/functions/v1/sf-query'
 const PROTOCOL_VERSION = '2025-03-26'
 const CODE_TTL_MS = 10 * 60 * 1000
 
@@ -49,6 +50,8 @@ const TOOLS = [
   { name: 'update_task', action: 'update_task', description: 'Update a task (status: open | in_progress | done | cancelled).', schema: { type: 'object', required: ['task_id'], properties: { task_id: { type: 'string' }, status: { type: 'string' }, title: { type: 'string' }, body: { type: 'string' } } } },
   { name: 'list_pending_approvals', action: 'list_approvals', description: 'List this agent’s pending sensitive-action approvals.', schema: { type: 'object', properties: {} } },
   { name: 'request_sensitive_action', action: 'request_approval', description: 'Queue a sensitive action for human approval instead of doing it directly.', schema: { type: 'object', required: ['request_action', 'preview'], properties: { request_action: { type: 'string' }, preview: { type: 'string' }, payload: { type: 'object' } } } },
+  // Snowflake analytics (read-only). Routes to the sf-query endpoint, not the chat gateway.
+  { name: 'run_snowflake_query', action: 'run_snowflake_query', backend: 'snowflake', description: 'Run a READ-ONLY SQL query against the company Snowflake analytics (schema ANALYTICS.MARTS — e.g. STYLIST_DAILY, STYLIST_QUALITY_DAILY, REBOOKING). Returns { columns, rows }. Single SELECT / WITH / SHOW / DESCRIBE / EXPLAIN statement only.', schema: { type: 'object', required: ['sql'], properties: { sql: { type: 'string', description: 'A single read-only SQL statement' } } } },
 ]
 const BY_NAME = new Map(TOOLS.map((t) => [t.name, t]))
 
@@ -73,6 +76,14 @@ async function callGateway(token, action, params) {
   try { data = JSON.parse(text) } catch { data = { ok: false, error: `Non-JSON (${res.status}): ${text.slice(0, 200)}` } }
   return { ok: res.ok && data.ok !== false, data }
 }
+// Snowflake tool → the sf-query endpoint (validates the same token, enforces read-only, audits).
+async function callSnowflake(token, params) {
+  const res = await fetch(SF_QUERY_URL, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ sql: params?.sql }) })
+  const text = await res.text()
+  let data
+  try { data = JSON.parse(text) } catch { data = { ok: false, error: `Non-JSON (${res.status}): ${text.slice(0, 200)}` } }
+  return { ok: res.ok && data.ok !== false, data }
+}
 
 async function handleRpc(msg, token) {
   const id = msg?.id
@@ -86,7 +97,10 @@ async function handleRpc(msg, token) {
   if (method === 'tools/call') {
     const tool = BY_NAME.get(msg?.params?.name)
     if (!tool) return fail(-32602, `Unknown tool: ${msg?.params?.name}`)
-    const { ok, data } = await callGateway(token, tool.action, msg?.params?.arguments ?? {})
+    const args = msg?.params?.arguments ?? {}
+    const { ok, data } = tool.backend === 'snowflake'
+      ? await callSnowflake(token, args)
+      : await callGateway(token, tool.action, args)
     return reply({ content: [{ type: 'text', text: JSON.stringify(data, null, 2) }], isError: !ok })
   }
   if (typeof id === 'undefined') return null
