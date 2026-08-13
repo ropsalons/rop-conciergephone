@@ -26,7 +26,9 @@ export default defineConfig({
         // Layer our Web Push handlers onto the generated Workbox SW (push + notificationclick).
         importScripts: ['/push-sw.js'],
         navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/api/, /supabase/],
+        // Don't serve the app shell for these — they're real server endpoints (the remote MCP server
+        // + its OAuth flow) that must reach Netlify, not be swallowed by the SPA navigation fallback.
+        navigateFallbackDenylist: [/^\/api/, /supabase/, /^\/mcp/, /^\/oauth/, /^\/as\//, /^\/\.well-known/],
         runtimeCaching: [
           {
             // Cache Supabase Storage assets (avatars, uploaded images) for offline-friendly reads.
