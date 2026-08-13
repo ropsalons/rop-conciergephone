@@ -1,22 +1,38 @@
-// ROP Chat — remote MCP server on our OWN domain (chat.ropsalons.com/mcp/<token>).
+// ROP Chat — remote MCP server + OAuth 2.1 authorization server, on our own domain.
 //
-// Why here and not the Supabase URL: MCP clients like Hyperagent do OAuth discovery first — they
-// GET /.well-known/oauth-protected-resource<path>. On shared supabase.co that path is owned by
-// Supabase and returns 401, so the client bails. On our Netlify domain we control every path, so we
-// answer that discovery with a clean 404 ("this resource is not OAuth-protected") and the client then
-// connects directly to the MCP endpoint, authenticated by the token carried in the URL.
+// Clients like Hyperagent REQUIRE the MCP OAuth handshake (they refuse to connect otherwise). We host
+// the whole thing on chat.ropsalons.com, where we control every path:
 //
-// This function only speaks MCP JSON-RPC and proxies each tool call to the ROP Chat AI gateway, which
-// enforces the agent's permissions, rate limits, and audit logging. It holds no DB credentials.
+//   /.well-known/oauth-protected-resource/mcp/<token>  → says "the AS is this origin"      (RFC 9728)
+//   /.well-known/oauth-authorization-server            → AS metadata                        (RFC 8414)
+//   /oauth/register                                    → Dynamic Client Registration        (RFC 7591)
+//   /oauth/authorize                                   → auto-approves, returns a code (PKCE)
+//   /oauth/token                                       → exchanges code → access token
+//   /mcp/<token>                                       → the MCP JSON-RPC endpoint (proxies the gateway)
+//
+// The agent token lives in the resource URL (…/mcp/<token>) — that URL is the secret. We auto-approve
+// (no login screen): possession of the URL is the authorization, PKCE binds the exchange, and the
+// issued access token IS that agent token, which the ROP gateway independently validates on every
+// call. The OAuth codes are stateless: the code is a base64url blob carrying the PKCE challenge +
+// token, valid 10 minutes — so this needs no database.
 
+import { createHash } from 'node:crypto'
+
+const ORIGIN = 'https://chat.ropsalons.com'
 const GATEWAY_URL = 'https://qrigzwactbwbpuufehxo.supabase.co/functions/v1/ai-gateway'
 const PROTOCOL_VERSION = '2025-03-26'
+const CODE_TTL_MS = 10 * 60 * 1000
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, content-type, accept, mcp-session-id, mcp-protocol-version',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 }
+const b64url = (buf) => Buffer.from(buf).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+const b64urlJson = (obj) => b64url(JSON.stringify(obj))
+const fromB64url = (s) => JSON.parse(Buffer.from(s.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'))
+const sha256b64url = (s) => b64url(createHash('sha256').update(s).digest())
+const json = (obj, status = 200, extra = {}) => ({ statusCode: status, headers: { ...CORS, 'Content-Type': 'application/json', ...extra }, body: JSON.stringify(obj) })
 
 const TOOLS = [
   { name: 'list_channels', action: 'list_channels', description: 'List the ROP Chat channels this agent can see.', schema: { type: 'object', properties: {} } },
@@ -36,18 +52,18 @@ const TOOLS = [
 ]
 const BY_NAME = new Map(TOOLS.map((t) => [t.name, t]))
 
+// Find the agent token in: Authorization header, ?key/token, a `resource`/URL string, or a path.
+function tokenFromString(s) {
+  if (!s) return null
+  const m = String(s).match(/rop_ai_[A-Za-z0-9]+/)
+  return m ? m[0] : null
+}
 function extractToken(event) {
   const h = event.headers || {}
   const authz = h.authorization || h.Authorization || ''
   if (authz.toLowerCase().startsWith('bearer ')) { const t = authz.slice(authz.indexOf(' ') + 1).trim(); if (t) return t }
   const q = event.queryStringParameters || {}
-  if (q.key) return q.key
-  if (q.token) return q.token
-  const path = event.path || ''
-  const seg = path.split('/').filter(Boolean)
-  const cand = seg[seg.length - 1]
-  if (cand && cand.startsWith('rop_ai_')) return cand
-  return null
+  return q.key || q.token || tokenFromString(event.path) || null
 }
 
 async function callGateway(token, action, params) {
@@ -77,40 +93,108 @@ async function handleRpc(msg, token) {
   return fail(-32601, `Method not found: ${method}`)
 }
 
+function parseBody(event) {
+  const raw = event.isBase64Encoded ? Buffer.from(event.body || '', 'base64').toString('utf8') : (event.body || '')
+  const ct = (event.headers?.['content-type'] || event.headers?.['Content-Type'] || '')
+  if (ct.includes('application/x-www-form-urlencoded')) {
+    const out = {}
+    for (const [k, v] of new URLSearchParams(raw)) out[k] = v
+    return out
+  }
+  try { return JSON.parse(raw || '{}') } catch { return {} }
+}
+
 export const handler = async (event) => {
   const method = event.httpMethod
   if (method === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' }
-
   const path = event.path || ''
-  // OAuth discovery: tell the client this resource is NOT OAuth-protected → it connects directly.
-  if (path.includes('/.well-known/')) {
-    return { statusCode: 404, headers: { ...CORS, 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'no_oauth', detail: 'This MCP endpoint authenticates via the token in its URL; no OAuth.' }) }
+  const q = event.queryStringParameters || {}
+
+  // ── OAuth discovery ──────────────────────────────────────────────────────
+  if (path.includes('/.well-known/oauth-protected-resource')) {
+    const token = tokenFromString(path)
+    const resource = token ? `${ORIGIN}/mcp/${token}` : `${ORIGIN}/mcp`
+    return json({ resource, authorization_servers: [ORIGIN], bearer_methods_supported: ['header'], scopes_supported: ['ropchat'] })
+  }
+  if (path.includes('/.well-known/oauth-authorization-server') || path.includes('/.well-known/openid-configuration')) {
+    return json({
+      issuer: ORIGIN,
+      authorization_endpoint: `${ORIGIN}/oauth/authorize`,
+      token_endpoint: `${ORIGIN}/oauth/token`,
+      registration_endpoint: `${ORIGIN}/oauth/register`,
+      response_types_supported: ['code'],
+      grant_types_supported: ['authorization_code'],
+      code_challenge_methods_supported: ['S256'],
+      token_endpoint_auth_methods_supported: ['none'],
+      scopes_supported: ['ropchat'],
+    })
   }
 
+  // ── Dynamic Client Registration ──────────────────────────────────────────
+  if (path.endsWith('/oauth/register')) {
+    const body = parseBody(event)
+    return json({
+      client_id: 'ropchat-' + b64url(createHash('sha256').update(JSON.stringify(body.redirect_uris || []) + Date.now()).digest()).slice(0, 22),
+      token_endpoint_auth_method: 'none',
+      grant_types: ['authorization_code'],
+      response_types: ['code'],
+      redirect_uris: body.redirect_uris || [],
+      client_id_issued_at: Math.floor(Date.now() / 1000),
+    }, 201)
+  }
+
+  // ── Authorize (auto-approve, PKCE) ───────────────────────────────────────
+  if (path.endsWith('/oauth/authorize')) {
+    const redirectUri = q.redirect_uri
+    const state = q.state
+    const cc = q.code_challenge
+    const token = tokenFromString(q.resource) || tokenFromString(q.mcp_url) || tokenFromString(q.aud)
+    const bad = (err) => redirectUri
+      ? { statusCode: 302, headers: { ...CORS, Location: `${redirectUri}?error=${err}${state ? `&state=${encodeURIComponent(state)}` : ''}` }, body: '' }
+      : json({ error: err }, 400)
+    if (!redirectUri || !cc) return bad('invalid_request')
+    if (q.code_challenge_method && q.code_challenge_method !== 'S256') return bad('invalid_request')
+    if (!token) return bad('invalid_target') // couldn't find the agent token in the resource
+    const code = b64urlJson({ cc, ru: redirectUri, t: token, iat: Date.now() })
+    const sep = redirectUri.includes('?') ? '&' : '?'
+    return { statusCode: 302, headers: { ...CORS, Location: `${redirectUri}${sep}code=${code}${state ? `&state=${encodeURIComponent(state)}` : ''}` }, body: '' }
+  }
+
+  // ── Token (verify PKCE, return the agent token as the access token) ───────
+  if (path.endsWith('/oauth/token')) {
+    const body = parseBody(event)
+    if (body.grant_type !== 'authorization_code') return json({ error: 'unsupported_grant_type' }, 400)
+    let payload
+    try { payload = fromB64url(String(body.code || '')) } catch { return json({ error: 'invalid_grant' }, 400) }
+    if (!payload?.t || !payload?.cc || Date.now() - Number(payload.iat || 0) > CODE_TTL_MS) return json({ error: 'invalid_grant' }, 400)
+    const verifier = String(body.code_verifier || '')
+    if (!verifier || sha256b64url(verifier) !== payload.cc) return json({ error: 'invalid_grant', error_description: 'PKCE check failed' }, 400)
+    return json({ access_token: payload.t, token_type: 'Bearer', expires_in: 31536000, scope: 'ropchat' })
+  }
+
+  // ── MCP endpoint ─────────────────────────────────────────────────────────
   const accept = (event.headers?.accept || event.headers?.Accept || '')
   const wantsSSE = accept.includes('text/event-stream')
-
   if (method === 'GET') {
-    // A minimal SSE "stream" so a probe sees a live event-stream endpoint.
     return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-transform' }, body: ': ok\n\n' }
   }
   if (method !== 'POST') return { statusCode: 405, headers: CORS, body: 'Method Not Allowed' }
 
   const token = extractToken(event)
-  if (!token) return { statusCode: 400, headers: { ...CORS, 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32001, message: 'Missing agent token in URL (…/mcp/rop_ai_… or ?key=…).' } }) }
+  if (!token) {
+    const prm = `${ORIGIN}/.well-known/oauth-protected-resource${path.startsWith('/mcp') ? path : '/mcp'}`
+    return { statusCode: 401, headers: { ...CORS, 'Content-Type': 'application/json', 'WWW-Authenticate': `Bearer resource_metadata="${prm}"` }, body: JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32001, message: 'Authentication required' } }) }
+  }
 
   let payload
   const raw = event.isBase64Encoded ? Buffer.from(event.body || '', 'base64').toString('utf8') : (event.body || '')
-  try { payload = JSON.parse(raw) } catch { return { statusCode: 400, headers: { ...CORS, 'Content-Type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } }) } }
-
+  try { payload = JSON.parse(raw) } catch { return json({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } }, 400) }
   const requests = Array.isArray(payload) ? payload : [payload]
   const out = (await Promise.all(requests.map((m) => handleRpc(m, token)))).filter((x) => x !== null)
   if (!out.length) return { statusCode: 202, headers: CORS, body: '' }
-
   if (wantsSSE) {
-    const body = out.map((o) => `event: message\ndata: ${JSON.stringify(o)}\n\n`).join('')
-    return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-transform' }, body }
+    const b = out.map((o) => `event: message\ndata: ${JSON.stringify(o)}\n\n`).join('')
+    return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-transform' }, body: b }
   }
-  const single = Array.isArray(payload) ? out : out[0]
-  return { statusCode: 200, headers: { ...CORS, 'Content-Type': 'application/json' }, body: JSON.stringify(single) }
+  return json(Array.isArray(payload) ? out : out[0])
 }

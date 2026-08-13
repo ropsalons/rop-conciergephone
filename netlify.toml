@@ -21,17 +21,26 @@
   to = "/.netlify/functions/mcp"
   status = 200
   force = true
-# OAuth discovery → a clean 404 ("this resource is not OAuth-protected") so the client connects
-# directly with the token in the URL instead of demanding an OAuth handshake.
+# OAuth: discovery, dynamic client registration, authorize, token — all handled by the MCP function.
 [[redirects]]
   from = "/.well-known/oauth-protected-resource*"
-  to = "/index.html"
-  status = 404
+  to = "/.netlify/functions/mcp"
+  status = 200
   force = true
 [[redirects]]
   from = "/.well-known/oauth-authorization-server*"
-  to = "/index.html"
-  status = 404
+  to = "/.netlify/functions/mcp"
+  status = 200
+  force = true
+[[redirects]]
+  from = "/.well-known/openid-configuration*"
+  to = "/.netlify/functions/mcp"
+  status = 200
+  force = true
+[[redirects]]
+  from = "/oauth/*"
+  to = "/.netlify/functions/mcp"
+  status = 200
   force = true
 
 # SPA fallback: let React Router handle client-side routes on refresh/deep-link.
