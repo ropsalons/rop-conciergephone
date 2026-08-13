@@ -128,12 +128,34 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
   const url = new URL(req.url)
+  const enc = new TextEncoder()
   const json = (b: unknown, status = 200) =>
     new Response(JSON.stringify(b), { status, headers: { ...CORS, 'Content-Type': 'application/json' } })
+  // Frame one or more JSON-RPC responses as an SSE stream (what most Streamable-HTTP clients expect
+  // back when they send `Accept: text/event-stream`). We send the response event(s) and close.
+  const sse = (objs: unknown[]) => {
+    const body = objs.map((o) => `event: message\ndata: ${JSON.stringify(o)}\n\n`).join('')
+    return new Response(body, {
+      status: 200,
+      headers: { ...CORS, 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-transform' },
+    })
+  }
+  const wantsSSE = (req.headers.get('accept') ?? '').includes('text/event-stream')
 
-  // Streamable HTTP: clients may open a GET for a server→client SSE stream. We're stateless (all
-  // responses come back on the POST), so there's nothing to stream.
-  if (req.method === 'GET') return new Response('Method Not Allowed', { status: 405, headers: CORS })
+  // GET opens the server→client notification stream. We're stateless (responses ride the POST), so we
+  // hold an idle keep-alive stream open — its presence is what a client probes for.
+  if (req.method === 'GET') {
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(enc.encode(': ok\n\n'))
+        const iv = setInterval(() => {
+          try { controller.enqueue(enc.encode(': ping\n\n')) } catch { clearInterval(iv) }
+        }, 15000)
+        ;(req.signal as AbortSignal | undefined)?.addEventListener('abort', () => { clearInterval(iv); try { controller.close() } catch { /* */ } })
+      },
+    })
+    return new Response(stream, { status: 200, headers: { ...CORS, 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache, no-transform' } })
+  }
   if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405, headers: CORS })
 
   const token = extractToken(req, url)
@@ -145,10 +167,9 @@ Deno.serve(async (req) => {
   try { payload = await req.json() } catch { return json({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } }, 400) }
 
   // A batch (array) or a single request.
-  if (Array.isArray(payload)) {
-    const out = (await Promise.all(payload.map((m) => handleRpc(m, token)))).filter((x) => x !== null)
-    return out.length ? json(out) : new Response(null, { status: 202, headers: CORS })
-  }
-  const res = await handleRpc(payload, token)
-  return res === null ? new Response(null, { status: 202, headers: CORS }) : json(res)
+  const requests = Array.isArray(payload) ? payload : [payload]
+  const out = (await Promise.all(requests.map((m) => handleRpc(m, token)))).filter((x) => x !== null)
+  if (!out.length) return new Response(null, { status: 202, headers: CORS }) // only notifications
+  if (wantsSSE) return sse(out)
+  return json(Array.isArray(payload) ? out : out[0])
 })
