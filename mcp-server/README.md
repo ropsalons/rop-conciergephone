@@ -7,9 +7,10 @@ authenticated HTTPS request that the gateway authorizes, rate-limits, and audits
 
 ## Tools exposed
 
-`list_channels` · `read_channel_messages` · `read_thread` · `search_messages` ·
-`post_channel_message` · `reply_to_thread` · `send_direct_message` ·
-`create_task` · `update_task` · `list_pending_approvals` · `request_sensitive_action`
+`list_channels` · `list_users` · `read_channel_messages` · `read_thread` · `search_messages` ·
+`post_channel_message` · `reply_to_thread` · `send_direct_message` · `send_group_message` ·
+`create_channel` · `register_webhook` · `create_task` · `update_task` ·
+`list_pending_approvals` · `request_sensitive_action`
 
 Each tool only does what the agent's permissions allow — content the agent can't see is never returned,
 and disallowed actions are rejected with a clear error.
