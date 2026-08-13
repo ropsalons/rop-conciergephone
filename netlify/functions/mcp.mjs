@@ -151,7 +151,8 @@ export const handler = async (event) => {
   }
 
   // ── Authorize (auto-approve, PKCE) ───────────────────────────────────────
-  if (path.endsWith('/oauth/authorize')) {
+  // Match with includes(): the token rides the path as …/oauth/authorize/<token>.
+  if (path.includes('/oauth/authorize')) {
     const redirectUri = q.redirect_uri
     const state = q.state
     const cc = q.code_challenge
