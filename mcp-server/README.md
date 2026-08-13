@@ -15,7 +15,25 @@ authenticated HTTPS request that the gateway authorizes, rate-limits, and audits
 Each tool only does what the agent's permissions allow — content the agent can't see is never returned,
 and disallowed actions are rejected with a clear error.
 
-## Setup
+## Two ways to connect
+
+- **Local (stdio)** — the `index.mjs` in this folder. For clients that spawn a local process (Claude
+  Code/Desktop/Cursor). Configure with `command`/`args`/`env` (below).
+- **Remote (Streamable HTTP)** — for clients that connect to an MCP server **by URL** (e.g.
+  **Hyperagent** → *Add MCP server*). This is the deployed `mcp-http` edge function; no local process.
+
+  **MCP URL** (paste into the client, tick "I trust this server"):
+
+  ```
+  https://qrigzwactbwbpuufehxo.supabase.co/functions/v1/mcp-http/rop_ai_XXXXXXXXXXXX
+  ```
+
+  The agent token is the last path segment, so the **URL itself is a secret** — treat it like a
+  password and rotate by minting a new agent token. The server never issues an OAuth challenge, so an
+  OAuth-capable client connects to it as an already-credentialed endpoint. (The token can also be
+  passed as `?key=rop_ai_…` or an `Authorization: Bearer` header.)
+
+## Setup (local stdio)
 
 1. Install dependencies (once):
 
