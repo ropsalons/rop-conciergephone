@@ -17,8 +17,10 @@
 const SUPA_URL = Deno.env.get('SUPABASE_URL') ?? 'https://qrigzwactbwbpuufehxo.supabase.co'
 const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 const ANON = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
-const PEPPER = Deno.env.get('PIN_PEPPER') ?? 'REDACTED_SEE_DEPLOYED_FUNCTION'
-const CRON_SECRET = Deno.env.get('CRON_SECRET') ?? 'REDACTED_SEE_DEPLOYED_FUNCTION'
+// Secrets are loaded from env if present, otherwise from locked storage (private.secrets via the
+// get_secret RPC, service-role only) on first request. The pepper/cron secret are NEVER hardcoded here.
+let PEPPER = Deno.env.get('PIN_PEPPER') ?? ''
+let CRON_SECRET = Deno.env.get('CRON_SECRET') ?? ''
 
 function cors(req: Request) {
   return {
@@ -85,6 +87,11 @@ async function rateCheck(phone: string, ip: string): Promise<string> {
 async function rateRecord(phone: string, ip: string, ok: boolean): Promise<void> {
   await rpc('pin_rate_record', { p_phone: phone, p_ip: ip, p_ok: ok })
 }
+// Load pepper + cron secret from locked storage on first use (cached thereafter). Env wins if set.
+async function ensureSecrets(): Promise<void> {
+  if (!PEPPER) PEPPER = String((await rpc('get_secret', { p_name: 'pin_pepper' })) ?? '')
+  if (!CRON_SECRET) CRON_SECRET = String((await rpc('get_secret', { p_name: 'cron_secret' })) ?? '')
+}
 
 async function sendSms(toDigits: string, body: string) {
   await fetch(`${SUPA_URL}/functions/v1/send-sms`, {
@@ -97,6 +104,7 @@ async function sendSms(toDigits: string, body: string) {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors(req) })
   try {
+    await ensureSecrets()
     const b = await req.json().catch(() => ({} as any))
     const action = String(b.action ?? '')
     const phone = String(b.phone ?? '')
