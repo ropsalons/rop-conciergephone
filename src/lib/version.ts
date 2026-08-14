@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.47.0'
+export const APP_VERSION = '1.48.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,19 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.48.0',
+    date: '2026-08-14',
+    time: '11:45 AM ET',
+    title: 'Sign in with your phone number + a 4-digit PIN',
+    changes: [
+      'ROP Chat now works just like clocking in at time.ropsalons.com — enter your mobile number and a 4-digit PIN. No email or long password to remember.',
+      'First time? Tap “First time here? Set up your PIN,” enter your mobile number, and pick a 4-digit PIN. That’s your login from then on.',
+      'Forgot your PIN? Tap “Forgot your PIN?” and we’ll text a 6-digit code to the mobile number on file so you can set a new one.',
+      'Managers and admins can still sign in with email — tap “Manager or admin? Sign in with email instead.”',
+      'Your PIN is never stored anywhere — it’s turned into a secure key on our server, so even we can’t see it. This is the first step toward one simple login across my/time/chat.ropsalons.com.',
+    ],
+  },
   {
     version: '1.47.0',
     date: '2026-08-13',

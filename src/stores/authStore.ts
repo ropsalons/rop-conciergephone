@@ -20,6 +20,7 @@ interface AuthState {
   loading: boolean
   init: () => Promise<void>
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
+  installSession: (tokens: { access_token: string; refresh_token: string }) => Promise<{ error: string | null }>
   signUp: (p: SignUpParams) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
@@ -80,6 +81,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!error) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       void (supabase.rpc as any)('log_event', { p_action: 'login', p_entity_type: 'session', p_metadata: {} }).then(
+        () => {},
+        () => {},
+      )
+    }
+    return { error: error?.message ?? null }
+  },
+
+  // Phone + PIN sign-in: the pin-auth edge function verifies the PIN and hands back a real Supabase
+  // session (access + refresh tokens). We just install it — from here on it's an ordinary logged-in
+  // session (same tokens, same refresh, same everything as an email login).
+  installSession: async (tokens) => {
+    set({ loading: true })
+    const { error } = await supabase.auth.setSession({
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+    })
+    set({ loading: false })
+    if (!error) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      void (supabase.rpc as any)('log_event', { p_action: 'login', p_entity_type: 'session', p_metadata: { via: 'pin' } }).then(
         () => {},
         () => {},
       )

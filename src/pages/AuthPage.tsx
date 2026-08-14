@@ -5,6 +5,7 @@ import { useUIStore } from '@/stores/uiStore'
 import { APP_NAME, COMPANY_NAME, SIGNUP_ROLES, ROLE_LABELS } from '@/lib/constants'
 import type { LocationRow, DepartmentRow } from '@/types'
 import { Spinner } from '@/components/ui/Feedback'
+import { PinLogin } from '@/components/auth/PinLogin'
 
 // An invite link looks like:  https://chat.ropsalons.com/?invite=1&email=<email>&name=<name>
 // When present we drop the person straight onto "Create account" with their email (and name)
@@ -23,6 +24,9 @@ function readInvite() {
 
 export function AuthPage() {
   const invite = useMemo(readInvite, [])
+  // Default experience = phone + 4-digit PIN (matches time.ropsalons.com). Email is the admin fallback.
+  // Invited guests keep the email/password invite flow they were sent.
+  const [method, setMethod] = useState<'pin' | 'email'>(invite.invited ? 'email' : 'pin')
   const [mode, setMode] = useState<'signin' | 'signup'>(invite.invited ? 'signup' : 'signin')
   const [email, setEmail] = useState(invite.email)
   const [password, setPassword] = useState('')
@@ -111,6 +115,9 @@ export function AuthPage() {
           <p className="mt-1 text-sm text-slate-400">{COMPANY_NAME}</p>
         </div>
 
+        {method === 'pin' && !invited ? (
+          <PinLogin onUseEmail={() => { setMethod('email'); setError(null); setNotice(null) }} />
+        ) : (
         <form onSubmit={handleSubmit} className="card space-y-4 p-6">
           {invited ? (
             // Guests we already added: a clear welcome, no tabs to get lost in.
@@ -273,7 +280,18 @@ export function AuthPage() {
               The first person to sign up becomes the workspace Owner/Admin.
             </p>
           )}
+
+          {!invited && (
+            <button
+              type="button"
+              onClick={() => { setMethod('pin'); setError(null); setNotice(null) }}
+              className="w-full text-center text-xs font-semibold text-gold-300 hover:text-gold-200"
+            >
+              ← Use phone number + PIN instead
+            </button>
+          )}
         </form>
+        )}
       </div>
     </div>
   )
