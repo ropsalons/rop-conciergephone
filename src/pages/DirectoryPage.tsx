@@ -9,14 +9,17 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Modal } from '@/components/ui/Modal'
 import { Tag, AccessBadge } from '@/components/ui/Badge'
 import { FullPageLoader, EmptyState } from '@/components/ui/Feedback'
-import { Search, Users, MessageSquare } from '@/components/ui/Icons'
-import { ROLE_LABELS, titleLabel } from '@/lib/constants'
+import { Search, Users, MessageSquare, Send } from '@/components/ui/Icons'
+import { InviteModal } from '@/components/directory/InviteModal'
+import { ROLE_LABELS, titleLabel, isAdmin } from '@/lib/constants'
 import { displayName } from '@/lib/utils'
 import type { Profile } from '@/types'
 
 export function DirectoryPage() {
   const navigate = useNavigate()
   const me = useAuthStore((s) => s.user?.id)
+  const myAccess = useAuthStore((s) => s.profile?.access_level)
+  const canInvite = isAdmin(myAccess)
   const toast = useUIStore((s) => s.toast)
   const profiles = useDirectoryStore((s) => s.profiles)
   const locations = useDirectoryStore((s) => s.locations)
@@ -29,6 +32,7 @@ export function DirectoryPage() {
   const [role, setRole] = useState('')
   const [sort, setSort] = useState<'name' | 'active' | 'newest' | 'tenure'>('name')
   const [selected, setSelected] = useState<Profile | null>(null)
+  const [invite, setInvite] = useState<Profile | null>(null)
   const [busy, setBusy] = useState(false)
 
   const startYear = (p: Profile) => ((p as any).hire_date ? String((p as any).hire_date).slice(0, 4) : null)
@@ -169,15 +173,28 @@ export function DirectoryPage() {
                     You
                   </span>
                 ) : (
-                  <button
-                    onClick={() => void message(p)}
-                    disabled={busy}
-                    title={`Message ${displayName(p)}`}
-                    aria-label={`Message ${displayName(p)}`}
-                    className="btn-primary shrink-0 gap-1 px-2.5 py-1.5 text-xs"
-                  >
-                    <MessageSquare className="h-4 w-4" /> Message
-                  </button>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {/* Admins can text someone a "come try ROP Chat" invite right from the directory. */}
+                    {canInvite && (
+                      <button
+                        onClick={() => setInvite(p)}
+                        title={`Invite ${displayName(p)} to ROP Chat`}
+                        aria-label={`Invite ${displayName(p)} to ROP Chat`}
+                        className="rounded-lg border border-gold-400/30 bg-gold-400/10 p-1.5 text-gold-300 hover:bg-gold-400/20"
+                      >
+                        <Send className="h-4 w-4" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => void message(p)}
+                      disabled={busy}
+                      title={`Message ${displayName(p)}`}
+                      aria-label={`Message ${displayName(p)}`}
+                      className="btn-primary gap-1 px-2.5 py-1.5 text-xs"
+                    >
+                      <MessageSquare className="h-4 w-4" /> Message
+                    </button>
+                  </div>
                 )}
               </div>
             ))}
@@ -193,6 +210,15 @@ export function DirectoryPage() {
           selected ? (
             <>
               <button className="btn-ghost" onClick={() => setSelected(null)}>Close</button>
+              {selected.id !== me && canInvite && (
+                <button
+                  className="btn-ghost gap-1 border border-gold-400/30 text-gold-200 hover:bg-gold-400/10"
+                  onClick={() => setInvite(selected)}
+                  title={`Text ${displayName(selected)} an invite to ROP Chat`}
+                >
+                  <Send className="h-4 w-4" /> Invite to ROP Chat
+                </button>
+              )}
               {selected.id !== me && (
                 <button className="btn-primary" disabled={busy} onClick={() => message(selected)}>
                   <MessageSquare className="h-4 w-4" /> Message
@@ -238,6 +264,8 @@ export function DirectoryPage() {
           </div>
         )}
       </Modal>
+
+      <InviteModal open={!!invite} onClose={() => setInvite(null)} recipient={invite} />
     </div>
   )
 }

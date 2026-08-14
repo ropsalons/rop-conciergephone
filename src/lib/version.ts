@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.48.0'
+export const APP_VERSION = '1.49.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.49.0',
+    date: '2026-08-14',
+    time: '1:15 PM ET',
+    title: 'Invite someone to ROP Chat with one tap (admins)',
+    changes: [
+      'Managers can now invite a teammate straight from the Directory: open their profile (or tap the ✉ button on their card) and choose “Invite to ROP Chat.”',
+      'It texts them a friendly, ready-to-go invite that explains what ROP Chat is, that they’ve been picked as an early tester, and walks them through setting it up on their phone or desktop with their mobile number + a 4-digit PIN.',
+      'The message is fully editable before you send it, so you can personalize it for each person.',
+    ],
+  },
   {
     version: '1.48.0',
     date: '2026-08-14',
