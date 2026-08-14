@@ -34,6 +34,8 @@ const json = (b: unknown, req: Request, status = 200) =>
 
 const normPhone = (p: string) => String(p ?? '').replace(/\D/g, '').slice(-10)
 const isPin = (p: string) => /^\d{4}$/.test(String(p ?? ''))
+// Best-effort client IP (Supabase/Deno sits behind a proxy; the first x-forwarded-for hop is the caller).
+const clientIp = (req: Request) => (req.headers.get('x-forwarded-for') ?? '').split(',')[0].trim()
 
 async function hmacHex(pepper: string, msg: string): Promise<string> {
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(pepper), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
@@ -68,6 +70,17 @@ async function signIn(email: string, secret: string): Promise<any | null> {
   })
   return r.ok ? await r.json() : null
 }
+// Throttling: a 4-digit PIN is only 10,000 guesses, so we cap failed attempts per phone and per IP.
+// rateCheck returns 'ok' | 'locked_phone' | 'locked_ip'; rateRecord logs the outcome (and clears a
+// phone's recent failures on success, so one fumble-then-correct doesn't leave someone locked out).
+async function rateCheck(phone: string, ip: string): Promise<string> {
+  const r = await rpc('pin_rate_check', { p_phone: phone, p_ip: ip })
+  return typeof r === 'string' ? r : 'ok'
+}
+async function rateRecord(phone: string, ip: string, ok: boolean): Promise<void> {
+  await rpc('pin_rate_record', { p_phone: phone, p_ip: ip, p_ok: ok })
+}
+
 async function sendSms(toDigits: string, body: string) {
   await fetch(`${SUPA_URL}/functions/v1/send-sms`, {
     method: 'POST',
@@ -83,6 +96,17 @@ Deno.serve(async (req) => {
     const action = String(b.action ?? '')
     const phone = String(b.phone ?? '')
     const pin = String(b.pin ?? '')
+    const ip = clientIp(req)
+
+    // One lockout gate for every action that touches an account (guessing PINs, spraying numbers,
+    // or spamming reset texts). Neutral, friendly message; 429 so callers can back off.
+    const gate = await rateCheck(phone, ip)
+    if (gate !== 'ok') {
+      const msg = gate === 'locked_phone'
+        ? 'Too many tries. For your security this number is paused for a few minutes — wait, then try again or tap “Forgot PIN?”.'
+        : 'Too many attempts from this device. Please wait a few minutes and try again.'
+      return json({ ok: false, code: gate, error: msg }, req, 429)
+    }
 
     if (action === 'setup') {
       if (!isPin(pin)) return json({ ok: false, error: 'Your PIN must be exactly 4 digits.' }, req, 400)
@@ -102,6 +126,7 @@ Deno.serve(async (req) => {
       if (!prof) return json({ ok: false, error: "We couldn't find that mobile number on file." }, req, 404)
       if (!prof.pin_set) return json({ ok: false, code: 'no_pin', error: 'No PIN yet — tap “First time here? Set up your PIN.”' }, req, 409)
       const session = await signIn(prof.email, await deriveSecret(phone, pin))
+      await rateRecord(phone, ip, !!session?.access_token) // count this guess (clears failures on success)
       if (!session?.access_token) return json({ ok: false, error: 'That PIN doesn’t match. Try again or reset it.' }, req, 401)
       return json({ ok: true, session }, req)
     }
@@ -111,8 +136,12 @@ Deno.serve(async (req) => {
       const prof = await lookup(phone)
       if (prof) {
         const code = String(Math.floor(100000 + Math.random() * 900000))
-        await rpc('pin_store_code', { p_profile: prof.id, p_hash: await sha256hex(code) })
-        await sendSms(normPhone(phone), `Your ROP Chat PIN reset code is ${code}. It expires in 15 minutes.`)
+        // pin_store_code returns false when >3 codes were requested in 15 min — then we skip the text
+        // so the endpoint can't be used to spam someone's phone. Response stays neutral either way.
+        const stored = await rpc('pin_store_code', { p_profile: prof.id, p_hash: await sha256hex(code) })
+        if (stored === true) {
+          await sendSms(normPhone(phone), `Your ROP Chat PIN reset code is ${code}. It expires in 15 minutes.`)
+        }
       }
       return json(neutral, req)
     }
@@ -124,6 +153,7 @@ Deno.serve(async (req) => {
       const prof = await lookup(phone)
       if (!prof) return json({ ok: false, error: "We couldn't find that mobile number on file." }, req, 404)
       const ok = await rpc('pin_use_code', { p_profile: prof.id, p_hash: await sha256hex(code) })
+      await rateRecord(phone, ip, ok === true) // a bad reset code counts toward the lockout too
       if (ok !== true) return json({ ok: false, error: 'That code is wrong or has expired. Request a new one.' }, req, 400)
       const secret = await deriveSecret(phone, pin)
       await rpc('pin_set', { p_profile: prof.id, p_secret: secret })
