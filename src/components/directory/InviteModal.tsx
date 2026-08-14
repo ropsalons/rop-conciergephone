@@ -10,27 +10,29 @@ const APP_URL = 'https://chat.ropsalons.com'
 
 // The standard "you've been picked to try ROP Chat" invite. Editable before sending. Written plainly
 // (about a 10th-grade reading level): says who it's really from, what ROP Chat is, that they were
-// selected as an early tester, and the few steps to get it on their phone (or desktop). Login matches
-// the new phone + 4-digit PIN flow.
+// selected as an early tester, and the few steps to get it on their phone (iPhone or Android) or a
+// computer. Login matches the new phone + 4-digit PIN flow, and replies point to Marina.
+//
+// IMPORTANT: keep this text plain ASCII (straight quotes/apostrophes, hyphens, no emoji or bullets).
+// A single "smart" quote, em-dash, bullet, or emoji flips the whole SMS into Unicode mode, which cuts
+// each segment from 153 chars to 67 and roughly doubles the per-text cost for no benefit.
 function defaultMessage(p: Profile): string {
   const first = (displayName(p).trim().split(/\s+/)[0] || 'there')
   return (
-    `Hi ${first}! This is a real text from Robert of Philadelphia (ROP) — you can trust it. 👋\n\n` +
-    `We just built our own team app called ROP Chat. If you were with us a while back, you'll remember ` +
-    `Slack — this works a lot like it, but it's ours. It's even got all our old channels and history in ` +
-    `it, and it can do a lot more than anything we've used before.\n\n` +
-    `You've been picked as one of the first people to try it. We're still using Symphony for now and ` +
-    `moving everyone over slowly, a bit at a time — and you're one of the first. 🎉\n\n` +
-    `Here's all you do:\n` +
-    `1) On your iPhone, open this in Safari: ${APP_URL}\n` +
-    `2) Tap "First time here? Set up your PIN," type your mobile number, and pick a 4-digit PIN. That's ` +
-    `your login from now on — easy.\n` +
-    `3) To keep it handy like an app: tap the Share icon (the box with an arrow) at the bottom, then ` +
-    `"Add to Home Screen."\n\n` +
-    `Prefer a computer? Open ${APP_URL} in Chrome and click "Install" in the address bar — nice for ` +
-    `concierge. (On Android: open in Chrome, tap the menu, then "Install app.")\n\n` +
-    `Want to learn more once you're in? Tap the "?" Help button any time for a quick tour.\n\n` +
-    `Questions? Just reply to this text. — Rob, Robert of Philadelphia`
+    `Hi ${first}! This is a real text from Robert of Philadelphia (ROP) - you can trust it.\n\n` +
+    `We built our own team app, ROP Chat. If you were with us years back, it works a lot like Slack - ` +
+    `but it's ours, and it even has all our old channels and history in it. It does a lot more than ` +
+    `anything we've used before.\n\n` +
+    `You've been picked as one of the first to try it. We're still using Symphony for now and moving ` +
+    `everyone over slowly - you're one of the first.\n\n` +
+    `To start, open this on your phone: ${APP_URL}\n` +
+    `Tap "First time here? Set up your PIN," enter your mobile number, and pick a 4-digit PIN. That's ` +
+    `your login from now on.\n\n` +
+    `To keep it handy like an app:\n` +
+    `- iPhone: open the link in Safari, tap the Share icon, then "Add to Home Screen."\n` +
+    `- Android: open the link in Chrome, tap the menu (three dots), then "Install app."\n\n` +
+    `On a computer instead? Open the link in Chrome and click "Install" - nice for concierge.\n\n` +
+    `Questions or need help getting in? Text Marina - she's helping everyone get started.`
   )
 }
 
