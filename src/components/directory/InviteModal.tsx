@@ -32,6 +32,8 @@ function defaultMessage(p: Profile): string {
     `- iPhone: open the link in Safari, tap the Share icon, then "Add to Home Screen."\n` +
     `- Android: open the link in Chrome, tap the menu (three dots), then "Install app."\n\n` +
     `On a computer instead? Open the link in Chrome and click "Install" - nice for concierge.\n\n` +
+    `One last thing once you're in and set up: post a quick message in the Announcements channel so ` +
+    `we know you made it - just say you logged in.\n\n` +
     `Questions or need help getting in? Text Marina - she's helping everyone get started.`
   )
 }
