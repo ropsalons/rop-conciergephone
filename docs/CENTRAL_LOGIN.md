@@ -11,6 +11,10 @@ never leave the central authority and are never needed by a consuming property t
 
 ## 1. The identity authority
 
+- **DECIDED:** Chat's Supabase project is the single canonical identity authority for all four
+  properties. Time (`ickfhzjmmlcjhqlljjwb`) and the Hub delegate to it; `my.ropsalons.com` (no prior
+  auth) builds directly against it. Each property keeps its own data project — only the "who are you?"
+  check moves to Chat's project.
 - **Supabase project:** `qrigzwactbwbpuufehxo` (Chat).
 - **Base URL:** `https://qrigzwactbwbpuufehxo.supabase.co`
 - **Holds:** the workforce accounts (one row per person in `public.profiles`, keyed to a Supabase auth
@@ -25,6 +29,24 @@ never leave the central authority and are never needed by a consuming property t
 its own credential store. It calls the `pin-auth` endpoint below with phone + PIN, receives a real
 Supabase session (JWT), and verifies that JWT on its own server. Identity then comes from the token, not
 from client-supplied IDs.
+
+### Decisions locked (all four owners)
+
+- **Front-door only.** Every property authenticates through the `pin-auth` endpoint (Section 2). The
+  **pepper and service-role key are never distributed** — they stay inside Chat's project. This means a
+  property does **not** re-derive the secret locally and does **not** need to match the derivation
+  byte-for-byte; Chat does the derivation. (The exact formula is still documented in Section 2 for
+  reference / audit, but delegators can ignore it.)
+- **Each property keeps its own data and its own authorization.** Only the "who are you?" check moves to
+  Chat. Roles/permissions (e.g. concierge/leader/admin, or otc roles) stay in each property, keyed by the
+  central user id (`sub`) or normalized phone. Central identity answers *who*, not *what they can see*.
+- **Provisioning stays central.** New staff accounts are created in Chat's project (one place), so no one
+  else needs the service-role key.
+- **Time keeps its data where it is** (auth-only delegation): otc/payroll stay in project
+  `ickfhzjmmlcjhqlljjwb`; time's backend verifies Chat's JWT and serves its own data. No data migration.
+- **Seamless SSO needs a real subdomain.** A property can only share a `.ropsalons.com` cookie if it's
+  served from a `ropsalons.com` subdomain. The Hub must move from `rop-growth-performance.netlify.app`
+  to `hub.ropsalons.com` before Phase 3. Until then it's "same credential, separate sign-ins."
 
 ---
 
