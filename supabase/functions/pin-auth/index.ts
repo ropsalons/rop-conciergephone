@@ -57,10 +57,15 @@ async function rpc(fn: string, args: Record<string, unknown>): Promise<any> {
   })
   return r.ok ? await r.json().catch(() => null) : null
 }
-async function lookup(phone: string): Promise<{ id: string; email: string; pin_set: boolean; phone: string } | null> {
+async function lookup(phone: string): Promise<{ id: string; email: string; pin_set: boolean; phone: string; full_name: string } | null> {
   const rows = await rpc('pin_lookup', { p_phone: phone })
   return Array.isArray(rows) && rows[0] ? rows[0] : null
 }
+// The identity payload every consuming app needs — returned inline on success so no one needs a second
+// call or the anon key just to learn who signed in. (Phone is normalized to last-10 for easy matching.)
+const profileOf = (p: { id: string; full_name: string; phone: string; email: string }) => ({
+  id: p.id, full_name: p.full_name, phone: normPhone(p.phone), email: p.email,
+})
 // Sign in with the derived secret and return the session tokens.
 async function signIn(email: string, secret: string): Promise<any | null> {
   const r = await fetch(`${SUPA_URL}/auth/v1/token?grant_type=password`, {
@@ -117,7 +122,7 @@ Deno.serve(async (req) => {
       await rpc('pin_set', { p_profile: prof.id, p_secret: secret })
       const session = await signIn(prof.email, secret)
       if (!session?.access_token) return json({ ok: false, error: 'PIN set, but sign-in failed — please try Sign In.' }, req, 500)
-      return json({ ok: true, session }, req)
+      return json({ ok: true, session, profile: profileOf(prof) }, req)
     }
 
     if (action === 'login') {
@@ -128,7 +133,7 @@ Deno.serve(async (req) => {
       const session = await signIn(prof.email, await deriveSecret(phone, pin))
       await rateRecord(phone, ip, !!session?.access_token) // count this guess (clears failures on success)
       if (!session?.access_token) return json({ ok: false, error: 'That PIN doesn’t match. Try again or reset it.' }, req, 401)
-      return json({ ok: true, session }, req)
+      return json({ ok: true, session, profile: profileOf(prof) }, req)
     }
 
     if (action === 'forgot') {
@@ -159,7 +164,7 @@ Deno.serve(async (req) => {
       await rpc('pin_set', { p_profile: prof.id, p_secret: secret })
       const session = await signIn(prof.email, secret)
       if (!session?.access_token) return json({ ok: false, error: 'PIN reset, but sign-in failed — please try Sign In.' }, req, 500)
-      return json({ ok: true, session }, req)
+      return json({ ok: true, session, profile: profileOf(prof) }, req)
     }
 
     return json({ ok: false, error: 'Unknown action' }, req, 400)

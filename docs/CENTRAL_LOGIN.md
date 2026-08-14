@@ -68,6 +68,9 @@ Body is `{ "action": "...", ... }`. Phone may be sent in any format; it is norma
 - **`session`** is a standard Supabase session: `{ access_token, refresh_token, expires_in, expires_at,
   token_type, user }`. Install it with `supabase.auth.setSession({access_token, refresh_token})` if you
   use `supabase-js`, or just hold the tokens yourself.
+- **`profile`** is returned inline on every success: `{ id, full_name, phone (last-10), email }`. This is
+  the identity payload for mapping — so a consuming app needs **no second call and no key** to learn who
+  signed in. (`id` == the JWT `sub`. Note the JWT itself does not carry phone; use this `profile.phone`.)
 - **Rate limiting (live):** 6 failed PIN tries per phone, or 30 failed tries per IP, in a rolling
   15-minute window → `429 {code:"locked_phone"|"locked_ip"}`. A correct entry clears the phone's streak.
   `forgot` is capped at 3 reset texts per person per 15 minutes. Consuming properties get this protection

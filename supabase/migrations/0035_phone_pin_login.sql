@@ -32,9 +32,9 @@ $$;
 -- Look up a person by mobile number. Returns their id/email, whether a PIN is set, and the stored phone.
 -- Matches on normalized digits so "(555) 999-0000", "555-999-0000", "+15559990000" all resolve the same.
 create or replace function public.pin_lookup(p_phone text)
-returns table(id uuid, email text, pin_set boolean, phone text)
+returns table(id uuid, email text, pin_set boolean, phone text, full_name text)
 language sql security definer set search_path to 'public' as $$
-  select p.id, p.email, (p.pin_set_at is not null), p.phone
+  select p.id, p.email, (p.pin_set_at is not null), p.phone, p.full_name
   from public.profiles p
   where p.is_active and norm_phone(p.phone) = norm_phone(p_phone) and norm_phone(p_phone) <> ''
   order by p.created_at asc limit 1
