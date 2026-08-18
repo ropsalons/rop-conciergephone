@@ -211,8 +211,10 @@ export function ChannelPage() {
                 </button>
                 {notifyOpen && (
                   <>
-                    <div className="fixed inset-0 z-40" onClick={() => setNotifyOpen(false)} />
-                    <div className="absolute right-0 z-50 mt-1 w-60 overflow-hidden rounded-xl border border-white/15 bg-brand-950 shadow-2xl ring-1 ring-black/40">
+                    <div className="fixed inset-x-0 top-0 z-40 h-screen" onClick={() => setNotifyOpen(false)} />
+                    {/* Anchored to the viewport's right edge (not the bell button, which sits mid-header)
+                        so the 240px menu never overflows the left screen edge on narrow phones. */}
+                    <div className="fixed right-2 top-[calc(env(safe-area-inset-top,0px)+4.25rem)] z-50 w-60 max-w-[calc(100vw-1rem)] overflow-hidden rounded-xl border border-white/15 bg-brand-950 shadow-2xl ring-1 ring-black/40">
                       <p className="px-3 pt-2.5 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Notify me about…</p>
                       {([
                         ['all', 'All messages', 'Every post in this channel'],

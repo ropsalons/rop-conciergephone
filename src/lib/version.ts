@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.49.0'
+export const APP_VERSION = '1.49.1'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,15 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.49.1',
+    date: '2026-08-18',
+    time: '4:00 PM ET',
+    title: 'Fixed the notification menu getting cut off on iPhone',
+    changes: [
+      'The channel notification menu (the 🔔 bell → All messages / Mentions & DMs only / Nothing) was running off the left edge of the screen on iPhone, so the options were cut off and unreadable. It now stays fully on-screen — anchored just under the top bar on the right — no matter how narrow your phone is.',
+    ],
+  },
   {
     version: '1.49.0',
     date: '2026-08-14',
