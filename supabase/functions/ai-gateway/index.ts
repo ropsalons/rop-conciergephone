@@ -11,8 +11,11 @@
 //   Body:    { "action": "<action>", ...params, "idempotency_key"?: "<uuid>" }
 //
 // Actions: list_channels · list_users · read_channel_messages · read_thread · search_messages ·
-//          post_message · reply_thread · send_dm · send_group_dm · create_channel · create_task ·
-//          update_task · register_webhook · request_approval · list_approvals
+//          post_message · reply_thread · delete_message · send_dm · send_group_dm · create_channel ·
+//          create_task · update_task · register_webhook · request_approval · list_approvals
+//
+// delete_message is a SOFT delete (is_deleted=true, original text kept on the row) so an admin can
+// always restore it, exactly like a staff delete in the app.
 //
 // The endpoint uses the service role (bypassing RLS) but ONLY after validating the agent and
 // enforcing its scope in code — content the agent isn't allowed to see is never returned.
@@ -413,6 +416,69 @@ Deno.serve(async (req) => {
       const { id, attachments } = await insertMessage({ channel_id: ch.id }, { text, parent: parentId, items })
       await audit('ok', true, { message_id: id, parent: parentId, attachments }, ch.id)
       return json({ ok: true, message_id: id, parent_message_id: parentId, attachments, correlation_id: correlationId })
+    }
+
+    if (action === 'delete_message' || action === 'delete_messages') {
+      // Soft-delete (reversible) one or more messages. The original text is preserved on the row
+      // (is_deleted=true) so an admin can always restore it, exactly like a staff delete in the app.
+      // An agent may delete anywhere it can post (channels) or in a DM it's part of. Removing a message
+      // it didn't author (a human's) is honored too, but if the agent is configured to require approval
+      // for 'delete_message' those are queued for a human instead. Pass only_own:true to hard-restrict
+      // a call to this agent's own AI posts. Accepts message_id or message_ids[]. Fully audited.
+      const rawIds: string[] = Array.isArray(body.message_ids)
+        ? body.message_ids.map((x: unknown) => String(x))
+        : (body.message_id != null ? [String(body.message_id)] : [])
+      const ids = [...new Set(rawIds.filter((x) => uuidRe.test(x)))]
+      if (!ids.length) return deny('Provide "message_id" or "message_ids" (UUIDs)', 400)
+      if (ids.length > 50) return deny('Delete at most 50 messages per call.', 400)
+      const onlyOwn = body.only_own === true
+
+      const { data: rows } = await admin.from('messages')
+        .select('id,user_id,channel_id,conversation_id,is_deleted,metadata').in('id', ids)
+      const byId = new Map(((rows ?? []) as any[]).map((r) => [r.id, r]))
+
+      const results: Array<{ message_id: string; deleted: boolean; reason?: string }> = []
+      const toDelete: string[] = []
+      const channelsTouched = new Set<string>()
+      let sawForeign = false // a message this agent didn't post — more sensitive to remove
+      for (const id of ids) {
+        const m = byId.get(id)
+        if (!m) { results.push({ message_id: id, deleted: false, reason: 'not found' }); continue }
+        if (m.is_deleted) { results.push({ message_id: id, deleted: true, reason: 'already deleted' }); continue }
+        if (m.channel_id) {
+          const ch = await resolveChannel(m.channel_id)
+          if (!ch || !(await canPost(ch))) { results.push({ message_id: id, deleted: false, reason: 'not permitted in this channel' }); continue }
+          channelsTouched.add(ch.id)
+        } else if (m.conversation_id) {
+          if (!A.allow_dms) { results.push({ message_id: id, deleted: false, reason: 'DMs not permitted for this agent' }); continue }
+          const { data: mem } = await admin.from('direct_conversation_members').select('user_id').eq('conversation_id', m.conversation_id).eq('user_id', BOT_ID).maybeSingle()
+          if (!mem) { results.push({ message_id: id, deleted: false, reason: 'not a participant in this conversation' }); continue }
+        } else { results.push({ message_id: id, deleted: false, reason: 'message has no channel or conversation' }); continue }
+        const meta = (m.metadata ?? {}) as any
+        const isBotPost = m.user_id === BOT_ID && !!meta.ai_agent
+        if (onlyOwn && !isBotPost) { results.push({ message_id: id, deleted: false, reason: 'not an AI-posted message (only_own set)' }); continue }
+        if (!isBotPost) sawForeign = true
+        toDelete.push(id)
+      }
+
+      // Removing a human's message while this agent is set to require approval for deletes → queue it.
+      if (sawForeign && A.require_approval_for.includes('delete_message') && toDelete.length) {
+        const { data: appr } = await admin.from('ai_action_approvals')
+          .insert({ agent_id: A.id, action: 'delete_message', payload: { message_ids: toDelete, ai_agent: aiTag }, preview: `Delete ${toDelete.length} message(s) (includes non-AI messages)` })
+          .select('id').single()
+        await audit('pending_approval', true, { approval_id: appr?.id, message_ids: toDelete })
+        return json({ ok: true, status: 'pending_approval', approval_id: appr?.id, requested: ids.length, correlation_id: correlationId })
+      }
+
+      for (const id of toDelete) {
+        const { error } = await admin.from('messages').update({ is_deleted: true, deleted_at: new Date().toISOString() }).eq('id', id).eq('is_deleted', false)
+        if (error) results.push({ message_id: id, deleted: false, reason: error.message })
+        else results.push({ message_id: id, deleted: true })
+      }
+      const deleted = results.filter((r) => r.deleted && r.reason !== 'already deleted').length
+      await admin.from('ai_agents').update({ last_used_at: new Date().toISOString() }).eq('id', A.id)
+      await audit('ok', true, { deleted, requested: ids.length, results }, channelsTouched.size === 1 ? [...channelsTouched][0] : null)
+      return json({ ok: true, deleted, requested: ids.length, results, correlation_id: correlationId })
     }
 
     if (action === 'send_dm') {

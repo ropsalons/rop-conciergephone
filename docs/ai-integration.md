@@ -76,6 +76,7 @@ Body: `{ "action": "<action>", ...params, "idempotency_key"?: "<uuid>" }`
 | `search_messages` | `query`, `channel?`, `limit?` | Searches only allowed channels |
 | `post_message` | `channel`, `text` \| `html`, `title?`, `attachments?` | Posts as the agent identity |
 | `reply_thread` | `message_id`, `text`, `attachments?` | Reply in a thread |
+| `delete_message` | `message_id` \| `message_ids[]`, `only_own?` | Soft delete (reversible by an admin). Works anywhere the agent can post, or a DM it's in. Max 50/call. `only_own:true` limits it to the agent's own posts. |
 | `send_dm` | `to_email`, `text`, `attachments?` | Requires `allow_dms` |
 | `create_task` | `title`, `body?`, `channel?`, `assignee_email?` | Structured action item |
 | `update_task` | `task_id`, `status?`, `title?`, `body?` | `open`/`in_progress`/`done`/`cancelled` |

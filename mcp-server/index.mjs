@@ -39,6 +39,8 @@ const TOOLS = [
     schema: { type: 'object', required: ['channel', 'text'], properties: { channel: { type: 'string' }, text: { type: 'string' }, title: { type: 'string' }, html: { type: 'string', description: 'Optional HTML to render as a card' } } } },
   { name: 'reply_to_thread', action: 'reply_thread', description: 'Reply within a thread on an existing message.',
     schema: { type: 'object', required: ['message_id', 'text'], properties: { message_id: { type: 'string' }, text: { type: 'string' } } } },
+  { name: 'delete_message', action: 'delete_message', description: 'Delete one or more ROP Chat messages you can reach (anywhere you can post, or a DM you are part of). Soft delete — reversible by an admin. Pass message_id, or message_ids for a batch (max 50). Set only_own:true to restrict to messages this agent posted.',
+    schema: { type: 'object', properties: { message_id: { type: 'string' }, message_ids: { type: 'array', items: { type: 'string' } }, only_own: { type: 'boolean', description: 'If true, only delete messages this agent itself posted' } } } },
   { name: 'send_direct_message', action: 'send_dm', description: 'Send a direct message to a person by their ROP Chat user id (to_user_id) or email (to_email). Requires DM permission.',
     schema: { type: 'object', required: ['text'], properties: { to_user_id: { type: 'string' }, to_email: { type: 'string' }, text: { type: 'string' } } } },
   { name: 'send_group_message', action: 'send_group_dm', description: 'Start/continue a group DM with several people (by to_user_ids or to_emails) and post a message. Requires DM permission.',
