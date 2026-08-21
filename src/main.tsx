@@ -28,8 +28,12 @@ if ('serviceWorker' in navigator) {
   // When a push notification is tapped, the service worker asks us to route to the exact
   // conversation/channel. HashRouter picks up the hash change and navigates there.
   navigator.serviceWorker.addEventListener('message', (e) => {
-    const d = e.data as { type?: string; path?: string } | undefined
+    const d = e.data as { type?: string; path?: string; src?: string } | undefined
     if (d && d.type === 'navigate' && typeof d.path === 'string') {
+      // Temporary diagnostic: log which target the app was told to open and where it came from
+      // ('click' = app was open, 'open'/'ready' = launched from a tap). Helps confirm on-device
+      // that a tapped notification lands on the exact message. Safe to remove later.
+      try { console.info('[rop-nav]', d.src || '?', '->', d.path) } catch { /* ignore */ }
       window.location.hash = d.path
     }
   })

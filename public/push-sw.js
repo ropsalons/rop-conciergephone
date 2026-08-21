@@ -14,9 +14,13 @@ function toHashUrl(raw) {
 
 // When a notification is tapped and the app isn't already open, iOS launches the PWA at its start
 // URL and IGNORES the openWindow target below — so the deep link is lost and the user lands on the
-// home screen. We remember the target here; the freshly-launched app asks for it (message
-// 'client-ready') and we hand it over, so it still routes to the exact message. Android delivers
-// the openWindow URL directly, so this is a no-op there.
+// home screen. We remember the freshly-tapped target here (with a timestamp); the launched app asks
+// for it (message 'client-ready') and we hand it over, so it still routes to the exact message.
+//
+// It is stamped { path, ts } and ALWAYS overwritten by the latest tap, and the 'client-ready'
+// handler only delivers it once and only if it's fresh. That's the fix for the Android bug where an
+// OLD target got replayed every time the app came to the foreground (so tapping one notification
+// could land you on a different notification's message). Never replay a stale target.
 var pendingNavigate = null
 
 self.addEventListener('push', function (event) {
@@ -42,25 +46,27 @@ self.addEventListener('notificationclick', function (event) {
   event.notification.close()
   var url = toHashUrl((event.notification.data && event.notification.data.url) || '/')
   var hashPath = url.indexOf('/#') === 0 ? url.slice(2) : '/' // e.g. "/dm/123"
+  // Record THIS tap as the one true pending target, overwriting any earlier one and stamping the
+  // time. Doing it up front (before the async matchAll) means the freshest tap always wins.
+  pendingNavigate = { path: hashPath, ts: Date.now() }
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (list) {
-      // Remember the target for a cold launch (iOS), where no window exists yet.
-      pendingNavigate = hashPath
       for (var i = 0; i < list.length; i++) {
         var client = list[i]
         if ('focus' in client) {
-          // App already open — route it now and focus. (Clears the pending target: it's handled.)
+          // App already open — route it now and focus (the reliable path). Consume the pending
+          // target so it can't also be delivered via 'client-ready'.
           pendingNavigate = null
-          try { client.postMessage({ type: 'navigate', path: hashPath }) } catch (e) { /* ignore */ }
+          try { client.postMessage({ type: 'navigate', path: hashPath, src: 'click' }) } catch (e) { /* ignore */ }
           if ('navigate' in client) { try { client.navigate(url) } catch (e) { /* ignore */ } }
           return client.focus()
         }
       }
       // App not open — open it at the deep link (Android honors this), and also postMessage the
-      // window once it appears (belt-and-suspenders; iOS gets it via 'client-ready' below).
+      // window once it appears (belt-and-suspenders; a cold launch also gets it via 'client-ready').
       if (self.clients.openWindow) {
         return self.clients.openWindow(url).then(function (client) {
-          if (client) { try { client.postMessage({ type: 'navigate', path: hashPath }) } catch (e) { /* ignore */ } }
+          if (client) { try { client.postMessage({ type: 'navigate', path: hashPath, src: 'open' }) } catch (e) { /* ignore */ } }
         })
       }
     }),
@@ -100,11 +106,16 @@ self.addEventListener('fetch', function (event) {
 // lands on the exact conversation even on iOS (where a cold launch drops the openWindow target).
 self.addEventListener('message', function (event) {
   var data = event.data || {}
-  if (data.type === 'client-ready' && pendingNavigate) {
-    var path = pendingNavigate
+  if (data.type === 'client-ready') {
+    // Deliver a pending deep link ONLY if it's from a recent tap, and only once. 'client-ready'
+    // fires on every foreground on Android, so without the freshness guard an old target would be
+    // replayed and send the user to the wrong message. Either way we clear it so it never resurfaces.
+    var p = pendingNavigate
     pendingNavigate = null
-    try {
-      if (event.source && event.source.postMessage) event.source.postMessage({ type: 'navigate', path: path })
-    } catch (e) { /* ignore */ }
+    if (p && p.path && (Date.now() - p.ts) < 60000) {
+      try {
+        if (event.source && event.source.postMessage) event.source.postMessage({ type: 'navigate', path: p.path, src: 'ready' })
+      } catch (e) { /* ignore */ }
+    }
   }
 })

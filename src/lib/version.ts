@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.49.1'
+export const APP_VERSION = '1.49.2'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.49.2',
+    date: '2026-08-21',
+    time: '11:30 AM ET',
+    title: 'Tapping a notification opens the right message (Android fix)',
+    changes: [
+      'Fixed the Android bug where tapping one notification (say the morning brief) could open ROP Chat on a different message than the one you tapped — especially when you had several notifications stacked up.',
+      'The cause: the app reused a single “open this” target, and when it came to the foreground it could replay an older one. Now every tap carries its own fresh target, and a stale one is never reused — so you land on exactly the message you tapped.',
+    ],
+  },
   {
     version: '1.49.1',
     date: '2026-08-18',
