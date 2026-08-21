@@ -78,6 +78,8 @@ Body: `{ "action": "<action>", ...params, "idempotency_key"?: "<uuid>" }`
 | `reply_thread` | `message_id`, `text`, `attachments?` | Reply in a thread |
 | `delete_message` | `message_id` \| `message_ids[]`, `only_own?` | Soft delete (reversible by an admin). Works anywhere the agent can post, or a DM it's in. Max 50/call. `only_own:true` limits it to the agent's own posts. |
 | `send_dm` | `to_email`, `text`, `attachments?` | Requires `allow_dms` |
+| `create_channel` | `name`, `type?` (public/private), `description?` | Idempotent — reuses an existing same-named channel; owner is always added |
+| `delete_channel` | `channel` | Archives it (reversible; history kept). Announcement/urgent channels are protected. Never hard-deletes. |
 | `create_task` | `title`, `body?`, `channel?`, `assignee_email?` | Structured action item |
 | `update_task` | `task_id`, `status?`, `title?`, `body?` | `open`/`in_progress`/`done`/`cancelled` |
 | `request_approval` | `request_action`, `preview`, `payload?` | Queue a sensitive action |

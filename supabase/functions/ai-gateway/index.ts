@@ -12,10 +12,11 @@
 //
 // Actions: list_channels · list_users · read_channel_messages · read_thread · search_messages ·
 //          post_message · reply_thread · delete_message · send_dm · send_group_dm · create_channel ·
-//          create_task · update_task · register_webhook · request_approval · list_approvals
+//          delete_channel · create_task · update_task · register_webhook · request_approval · list_approvals
 //
 // delete_message is a SOFT delete (is_deleted=true, original text kept on the row) so an admin can
-// always restore it, exactly like a staff delete in the app.
+// always restore it, exactly like a staff delete in the app. delete_channel ARCHIVES a channel
+// (is_archived=true) — also reversible; channels are never hard-deleted.
 //
 // The endpoint uses the service role (bypassing RLS) but ONLY after validating the agent and
 // enforcing its scope in code — content the agent isn't allowed to see is never returned.
@@ -656,6 +657,23 @@ Deno.serve(async (req) => {
       await addOwnersAndBot(created.id)
       await audit('ok', true, { channel: created.slug, type }, created.id)
       return json({ ok: true, channel: created, correlation_id: correlationId })
+    }
+
+    if (action === 'delete_channel' || action === 'archive_channel') {
+      // Archive a channel (reversible — same as the app's archive: history is kept and an admin can
+      // restore it in Admin → Channels). Channels are never hard-deleted. Scope: anywhere the agent
+      // can post. Refuses core broadcast channels (announcements/urgent) as a safety rail.
+      const ch = await resolveChannel(String(body.channel ?? body.channel_id ?? body.name ?? ''))
+      if (!ch) return deny('Channel not found', 404)
+      if (ch.type === 'announcement') return deny('Announcement/urgent channels cannot be archived via the API.')
+      if (!(await canPost(ch))) return deny('This agent may not manage that channel.')
+      if (A.require_approval_for.includes('delete_channel'))
+        return await queueApproval({ channel_id: ch.id, slug: ch.slug }, `Archive #${ch.slug}`)
+      const { error } = await admin.from('channels').update({ is_archived: true }).eq('id', ch.id)
+      if (error) throw error
+      await admin.from('ai_agents').update({ last_used_at: new Date().toISOString() }).eq('id', A.id)
+      await audit('ok', true, { channel: ch.slug, archived: true }, ch.id)
+      return json({ ok: true, channel: { id: ch.id, slug: ch.slug, name: ch.name }, archived: true, correlation_id: correlationId })
     }
 
     if (action === 'list_approvals') {

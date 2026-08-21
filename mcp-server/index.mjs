@@ -47,6 +47,8 @@ const TOOLS = [
     schema: { type: 'object', required: ['text'], properties: { to_user_ids: { type: 'array', items: { type: 'string' } }, to_emails: { type: 'array', items: { type: 'string' } }, title: { type: 'string' }, text: { type: 'string' } } } },
   { name: 'create_channel', action: 'create_channel', description: 'Create a channel (public or private). Idempotent — reuses an existing channel of the same name. The workspace owner is always added.',
     schema: { type: 'object', required: ['name'], properties: { name: { type: 'string' }, type: { type: 'string', description: 'public | private' }, description: { type: 'string' } } } },
+  { name: 'delete_channel', action: 'delete_channel', description: 'Archive a channel (by slug, name, or id). Reversible — history is kept and an admin can restore it; channels are never hard-deleted. Announcement/urgent channels are protected.',
+    schema: { type: 'object', required: ['channel'], properties: { channel: { type: 'string' } } } },
   { name: 'register_webhook', action: 'register_webhook', description: 'Register a return-path webhook and auto-create a dedicated command channel that routes messages to this project.',
     schema: { type: 'object', required: ['url'], properties: { url: { type: 'string' }, project_name: { type: 'string' }, secret: { type: 'string' }, events: { type: 'array', items: { type: 'string' } } } } },
   { name: 'create_task', action: 'create_task', description: 'Create a structured action item / task.',
