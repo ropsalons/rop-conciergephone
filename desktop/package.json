@@ -19,7 +19,7 @@
     "appId": "com.ropsalons.chat",
     "productName": "ROP Chat",
     "files": ["main.js", "preload.js", "urgent-preload.js", "urgent.html", "assets/**"],
-    "mac": { "category": "public.app-category.business", "target": ["dmg"] },
+    "mac": { "category": "public.app-category.business", "target": ["dmg"], "identity": null },
     "win": { "target": ["nsis"] },
     "nsis": { "oneClick": false, "perMachine": false, "allowToChangeInstallationDirectory": true }
   }
