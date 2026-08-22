@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.49.3'
+export const APP_VERSION = '1.50.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,18 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.50.0',
+    date: '2026-08-21',
+    time: '4:15 PM ET',
+    title: 'Urgent takeover alerts — flag a channel for full-screen popups',
+    changes: [
+      'Any channel can now be flagged as an “Urgent takeover” channel: open the channel → pencil (Edit) → turn on “Urgent takeover popup.” Admins/owners only.',
+      'When a message hits an urgent channel, everyone in it gets a full-screen red alert with a repeating alert tone (and a phone buzz) — it stays up until you tap “Open & take action” or “Acknowledge.” Perfect for a name hitting the waitlist or a guest issue that needs someone now.',
+      'It works over any screen you’re on in the app, and phones still get an urgent push. (A desktop app that pops over other programs is the next step.)',
+      'Connected tools can trigger it just by posting to an urgent channel through the API — no special flag needed.',
+    ],
+  },
   {
     version: '1.49.3',
     date: '2026-08-21',

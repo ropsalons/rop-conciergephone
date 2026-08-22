@@ -49,7 +49,17 @@ export function useAppBootstrap() {
           // When mobile push is on, the service worker shows the OS notification — don't double up.
           const osNotify = !!allow?.browser_push && !allow?.mobile_push
           if (n.type === 'urgent') {
-            toast({ kind: 'urgent', title: n.title, body: n.body ?? undefined })
+            // If this came from a channel flagged "urgent takeover", pop the full-screen alert
+            // instead of a small toast. Otherwise (e.g. a broadcast urgent alert) keep the toast.
+            const ch = n.channel_id ? useChatStore.getState().channels.find((c) => c.id === n.channel_id) : null
+            if (ch && (ch as unknown as { urgent_popup?: boolean }).urgent_popup) {
+              useUIStore.getState().showUrgent({
+                id: n.id, title: n.title, body: n.body ?? undefined,
+                link: n.link ?? (n.channel_id ? `/channel/${n.channel_id}` : undefined),
+              })
+            } else {
+              toast({ kind: 'urgent', title: n.title, body: n.body ?? undefined })
+            }
             maybeBrowserNotify(n, (allow?.urgent ?? true) && osNotify)
           } else if (n.type === 'mention' && allow?.mentions !== false) {
             toast({ kind: 'info', title: n.title, body: n.body ?? undefined })

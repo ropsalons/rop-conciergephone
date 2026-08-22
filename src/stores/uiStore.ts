@@ -8,6 +8,14 @@ export interface Toast {
   body?: string
 }
 
+// A full-screen "urgent takeover" alert — a message posted to a channel flagged urgent_popup.
+export interface UrgentTakeover {
+  id: string
+  title: string
+  body?: string
+  link?: string
+}
+
 // How the channel list in the sidebar is ordered. Favorites always float to the top;
 // this controls the order *within* the non-favorite group (and among favorites).
 // 'manual' = the user's own drag-and-drop order (see channelOrder).
@@ -98,6 +106,9 @@ interface UIState {
   openThread: (id: string | null) => void
   toast: (t: Omit<Toast, 'id'>) => void
   dismissToast: (id: string) => void
+  urgent: UrgentTakeover | null
+  showUrgent: (u: UrgentTakeover) => void
+  dismissUrgent: () => void
 }
 
 const initialPrefs = loadPrefs()
@@ -158,4 +169,7 @@ export const useUIStore = create<UIState>((set, get) => ({
     setTimeout(() => set((s) => ({ toasts: s.toasts.filter((x) => x.id !== id) })), 6000)
   },
   dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((x) => x.id !== id) })),
+  urgent: null,
+  showUrgent: (u) => set({ urgent: u }),
+  dismissUrgent: () => set({ urgent: null }),
 }))

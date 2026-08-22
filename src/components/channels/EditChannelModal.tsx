@@ -25,6 +25,7 @@ export function EditChannelModal({
   const [description, setDescription] = useState(channel.description ?? '')
   const canToggleVisibility = channel.type === 'public' || channel.type === 'private'
   const [type, setType] = useState<string>(channel.type)
+  const [urgentPopup, setUrgentPopup] = useState<boolean>(!!(channel as unknown as { urgent_popup?: boolean }).urgent_popup)
   const [saving, setSaving] = useState(false)
 
   async function save() {
@@ -37,6 +38,7 @@ export function EditChannelModal({
         name: trimmed,
         topic: topic.trim() || null,
         description: description.trim() || null,
+        urgent_popup: urgentPopup,
         ...(canToggleVisibility ? { type } : {}),
       } as never)
       .eq('id', channel.id)
@@ -101,6 +103,30 @@ export function EditChannelModal({
             </p>
           </div>
         )}
+        <button
+          type="button"
+          onClick={() => setUrgentPopup((v) => !v)}
+          className={cn(
+            'flex w-full items-start gap-3 rounded-xl border px-3 py-3 text-left transition',
+            urgentPopup ? 'border-red-500/60 bg-red-500/10' : 'border-white/15 hover:bg-white/5',
+          )}
+        >
+          <span className="mt-0.5 text-xl" aria-hidden>🚨</span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-medium text-slate-100">Urgent takeover popup</span>
+            <span className="block text-[11px] text-slate-400">
+              Every message here pops a full-screen alert with a sound for all members — even over other screens once the desktop app is installed. Use for waitlist / immediate-attention channels only.
+            </span>
+          </span>
+          <span
+            className={cn(
+              'mt-0.5 h-6 w-11 shrink-0 rounded-full p-0.5 transition',
+              urgentPopup ? 'bg-red-500' : 'bg-white/20',
+            )}
+          >
+            <span className={cn('block h-5 w-5 rounded-full bg-white transition', urgentPopup && 'translate-x-5')} />
+          </span>
+        </button>
         <p className="text-[11px] text-slate-500">
           The channel’s address (#{channel.slug}) stays the same after a rename, so existing links and integrations keep working.
         </p>

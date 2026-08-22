@@ -32,6 +32,7 @@ import { AdminPage } from '@/pages/AdminPage'
 import { DeactivatedPage } from '@/pages/DeactivatedPage'
 import { ShareTargetModal } from '@/components/share/ShareTargetModal'
 import { AppBadge } from '@/components/AppBadge'
+import { UrgentTakeover } from '@/components/UrgentTakeover'
 
 export default function App() {
   const { initialized, session, profile, init } = useAuthStore()
@@ -102,6 +103,8 @@ export default function App() {
       <ShareTargetModal />
       {/* Unread count on the app's Dock/taskbar/home-screen icon. */}
       <AppBadge />
+      {/* Full-screen alert for messages in channels flagged "urgent takeover". */}
+      <UrgentTakeover />
       <Toaster />
       <UpdatePrompt />
     </>
