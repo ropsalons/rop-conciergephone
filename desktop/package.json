@@ -1,0 +1,26 @@
+{
+  "name": "rop-chat-desktop",
+  "productName": "ROP Chat",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ROP Chat desktop shell — wraps chat.ropsalons.com and pops urgent alerts over other apps.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.ropsalons.chat",
+    "productName": "ROP Chat",
+    "files": ["main.js", "preload.js", "urgent-preload.js", "urgent.html", "assets/**"],
+    "mac": { "category": "public.app-category.business", "target": ["dmg"] },
+    "win": { "target": ["nsis"] },
+    "nsis": { "oneClick": false, "perMachine": false, "allowToChangeInstallationDirectory": true }
+  }
+}

@@ -13,6 +13,14 @@ export function UrgentTakeover() {
   // Repeating alert tone + phone buzz while the alert is up (auto-quiets after 20s; the alert stays).
   useEffect(() => {
     if (!urgent) return
+    // If we're running inside the ROP Chat desktop app, hand the alert to the native shell so it pops
+    // an always-on-top window OVER other programs (works even when ROP Chat isn't focused). The
+    // in-app overlay below still shows when the app itself is on screen. No-op in a plain browser.
+    try {
+      ;(window as unknown as { ropDesktop?: { urgent: (p: unknown) => void } }).ropDesktop?.urgent({
+        title: urgent.title, body: urgent.body, link: urgent.link,
+      })
+    } catch { /* ignore */ }
     let stopped = false
     let ctx: AudioContext | null = null
     const beep = () => {

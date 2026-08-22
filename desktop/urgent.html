@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Urgent</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: -apple-system, "Segoe UI", Roboto, system-ui, sans-serif;
+      background: #0b1220;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      border: 4px solid #ef4444;
+      border-radius: 16px;
+      overflow: hidden;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    .bar {
+      display: flex; align-items: center; gap: 10px;
+      background: #dc2626; padding: 12px 18px;
+      font-weight: 800; text-transform: uppercase; letter-spacing: .04em;
+    }
+    .bar .siren { font-size: 22px; animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .35 } }
+    .body { flex: 1; padding: 18px 20px; overflow: auto; }
+    h1 { font-size: 22px; line-height: 1.2; }
+    p.msg { margin-top: 10px; font-size: 16px; line-height: 1.5; color: #e5e7eb; white-space: pre-wrap; }
+    .actions { display: flex; gap: 10px; padding: 14px 20px 18px; }
+    button {
+      flex: 1; border: 0; border-radius: 12px; padding: 14px 12px;
+      font-size: 15px; font-weight: 700; cursor: pointer;
+    }
+    .open { background: #ef4444; color: #fff; }
+    .open:hover { background: #f05252; }
+    .ack { background: transparent; color: #e5e7eb; border: 1px solid rgba(255,255,255,.25); }
+    .ack:hover { background: rgba(255,255,255,.1); }
+  </style>
+</head>
+<body>
+  <div class="bar"><span class="siren">🚨</span> Urgent — action needed</div>
+  <div class="body">
+    <h1 id="title">Urgent alert</h1>
+    <p class="msg" id="msg"></p>
+  </div>
+  <div class="actions">
+    <button class="open" id="open" style="display:none">Open &amp; take action</button>
+    <button class="ack" id="ack">Acknowledge</button>
+  </div>
+
+  <script>
+    let link = null
+    let stopped = false
+    let ctx = null
+
+    function beep() {
+      if (stopped) return
+      try {
+        ctx = ctx || new (window.AudioContext || window.webkitAudioContext)()
+        if (ctx.state === 'suspended') ctx.resume()
+        const now = ctx.currentTime
+        ;[880, 1175].forEach((freq, i) => {
+          const o = ctx.createOscillator(), g = ctx.createGain()
+          o.type = 'square'; o.frequency.value = freq
+          const t = now + i * 0.18
+          g.gain.setValueAtTime(0.0001, t)
+          g.gain.exponentialRampToValueAtTime(0.3, t + 0.02)
+          g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16)
+          o.connect(g); g.connect(ctx.destination)
+          o.start(t); o.stop(t + 0.17)
+        })
+      } catch (e) {}
+    }
+    beep()
+    const iv = setInterval(beep, 1600)
+    // Quiet the tone after 25s (the window stays up until acted on).
+    setTimeout(() => { stopped = true; clearInterval(iv) }, 25000)
+
+    window.urgentApi.onPayload((p) => {
+      document.getElementById('title').textContent = p.title || 'Urgent alert'
+      document.getElementById('msg').textContent = p.body || ''
+      link = p.link || null
+      const openBtn = document.getElementById('open')
+      openBtn.style.display = link ? '' : 'none'
+    })
+    document.getElementById('open').addEventListener('click', () => window.urgentApi.open(link))
+    document.getElementById('ack').addEventListener('click', () => window.urgentApi.ack())
+  </script>
+</body>
+</html>
