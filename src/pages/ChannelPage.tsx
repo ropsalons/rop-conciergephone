@@ -47,6 +47,9 @@ export function ChannelPage() {
   const [showCleanup, setShowCleanup] = useState(false)
   const [keepGroups, setKeepGroups] = useState<Set<string>>(new Set())
   const [cleaning, setCleaning] = useState(false)
+  // People you just @mentioned who aren't in this channel — surfaced so you can invite them.
+  const [outsiders, setOutsiders] = useState<Array<(typeof directory)[number]>>([])
+  const [invitingOutsiders, setInvitingOutsiders] = useState(false)
 
   const myMembership = members.find((m) => m.user_id === me)
   const level: 'all' | 'mentions' | 'mute' = (myMembership as any)?.notify_level ?? 'mentions'
@@ -65,6 +68,7 @@ export function ChannelPage() {
   const iCanManageMembers = canManage(myAccess)
 
   const memberIds = useMemo(() => new Set(members.map((m) => m.user_id)), [members])
+  const profileById = useMemo(() => new Map(directory.map((p) => [p.id, p])), [directory])
   const addable = useMemo(() => {
     const q = peopleQuery.trim().toLowerCase()
     return directory
@@ -76,6 +80,10 @@ export function ChannelPage() {
   useEffect(() => {
     if ((showAddPeople || showMembers) && !directoryLoaded) void loadDirectory()
   }, [showAddPeople, showMembers, directoryLoaded, loadDirectory])
+  // Load the directory when the channel opens so we can name anyone @mentioned who isn't a member.
+  useEffect(() => { if (!directoryLoaded) void loadDirectory() }, [directoryLoaded, loadDirectory])
+  // Clear the "not in this channel" banner when switching channels.
+  useEffect(() => { setOutsiders([]) }, [channelId])
 
   async function addPerson(userId: string) {
     if (!channelId) return
@@ -162,6 +170,36 @@ export function ChannelPage() {
   const { messages, loading: msgLoading, hasMore, loadMore, reload: reloadMessages, send, edit, remove, toggleReaction, togglePin } =
     useMessages(channelId ? { channelId } : {}, { focusId: highlightId })
   const refreshUnread = useChatStore((s) => s.refreshUnread)
+
+  // Send, then flag anyone individually @mentioned who isn't in this channel — they won't see the
+  // message unless they're added. (Group mentions are already limited to current members, so they
+  // never show up here.)
+  async function handleSend(input: Parameters<typeof send>[0]) {
+    const res = await send(input)
+    const mentioned: string[] = Array.isArray(input.mentions) ? input.mentions : []
+    const outs = [...new Set(mentioned)]
+      .filter((id) => id !== me && !memberIds.has(id))
+      .map((id) => profileById.get(id))
+      .filter((p): p is (typeof directory)[number] => !!p && p.is_active)
+    setOutsiders(outs)
+    return res
+  }
+
+  async function inviteOutsiders() {
+    if (!channelId || !outsiders.length || invitingOutsiders) return
+    setInvitingOutsiders(true)
+    const { error } = await supabase.from('channel_members')
+      .insert(outsiders.map((p) => ({ channel_id: channelId, user_id: p.id })) as never)
+    setInvitingOutsiders(false)
+    if (error) return toast({ kind: 'error', title: 'Could not add', body: error.message })
+    await loadMembers()
+    toast({
+      kind: 'success',
+      title: outsiders.length === 1 ? `Added ${displayName(outsiders[0])}` : `Added ${outsiders.length} people`,
+      body: `Now in #${channel?.name} — they'll see your message.`,
+    })
+    setOutsiders([])
+  }
 
   // Mark read whenever the visible message set changes.
   useEffect(() => {
@@ -279,11 +317,32 @@ export function ChannelPage() {
         />
       )}
 
+      {outsiders.length > 0 && (
+        <div className="flex items-center gap-3 border-t border-amber-500/20 bg-amber-900/20 px-3 py-2 text-sm">
+          <Users className="h-4 w-4 shrink-0 text-amber-300" />
+          <p className="min-w-0 flex-1 text-amber-100">
+            {outsiders.length === 1 ? (
+              <><span className="font-semibold">{displayName(outsiders[0])}</span> isn’t in #{channel.name} — they won’t see your mention.</>
+            ) : (
+              <><span className="font-semibold">{outsiders.length} people</span> you mentioned aren’t in #{channel.name} — they won’t see your mention.</>
+            )}
+          </p>
+          {iCanManageMembers && (
+            <button onClick={inviteOutsiders} disabled={invitingOutsiders} className="btn-primary shrink-0 px-3 py-1 text-xs">
+              {invitingOutsiders ? 'Adding…' : outsiders.length === 1 ? 'Add to channel' : 'Add all'}
+            </button>
+          )}
+          <button onClick={() => setOutsiders([])} aria-label="Dismiss" className="shrink-0 rounded p-1 text-amber-200/80 hover:bg-white/10 hover:text-white">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {canPost ? (
         <MessageComposer
           placeholder={`Message #${channel.name}`}
           memberIds={memberIds}
-          onSend={({ body, mentions, files, html }) => send({ body, mentions, files, html })}
+          onSend={handleSend}
         />
       ) : !isMember && !channel.is_archived ? (
         <div className="flex items-center justify-between gap-3 border-t border-white/10 bg-brand-900/40 p-3">

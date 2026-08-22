@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.49.2'
+export const APP_VERSION = '1.49.3'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.49.3',
+    date: '2026-08-21',
+    time: '2:45 PM ET',
+    title: 'Mention someone who isn’t in the channel? One tap to add them',
+    changes: [
+      'When you @mention a person who isn’t a member of the channel, a banner now appears letting you know they won’t see it — with an “Add to channel” button to pull them right in (managers/admins).',
+      'Group mentions are unaffected — they already only ping people who are in the channel.',
+    ],
+  },
   {
     version: '1.49.2',
     date: '2026-08-21',
