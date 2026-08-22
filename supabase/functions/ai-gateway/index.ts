@@ -145,11 +145,19 @@ Deno.serve(async (req) => {
   const correlationId = crypto.randomUUID()
   const sourceIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null
 
+  // Body — parsed up front so the agent token may also arrive IN the JSON body ({ "token": "rop_ai_…" }
+  // or "key"), not just the Authorization header. That lets a client which can't set headers (e.g. a
+  // ChatGPT Action with auth left as "None") authenticate with a single paste.
+  let body: any
+  try { body = await req.json() } catch { return json({ ok: false, error: 'Body must be JSON' }, 400) }
+
   // ── Authenticate the agent ────────────────────────────────────────────────
   const authz = req.headers.get('authorization') ?? ''
   const raw =
     (authz.toLowerCase().startsWith('bearer ') ? authz.slice(authz.indexOf(' ') + 1).trim() : '') ||
-    (req.headers.get('x-api-key') ?? '')
+    (req.headers.get('x-api-key') ?? '') ||
+    (typeof body?.token === 'string' ? body.token.trim() : '') ||
+    (typeof body?.key === 'string' ? body.key.trim() : '')
   if (!raw) return json({ ok: false, error: 'Missing agent token' }, 401)
   const hash = await sha256hex(raw)
   const { data: agent } = await admin
@@ -160,9 +168,6 @@ Deno.serve(async (req) => {
   if (!agent || !agent.is_active) return json({ ok: false, error: 'Invalid, revoked, or disabled agent token' }, 401)
   const A = agent as Agent
 
-  // Body
-  let body: any
-  try { body = await req.json() } catch { return json({ ok: false, error: 'Body must be JSON' }, 400) }
   const action = String(body.action ?? '')
   const idem: string | null =
     (req.headers.get('x-idempotency-key') || (typeof body.idempotency_key === 'string' ? body.idempotency_key : '')) || null
