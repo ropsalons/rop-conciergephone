@@ -1,0 +1,67 @@
+name: Build desktop apps
+
+# Builds the ROP Chat desktop app for Windows and Mac in the cloud and publishes the installers to a
+# GitHub Release ("desktop-latest") so they can be downloaded onto any computer. Run it on demand from
+# the Actions tab (or it's triggered via the API). Mac builds are UNSIGNED — fine for testing, but for
+# smooth staff installs the app needs Apple Developer signing/notarization (see desktop/README.md).
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            build: npx --yes electron-builder --win nsis
+            glob: desktop/dist/*.exe
+            artifact: rop-chat-windows
+          - os: macos-latest
+            build: npx --yes electron-builder --mac zip --arm64
+            glob: desktop/dist/*.zip
+            artifact: rop-chat-mac
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install deps
+        working-directory: desktop
+        run: npm install
+      - name: Build
+        working-directory: desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: ${{ matrix.build }}
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.glob }}
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all installers
+        uses: actions/download-artifact@v4
+        with:
+          path: installers
+      - name: Publish to the desktop-latest release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: desktop-latest
+          name: ROP Chat desktop (latest)
+          body: |
+            ROP Chat desktop app installers.
+            - Windows: download the .exe, then "More info -> Run anyway" if SmartScreen warns.
+            - Mac: unsigned build — right-click the app -> Open the first time (or use a signed build once an Apple Developer cert is set up).
+          files: installers/**/*
+          fail_on_unmatched_files: true
