@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "ROP Chat desktop shell — wraps chat.ropsalons.com and pops urgent alerts over other apps.",
+  "author": "ROP Salons",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -19,8 +20,8 @@
     "appId": "com.ropsalons.chat",
     "productName": "ROP Chat",
     "files": ["main.js", "preload.js", "urgent-preload.js", "urgent.html", "assets/**"],
-    "mac": { "category": "public.app-category.business", "target": ["dmg"], "identity": null },
-    "win": { "target": ["nsis"] },
+    "mac": { "category": "public.app-category.business", "target": ["dir"], "identity": null, "icon": "assets/icon.png" },
+    "win": { "target": ["nsis"], "icon": "assets/icon.png" },
     "nsis": { "oneClick": false, "perMachine": false, "allowToChangeInstallationDirectory": true }
   }
 }
