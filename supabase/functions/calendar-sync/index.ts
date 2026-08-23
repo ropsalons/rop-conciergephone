@@ -225,11 +225,15 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { data: cfg } = await admin.from('integration_config').select('key,value').in('key', ['calendar_ics_url', 'calendar_denylist'])
+    const { data: cfg } = await admin.from('integration_config').select('key,value').in('key', ['calendar_ics_url', 'calendar_denylist', 'academy_user_ids'])
     const rows = new Map((cfg ?? []).map((r: any) => [r.key, r.value]))
     const url = (rows.get('calendar_ics_url') || '').trim()
     if (!url) { await log(true, { skipped: 'no url' }); return new Response(JSON.stringify({ ok: true, skipped: 'no url' }), { headers: { 'Content-Type': 'application/json' } }) }
     const deny = ((rows.get('calendar_denylist') || DEFAULT_DENY.join(',')).toLowerCase()).split(',').map((s) => s.trim()).filter(Boolean)
+    // Who attends advanced/academy classes — sourced from Boulevard's "Silver" + "Stylist in Training"
+    // rosters (plus Sara & Jenn), captured in integration_config.academy_user_ids. Not the whole styling team.
+    let academyIds: string[] = []
+    try { const raw = rows.get('academy_user_ids'); academyIds = Array.isArray(raw) ? raw : JSON.parse(raw || '[]') } catch { academyIds = [] }
 
     const res = await fetch(url, { headers: { 'User-Agent': 'ROP-Chat-calendar-sync/1.0' } })
     if (!res.ok) { await log(false, { fetch_status: res.status }); return new Response(JSON.stringify({ ok: false, error: `feed ${res.status}` }), { status: 502, headers: { 'Content-Type': 'application/json' } }) }
@@ -275,6 +279,10 @@ Deno.serve(async (req) => {
       if (/team meeting|staff meeting/.test(lc) && loc.id) {
         const staff = staffByLocation.get(loc.id) ?? []
         route = { audience: 'users', users: [...new Set([...staff, PEOPLE.marina, PEOPLE.rob, PEOPLE.zach])], dept: null }
+      }
+      // Advanced classes / academies → only the academy roster (Silver + Stylists in Training + Sara & Jenn).
+      if (route.dept === DEPT_STYLING && academyIds.length) {
+        route = { audience: 'users', users: academyIds, dept: null }
       }
 
       const build = (startMs: number, key: string, cancelled: boolean) => {

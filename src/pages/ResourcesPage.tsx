@@ -7,6 +7,7 @@ import { Modal } from '@/components/ui/Modal'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { FullPageLoader, EmptyState } from '@/components/ui/Feedback'
 import { Link as LinkIcon, Plus, Edit, Trash } from '@/components/ui/Icons'
+import { BrandIcon, hasBrandIcon } from '@/components/ui/BrandIcon'
 import { RESOURCE_CATEGORIES, canManage } from '@/lib/constants'
 import type { ResourceRow, ResourceCategory } from '@/types'
 
@@ -76,7 +77,11 @@ export function ResourcesPage() {
                     <div className="grid gap-2 sm:grid-cols-2">
                       {list.map((r) => (
                         <div key={r.id} className="card flex items-start gap-3 p-3">
-                          <span className="text-xl leading-none">{r.emoji || cat.emoji}</span>
+                          {hasBrandIcon(r.url) ? (
+                            <BrandIcon url={r.url} className="h-6 w-6 shrink-0" />
+                          ) : (
+                            <span className="text-xl leading-none">{r.emoji || cat.emoji}</span>
+                          )}
                           <div className="min-w-0 flex-1">
                             {r.url ? (
                               <a href={r.url} target="_blank" rel="noreferrer" className="block truncate text-sm font-semibold text-brand-200 hover:underline">{r.title}</a>

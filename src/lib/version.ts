@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.51.2'
+export const APP_VERSION = '1.51.3'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.51.3',
+    date: '2026-08-23',
+    time: '6:45 PM ET',
+    title: 'Real social logos + advanced-training events',
+    changes: [
+      'Resources → Social Media now shows each platform’s real logo — Instagram, Facebook, TikTok, YouTube, X, LinkedIn, Spotify and Apple Podcasts — instead of a generic icon. Added the Spotlight on Good People podcast on Apple Podcasts too.',
+      'Advanced Stylist Academy / advanced-training events now have their own distinct look in Events (a training badge, not a plain calendar tile).',
+      'Advanced classes & academies now invite only the right people — our Silver stylists and Stylists in Training (pulled straight from Boulevard), plus Sara and Jenn — instead of the entire styling team.',
+    ],
+  },
   {
     version: '1.51.2',
     date: '2026-08-23',

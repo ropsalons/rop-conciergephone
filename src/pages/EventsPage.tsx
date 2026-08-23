@@ -9,7 +9,7 @@ import { Calendar, Plus, Clock, MapPin, Users } from '@/components/ui/Icons'
 import { EventFormModal } from '@/components/events/EventFormModal'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/stores/uiStore'
-import { categoryMeta, categoryGradient, eventDateLabel, eventTimeRange } from '@/lib/events'
+import { categoryMeta, categoryGradient, isAcademyCategory, eventDateLabel, eventTimeRange } from '@/lib/events'
 import type { EventRow } from '@/types'
 
 export function EventsPage() {
@@ -97,7 +97,16 @@ export function EventsPage() {
                   <button key={e.id} onClick={() => navigate(`/events/${e.id}`)}
                     className="card overflow-hidden p-0 text-left transition hover:border-white/20">
                     <div className={cn('relative flex h-24 items-center justify-center bg-gradient-to-br', categoryGradient(e.category))}>
-                      <span className="text-4xl drop-shadow">{cat.emoji}</span>
+                      {isAcademyCategory(e.category) ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-lg opacity-80">⭐</span>
+                          <span className="text-4xl drop-shadow">{cat.emoji}</span>
+                          <span className="text-lg opacity-80">⭐</span>
+                          <span className="pointer-events-none absolute bottom-1.5 text-[10px] font-bold uppercase tracking-[0.15em] text-white/85">Advanced Training</span>
+                        </div>
+                      ) : (
+                        <span className="text-4xl drop-shadow">{cat.emoji}</span>
+                      )}
                       {e.is_cancelled && (
                         <span className="absolute inset-0 flex items-center justify-center bg-black/50 text-sm font-bold uppercase tracking-wide text-red-200">Cancelled</span>
                       )}

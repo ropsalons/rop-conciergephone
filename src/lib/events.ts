@@ -1,8 +1,13 @@
 import { EVENT_CATEGORIES } from '@/lib/constants'
 import type { EventRow, Profile } from '@/types'
 
+// Categories the calendar sync can assign that aren't in the manual-entry dropdown.
+const EXTRA_META: Record<string, { label: string; emoji: string }> = {
+  education: { label: 'Advanced Training', emoji: '🎓' },
+}
 export function categoryMeta(key: string) {
-  return EVENT_CATEGORIES.find((c) => c.key === key) ?? { key, label: 'Event', emoji: '📅' }
+  return EVENT_CATEGORIES.find((c) => c.key === key)
+    ?? (key in EXTRA_META ? { key, ...EXTRA_META[key] } : { key, label: 'Event', emoji: '📅' })
 }
 
 // A stable gradient per category so cover-less events still look distinct.
@@ -11,12 +16,18 @@ const GRADIENTS: Record<string, string> = {
   workshop: 'from-amber-500 to-orange-600',
   class: 'from-sky-500 to-blue-700',
   training: 'from-emerald-500 to-teal-700',
+  education: 'from-violet-600 via-purple-700 to-indigo-800',
   community: 'from-rose-500 to-pink-700',
   social: 'from-fuchsia-500 to-purple-700',
   other: 'from-slate-600 to-slate-800',
 }
 export function categoryGradient(key: string): string {
   return GRADIENTS[key] ?? GRADIENTS.other
+}
+
+// Education / advanced-training events get a richer "academy" hero treatment (not a plain calendar).
+export function isAcademyCategory(key: string): boolean {
+  return key === 'education' || key === 'training'
 }
 
 function fmt(iso: string, tz: string, opts: Intl.DateTimeFormatOptions): string {

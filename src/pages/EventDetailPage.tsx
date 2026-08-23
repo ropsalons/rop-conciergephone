@@ -16,7 +16,7 @@ import {
 import { canManage, RSVP_OPTIONS } from '@/lib/constants'
 import { cn, displayName } from '@/lib/utils'
 import {
-  categoryMeta, categoryGradient, eventDayLabel, eventTimeRange, mapsUrl, eventRecipients,
+  categoryMeta, categoryGradient, isAcademyCategory, eventDayLabel, eventTimeRange, mapsUrl, eventRecipients,
 } from '@/lib/events'
 import type { EventRow, EventRsvpRow, RsvpResponse } from '@/types'
 
@@ -143,7 +143,18 @@ export function EventDetailPage() {
     <div className="flex h-full flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className={cn('relative flex h-36 items-center justify-center bg-gradient-to-br sm:h-44', categoryGradient(event.category))}>
-          <span className="text-6xl drop-shadow-lg">{cat.emoji}</span>
+          {isAcademyCategory(event.category) ? (
+            <div className="flex flex-col items-center">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl opacity-80">⭐</span>
+                <span className="text-6xl drop-shadow-lg">{cat.emoji}</span>
+                <span className="text-2xl opacity-80">⭐</span>
+              </div>
+              <span className="mt-2 text-xs font-bold uppercase tracking-[0.2em] text-white/85">Advanced Training</span>
+            </div>
+          ) : (
+            <span className="text-6xl drop-shadow-lg">{cat.emoji}</span>
+          )}
           <button onClick={() => navigate('/events')} className="absolute left-3 top-3 flex items-center gap-1 rounded-lg bg-black/30 px-2.5 py-1.5 text-xs font-medium text-white backdrop-blur hover:bg-black/50">
             <ChevronLeft className="h-4 w-4" /> Events
           </button>
