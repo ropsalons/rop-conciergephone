@@ -280,8 +280,9 @@ Deno.serve(async (req) => {
         const staff = staffByLocation.get(loc.id) ?? []
         route = { audience: 'users', users: [...new Set([...staff, PEOPLE.marina, PEOPLE.rob, PEOPLE.zach])], dept: null }
       }
-      // Advanced classes / academies → only the academy roster (Silver + Stylists in Training + Sara & Jenn).
-      if (route.dept === DEPT_STYLING && academyIds.length) {
+      // Advanced classes / academies / any stylist training → only the academy roster
+      // (Silver + Stylists in Training + Sara & Jenn), never the whole company.
+      if ((route.dept === DEPT_STYLING || category === 'education') && academyIds.length) {
         route = { audience: 'users', users: academyIds, dept: null }
       }
 
