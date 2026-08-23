@@ -350,6 +350,7 @@ function FeedsTab() {
   const [feeds, setFeeds] = useState<FeedSource[] | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const [syncing, setSyncing] = useState(false)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rpc = (fn: string, args: any = {}) => (supabase.rpc as any)(fn, args)
@@ -374,6 +375,14 @@ function FeedsTab() {
     setFeeds((prev) => (prev || []).map((x) => (x.source === f.source ? { ...x, muted: turningOff } : x)))
   }
 
+  async function syncCalendar() {
+    setSyncing(true)
+    const { error } = await rpc('admin_sync_calendar')
+    setSyncing(false)
+    if (error) return toast({ kind: 'error', title: 'Couldn’t start sync', body: error.message })
+    toast({ kind: 'success', title: 'Calendar sync started', body: 'Events refresh in a few seconds.' })
+  }
+
   if (err) return <EmptyState icon={<Shield className="h-8 w-8" />} title="Couldn't load feeds" body={err} />
   if (!feeds) return <FullPageLoader label="Finding what's posting into ROP Chat…" />
 
@@ -386,6 +395,19 @@ function FeedsTab() {
           much it posts. Flip any one <span className="font-semibold text-slate-200">Off</span> to silence it instantly,
           no matter which project it came from. Turning it back on is one tap. Your team's own messages are never affected.
         </p>
+      </div>
+
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 p-4">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-white">Company calendar → Events</p>
+          <p className="mt-1 text-xs text-slate-400">
+            Staff meetings, trainings and salon events sync from the company calendar into Events automatically every 30
+            minutes. Push it now to update on demand.
+          </p>
+        </div>
+        <button onClick={syncCalendar} disabled={syncing} className="btn-primary shrink-0 px-3 py-2 text-sm">
+          {syncing ? 'Syncing…' : 'Sync now'}
+        </button>
       </div>
 
       {feeds.length === 0 ? (

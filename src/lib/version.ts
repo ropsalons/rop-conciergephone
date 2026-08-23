@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.50.0'
+export const APP_VERSION = '1.51.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.51.0',
+    date: '2026-08-23',
+    time: '5:30 PM ET',
+    title: 'Company calendar fills Events automatically',
+    changes: [
+      'Staff meetings, trainings, academies and salon events from the company calendar now flow into Events on their own — with times, locations and descriptions filled in. It refreshes every 30 minutes (new events, time changes and cancellations included), running on the server so nobody’s computer has to be on.',
+      'It cleans things up: tidies lower-case titles, pulls the salon from the title (e.g. “bayfront Staff Meeting”), routes Marketing to Lexi + Rob, SOGP/podcasts to Rob + Zach, and advanced classes to the styling team — and skips personal/admin items.',
+      'Admins can force an update anytime: Admin → Feeds → “Sync now.”',
+    ],
+  },
   {
     version: '1.50.0',
     date: '2026-08-21',
