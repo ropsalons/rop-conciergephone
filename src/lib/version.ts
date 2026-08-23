@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.51.1'
+export const APP_VERSION = '1.51.2'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,18 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.51.2',
+    date: '2026-08-23',
+    time: '6:20 PM ET',
+    title: 'Nicer salon meetings + more social channels',
+    changes: [
+      'Salon meetings from the calendar now read cleanly and consistently — “Bayfront Team Meeting,” “Village Team Meeting,” “Promenade Team Meeting” — with casing and abbreviations fixed automatically.',
+      'Each salon’s team meeting now invites only that location’s team (plus Marina, Rob and Zach) instead of the whole company, and carries a short ROP 5.0 note on the next few months’ meetings.',
+      'Newsletter Due now shows in Events (routed to Lexi + Rob); the internal “Marketing Check-In” and “Content Due” items no longer clutter the calendar.',
+      'Added more channels to Resources → Social Media: the Spotlight on Good People podcast (Spotify + YouTube) and our All Things Hair Salons training channel.',
+    ],
+  },
   {
     version: '1.51.1',
     date: '2026-08-23',

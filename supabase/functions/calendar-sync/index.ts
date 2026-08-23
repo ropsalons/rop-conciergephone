@@ -22,6 +22,7 @@ const PEOPLE = {
   rob: '6cd61125-689a-4889-82ab-fb5835acf59c',
   lexi: '05edab58-7f16-4ee7-b7d4-1e6e6e3665f6',
   zach: '313796d0-df63-43f3-9a93-0446f00dbb8a',
+  marina: '814750a0-eede-4851-b161-9fd260593c02',
 }
 const DEPT_STYLING = '0013a9d2-0b7f-4772-993d-6bfc8f66ccef'
 const LOC = {
@@ -29,7 +30,7 @@ const LOC = {
   village: 'ad623d11-2511-48b5-95dd-503f90f0aeed',
   promenade: 'dee43bef-5cc2-4e99-a9d0-706889a2125d',
 }
-const DEFAULT_DENY = ['oot', 'out of office', 'entered into', 'qbo', 'sales tax', 'content due', 'flyer content', 'birthday']
+const DEFAULT_DENY = ['oot', 'out of office', 'entered into', 'qbo', 'sales tax', 'marketing check-in', 'content due', 'birthday']
 const WINDOW_BACK_DAYS = 2
 const WINDOW_FWD_DAYS = 120
 
@@ -166,6 +167,22 @@ function expand(ev: VEvent, from: number, to: number): number[] {
 function titleCase(s: string): string {
   return s.split(/(\s+)/).map((w) => (/^[a-z][a-z''-]*$/.test(w) ? w.charAt(0).toUpperCase() + w.slice(1) : w)).join('')
 }
+// Turn a raw calendar summary into a clean, proper event title:
+//   • strip trailing recurrence markers ("… @monthly", "… @ 1st monday")
+//   • strip trailing location handles ("… @Prom", "… @Salon")
+//   • fix casing, expand "Prom" → "Promenade"
+//   • rename salon meetings to "{Salon} Team Meeting" so they read the same across locations
+function enhanceTitle(raw: string): string {
+  let s = (raw || '').trim()
+  s = s.replace(/\s*@\s*(monthly|weekly|bi-?weekly|biweekly|daily|yearly|annually|quarterly|every\b.*|\d+\s*(st|nd|rd|th)\b.*)$/i, '')
+  s = s.replace(/\s*@\s*(prom(enade)?|bayfront|village|salon)\s*$/i, '')
+  s = s.replace(/\s{2,}/g, ' ').trim()
+  s = titleCase(s)
+  s = s.replace(/\bProm\b(?!enade)/g, 'Promenade')
+  s = s.replace(/\b(Bayfront|Village|Promenade)\s+(Staff\s+|Team\s+)?Meeting\b/i,
+    (_m: string, salon: string) => `${salon.charAt(0).toUpperCase()}${salon.slice(1).toLowerCase()} Team Meeting`)
+  return s.trim()
+}
 function categoryFor(t: string): string {
   if (/academy|series|training|education|excellence|class|workshop/.test(t)) return 'education'
   if (/photo\s?shoot|photoshoot|shoot|podcast|sogp/.test(t)) return 'other'
@@ -181,9 +198,9 @@ function locationFor(text: string): { id: string | null; name: string } {
 }
 // Who's it for? Returns audience + optional target users / department.
 function routeFor(lc: string): { audience: string; users: string[] | null; dept: string | null } {
-  if (/market/.test(lc)) return { audience: 'users', users: [PEOPLE.lexi, PEOPLE.rob], dept: null }
+  if (/newsletter|market|flyer/.test(lc)) return { audience: 'users', users: [PEOPLE.lexi, PEOPLE.rob], dept: null }
   if (/sogp|podcast/.test(lc)) return { audience: 'users', users: [PEOPLE.rob, PEOPLE.zach], dept: null }
-  if (/academy|advanced|excellence|series|stylist academy/.test(lc)) return { audience: 'department', users: null, dept: DEPT_STYLING }
+  if (/academy|advanced|excellence|series|stylist academy|silver stylist|model monday|business building|in training/.test(lc)) return { audience: 'department', users: null, dept: DEPT_STYLING }
   return { audience: 'all', users: null, dept: null }
 }
 function fmtWhen(startMs: number, endMs: number | null, allDay: boolean): string {
@@ -218,6 +235,16 @@ Deno.serve(async (req) => {
     if (!res.ok) { await log(false, { fetch_status: res.status }); return new Response(JSON.stringify({ ok: false, error: `feed ${res.status}` }), { status: 502, headers: { 'Content-Type': 'application/json' } }) }
     const vevents = parseEvents(await res.text())
 
+    // Active staff grouped by home salon — used to invite only that location's team to its meeting.
+    const staffByLocation = new Map<string, string[]>()
+    const { data: profs } = await admin.from('profiles').select('id,location_id').eq('is_active', true)
+    for (const p of (profs ?? []) as any[]) {
+      if (!p.location_id) continue
+      const arr = staffByLocation.get(p.location_id) ?? []
+      arr.push(p.id)
+      staffByLocation.set(p.location_id, arr)
+    }
+
     const now = Date.now()
     const from = now - WINDOW_BACK_DAYS * 864e5
     const to = now + WINDOW_FWD_DAYS * 864e5
@@ -230,17 +257,25 @@ Deno.serve(async (req) => {
     const seen = new Set<string>()
 
     for (const ev of vevents) {
-      const title = titleCase(ev.summary.trim())
+      const rawTitle = ev.summary.trim()
+      const title = enhanceTitle(rawTitle)
       if (!title) continue
       const lc = title.toLowerCase()
-      if (/^[a-z]+ out$/i.test(title.trim())) continue // "Sara Out" / OOO markers
+      if (/^[a-z]+ out$/i.test(rawTitle) || /^[a-z]+ out$/i.test(title.trim())) continue // "Sara Out" / OOO markers
       if (deny.some((k) => lc.includes(k))) continue
 
       const durationMs = ev.start && ev.end ? (ev.end.date.getTime() - ev.start.date.getTime()) : (ev.start?.allDay ? 864e5 : null)
+      // Detect the salon from LOCATION first, then the ORIGINAL title (keeps "@Prom" handles enhanceTitle strips).
       let loc = locationFor(ev.location)
-      if (!loc.id) { const lt = locationFor(title); if (lt.id) loc = lt }
-      const route = routeFor(lc)
+      if (!loc.id) { const lt = locationFor(`${rawTitle} ${title}`); if (lt.id) loc = lt }
       const category = categoryFor(lc)
+
+      // Salon team meetings go only to that location's staff + Marina, Rob & Zach — not the whole company.
+      let route = routeFor(lc)
+      if (/team meeting|staff meeting/.test(lc) && loc.id) {
+        const staff = staffByLocation.get(loc.id) ?? []
+        route = { audience: 'users', users: [...new Set([...staff, PEOPLE.marina, PEOPLE.rob, PEOPLE.zach])], dept: null }
+      }
 
       const build = (startMs: number, key: string, cancelled: boolean) => {
         if (seen.has(key)) return
@@ -249,7 +284,7 @@ Deno.serve(async (req) => {
         let desc = ev.description && ev.description.trim().length > 1
           ? ev.description.trim()
           : `${title}${loc.name ? ' · ' + loc.name : ''}\n${fmtWhen(startMs, endMs, !!ev.start?.allDay)}`
-        if (/staff meeting/.test(lc) && startMs <= in90) desc += ROP5_LINE
+        if (/team meeting|staff meeting/.test(lc) && startMs <= in90) desc += ROP5_LINE
         desired.push({
           external_uid: key, source: 'google_calendar',
           title, description: desc.slice(0, 4000), category, format: 'in_person',
