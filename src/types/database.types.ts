@@ -379,7 +379,7 @@ export type EventRsvpRow = {
 export type EventViewRow = { event_id: string; user_id: string; viewed_at: string }
 export type EventSubscriptionRow = { event_id: string; user_id: string; created_at: string }
 
-export type ResourceCategory = 'dashboard' | 'guide' | 'link' | 'form' | 'other'
+export type ResourceCategory = 'dashboard' | 'guide' | 'link' | 'social' | 'form' | 'other'
 export type ResourceRow = {
   id: string
   title: string

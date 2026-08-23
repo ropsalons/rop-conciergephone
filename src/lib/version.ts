@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.51.0'
+export const APP_VERSION = '1.51.1'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,15 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.51.1',
+    date: '2026-08-23',
+    time: '5:55 PM ET',
+    title: 'Our social channels are now in Resources',
+    changes: [
+      'Added a “Social Media” section to Resources with one-tap links to all our channels — Instagram, Facebook, TikTok, YouTube, X, and LinkedIn.',
+    ],
+  },
   {
     version: '1.51.0',
     date: '2026-08-23',

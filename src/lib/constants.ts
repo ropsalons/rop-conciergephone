@@ -81,6 +81,7 @@ export const RESOURCE_CATEGORIES = [
   { key: 'dashboard', label: 'Dashboards', emoji: '📊' },
   { key: 'guide', label: 'Guides & How-Tos', emoji: '📖' },
   { key: 'link', label: 'Links', emoji: '🔗' },
+  { key: 'social', label: 'Social Media', emoji: '📱' },
   { key: 'form', label: 'Forms & Checklists', emoji: '📝' },
   { key: 'other', label: 'Other', emoji: '📁' },
 ] as const
