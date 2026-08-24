@@ -8,14 +8,15 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { FullPageLoader, EmptyState } from '@/components/ui/Feedback'
 import { Link as LinkIcon, Plus, Edit, Trash } from '@/components/ui/Icons'
 import { BrandIcon, hasBrandIcon } from '@/components/ui/BrandIcon'
-import { RESOURCE_CATEGORIES, canManage } from '@/lib/constants'
+import { RESOURCE_CATEGORIES, isAdmin } from '@/lib/constants'
 import type { ResourceRow, ResourceCategory } from '@/types'
 
 export function ResourcesPage() {
   const me = useAuthStore((s) => s.user?.id)
   const access = useAuthStore((s) => s.profile?.access_level)
   const toast = useUIStore((s) => s.toast)
-  const manage = canManage(access)
+  // Anyone signed in can add a resource; only its creator (or an admin) can edit/delete it.
+  const canEdit = (r: ResourceRow) => isAdmin(access) || (!!me && r.created_by === me)
 
   const [items, setItems] = useState<ResourceRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -50,7 +51,7 @@ export function ResourcesPage() {
         icon={<LinkIcon className="h-5 w-5" />}
         title="Resources"
         subtitle="Dashboards, guides, links & forms"
-        actions={manage ? <button onClick={() => setShowNew(true)} className="btn-primary px-3 py-1.5 text-sm"><Plus className="h-4 w-4" /> Add resource</button> : undefined}
+        actions={me ? <button onClick={() => setShowNew(true)} className="btn-primary px-3 py-1.5 text-sm"><Plus className="h-4 w-4" /> Add resource</button> : undefined}
       />
 
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
@@ -61,8 +62,8 @@ export function ResourcesPage() {
             <EmptyState
               icon={<LinkIcon className="h-8 w-8" />}
               title="No resources yet"
-              body={manage ? 'Add your dashboards, guides and key links so the team has one place to find them.' : 'Your team’s dashboards and links will show here.'}
-              action={manage ? <button onClick={() => setShowNew(true)} className="btn-primary mt-2">Add resource</button> : undefined}
+              body={'Add your dashboards, guides and key links so the team has one place to find them.'}
+              action={me ? <button onClick={() => setShowNew(true)} className="btn-primary mt-2">Add resource</button> : undefined}
             />
           ) : (
             <div className="space-y-6">
@@ -90,7 +91,7 @@ export function ResourcesPage() {
                             )}
                             {r.description && <p className="mt-0.5 line-clamp-2 text-xs text-slate-400">{r.description}</p>}
                           </div>
-                          {manage && (
+                          {canEdit(r) && (
                             <div className="flex shrink-0 items-center gap-0.5">
                               <button onClick={() => setEditing(r)} className="rounded p-1.5 text-slate-500 hover:bg-white/10 hover:text-white"><Edit className="h-3.5 w-3.5" /></button>
                               <button onClick={() => setConfirmDel(r)} className="rounded p-1.5 text-slate-500 hover:bg-red-500/20 hover:text-red-300"><Trash className="h-3.5 w-3.5" /></button>
