@@ -135,6 +135,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       delete next[channelId]
       return { unreadByChannel: next }
     })
+    // Reading the channel also cleared its notifications server-side — refresh the bell badge.
+    await get().refreshUnread()
   },
 
   markConversationRead: async (conversationId) => {
@@ -144,6 +146,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       delete next[conversationId]
       return { unreadByConversation: next }
     })
+    // Reading the DM also cleared its notifications server-side — refresh the bell badge.
+    await get().refreshUnread()
   },
 
   bumpConversation: (conversationId) => {

@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.51.4'
+export const APP_VERSION = '1.51.5'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.51.5',
+    date: '2026-08-23',
+    time: '9:20 PM ET',
+    title: 'The Notifications bell now means “someone needs me”',
+    changes: [
+      'The bell badge now counts only things directed at you — @mentions, DMs, urgent alerts, and replies/reactions to your messages. Everyday channel messages and automated reports still appear in the Notifications list, but they no longer inflate the red number.',
+      'Reading a channel or DM now clears its notifications automatically, so the count reflects what you actually still need to look at (no more “unread” items you already saw).',
+      'New channel messages and DMs keep showing on their own sidebar badges, where they belong.',
+    ],
+  },
   {
     version: '1.51.4',
     date: '2026-08-23',
