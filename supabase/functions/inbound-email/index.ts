@@ -82,10 +82,34 @@ const nameOf = (s: string) => {
 const localPart = (addr: string) => emailOf(addr).split('@')[0]
 
 function cleanBody(raw: string): string {
-  let t = String(raw ?? '').replace(/\r\n/g, '\n')
+  let t = String(raw ?? '').replace(/\r\n/g, '\n').replace(/ /g, ' ')
+  // Cut quoted reply history and forwarded-message headers.
   t = t.split(/\n>{1,}.*/)[0]
   t = t.split(/\nOn .+wrote:/)[0]
-  t = t.split(/\n--\s*\n/)[0]
+  t = t.split(/\n-{2,}\s*Forwarded message\s*-{2,}/i)[0]
+  t = t.split(/\nBegin forwarded message:/i)[0]
+  // Cut at the first signature / mobile footer / legal-boilerplate marker.
+  const markers: RegExp[] = [
+    /\n--\s*\n/,                                   // standard "-- " signature separator
+    /\nSent from my /i,
+    /\nGet Outlook for /i,
+    /\nSent via /i,
+    /\nCONFIDENTIALITY NOTICE/i,
+    /\nThis (?:e-?mail|message) (?:and any attachments|is intended|may contain)/i,
+    /\n[*_>\s]*Spotlight on Good People/i,         // ROP signature promo block
+  ]
+  for (const re of markers) { const i = t.search(re); if (i >= 0) t = t.slice(0, i) }
+  // Trim a trailing block that's only links / social handles (a common signature tail) — but only
+  // if there's real prose above, so a message that IS just a tracking link still posts.
+  const isChrome = (s: string) =>
+    s === '' ||
+    /^<?https?:\/\/\S+>?$/i.test(s) ||
+    /^(facebook|instagram|insta|tiktok|twitter|x|youtube|linkedin|apple|spotify|podcast)\b/i.test(s)
+  const lines = t.split('\n')
+  if (lines.some((l) => !isChrome(l.trim()))) {
+    while (lines.length && isChrome(lines[lines.length - 1].trim())) lines.pop()
+  }
+  t = lines.join('\n').replace(/\n{3,}/g, '\n\n')
   return t.trim().slice(0, 4000)
 }
 
