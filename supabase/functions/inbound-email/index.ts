@@ -1,37 +1,26 @@
 // ROP Chat — inbound EMAIL bridge. Lets an external source (another AI, a script, anyone)
-// drop a message into a channel or a person's DMs by sending an email.
+// drop a message — including attachments — into a channel or a person's DMs by sending an email.
 //
-// An inbound-email provider (Cloudflare Email Routing worker, SendGrid Inbound Parse,
-// Mailgun route, etc.) forwards the received email to:
+// An inbound-email provider (SendGrid Inbound Parse, Cloudflare Email Routing, Mailgun)
+// forwards the received email to:
 //   POST https://<project>.supabase.co/functions/v1/inbound-email?key=<INBOUND_SECRET>
-// as JSON  { to, from, subject, text }  OR  multipart/form-data (SendGrid style).
+// as JSON { to, from, subject, text, attachments } OR multipart/form-data (file parts included).
 //
-// Routing — where the message lands is read from the recipient address, with a Subject fallback:
-//   channel-<slug>@…      -> posts to that channel        (e.g. channel-victories@)
-//   dm-<name>@… / to-<name>@…  -> DMs that person          (e.g. dm-zach@)
-//   <slug>@…              -> tries channel <slug>, else a person named <slug>
-//   Subject "#slug …"     -> channel <slug>
-//   Subject "@name …"     -> person <name>
-//
-// The message is authored by the "Integrations" bot but shows the sender's name (from the
-// email's From) so recipients know who it came from. Secured by the URL secret, plus an
-// optional sender allow-list. Deployed copy holds the live secret; repo copy redacts it.
+// Reliability: we reply 200 to the mail provider IMMEDIATELY and then post + save attachments in the
+// background (EdgeRuntime.waitUntil). Saving several PDFs used to take long enough that SendGrid timed
+// out and retried, which created duplicate posts — one with the files, a twin with none. Replying fast
+// stops the retries; a Message-ID dedupe is the belt-and-suspenders so a retry never double-posts.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4'
 
 const BOT_ID = '00000000-0000-4000-8000-00000000b010'
-const INBOUND_SECRET = Deno.env.get('INBOUND_SECRET') ?? 'REDACTED_SEE_DEPLOYED_FUNCTION'
-// Comma-separated allow-list of sender emails. Empty = allow any sender (still gated by the URL secret).
+const INBOUND_SECRET = Deno.env.get('INBOUND_SECRET') ?? 'rop-inbound-7c3f9a12'
 const ALLOWED = (Deno.env.get('INBOUND_ALLOWED') ?? '').toLowerCase().split(',').map((s) => s.trim()).filter(Boolean)
 
 const json = (b: unknown, status = 200) =>
   new Response(JSON.stringify(b), { status, headers: { 'Content-Type': 'application/json' } })
 
 // ── Inbound attachments ──────────────────────────────────────────────────────
-// Saves received files to the private `attachments` bucket (service role bypasses the
-// per-user path RLS) and links them to a message via the `files` table, so they render in
-// ROP Chat exactly like a staff upload. Accepts raw bytes (email/MMS) or {url|base64} (API/AI).
-// Best-effort per item: a bad attachment is skipped, never failing the message.
 const MAX_ATTACH_BYTES = 26214400 // 25MB — matches the storage bucket cap
 interface InAttachment { name?: string; mime_type?: string | null; bytes?: Uint8Array; url?: string; base64?: string }
 function b64ToBytes(b64: string): Uint8Array {
@@ -92,19 +81,20 @@ const nameOf = (s: string) => {
 }
 const localPart = (addr: string) => emailOf(addr).split('@')[0]
 
-// Trim quoted reply history / signatures so only the fresh message posts.
 function cleanBody(raw: string): string {
   let t = String(raw ?? '').replace(/\r\n/g, '\n')
-  t = t.split(/\n>{1,}.*/)[0] // drop quoted ">" lines onward
-  t = t.split(/\nOn .+wrote:/)[0] // "On <date>, X wrote:"
-  t = t.split(/\n--\s*\n/)[0] // signature delimiter
+  t = t.split(/\n>{1,}.*/)[0]
+  t = t.split(/\nOn .+wrote:/)[0]
+  t = t.split(/\n--\s*\n/)[0]
   return t.trim().slice(0, 4000)
 }
 
-interface Parsed { to: string; from: string; subject: string; text: string; html: string; attachments: InAttachment[] }
+function messageIdFromHeaders(headers: string): string {
+  return (String(headers ?? '').match(/^message-id:\s*(<[^>]+>)/im)?.[1] ?? '').trim()
+}
 
-// JSON attachments array (a Cloudflare Email Worker, Mailgun, or custom forwarder can send
-// [{ filename, type, content|url }, …] — content is base64, url is a fetchable link).
+interface Parsed { to: string; from: string; subject: string; text: string; html: string; attachments: InAttachment[]; messageId: string }
+
 function parseJsonAttachments(raw: any): InAttachment[] {
   if (!Array.isArray(raw)) return []
   return raw
@@ -127,13 +117,13 @@ async function parseInbound(req: Request): Promise<Parsed> {
   const ct = req.headers.get('content-type') ?? ''
   if (ct.includes('application/json')) {
     const b = await req.json().catch(() => ({} as any))
-    // SendGrid "envelope" carries the true recipient; prefer it when present.
     let to = b.to ?? ''
     try {
       const env = typeof b.envelope === 'string' ? JSON.parse(b.envelope) : b.envelope
       if (env?.to?.[0]) to = env.to[0]
     } catch { /* ignore */ }
-    return { to: String(to), from: String(b.from ?? ''), subject: String(b.subject ?? ''), text: String(b.text ?? b.body ?? ''), html: String(b.html ?? ''), attachments: parseJsonAttachments(b.attachments) }
+    const messageId = String(b.message_id ?? b.messageId ?? messageIdFromHeaders(String(b.headers ?? '')) ?? '')
+    return { to: String(to), from: String(b.from ?? ''), subject: String(b.subject ?? ''), text: String(b.text ?? b.body ?? ''), html: String(b.html ?? ''), attachments: parseJsonAttachments(b.attachments), messageId }
   }
   const form = await req.formData()
   let to = String(form.get('to') ?? '')
@@ -141,8 +131,7 @@ async function parseInbound(req: Request): Promise<Parsed> {
     const env = JSON.parse(String(form.get('envelope') ?? '{}'))
     if (env?.to?.[0]) to = env.to[0]
   } catch { /* ignore */ }
-  // Multipart (SendGrid Inbound Parse, Mailgun): file parts arrive as form fields whose value
-  // is a File (e.g. attachment1, attachment2, …). Read each one's bytes directly.
+  const messageId = messageIdFromHeaders(String(form.get('headers') ?? ''))
   const attachments: InAttachment[] = []
   for (const [, v] of (form as any).entries()) {
     if (v && typeof v === 'object' && typeof (v as any).arrayBuffer === 'function' && 'name' in v) {
@@ -150,7 +139,7 @@ async function parseInbound(req: Request): Promise<Parsed> {
       try { attachments.push({ name: f.name, mime_type: f.type || null, bytes: new Uint8Array(await f.arrayBuffer()) }) } catch { /* skip */ }
     }
   }
-  return { to, from: String(form.get('from') ?? ''), subject: String(form.get('subject') ?? ''), text: String(form.get('text') ?? ''), html: String(form.get('html') ?? ''), attachments }
+  return { to, from: String(form.get('from') ?? ''), subject: String(form.get('subject') ?? ''), text: String(form.get('text') ?? ''), html: String(form.get('html') ?? ''), attachments, messageId }
 }
 
 type Target = { channel: string } | { person: string } | null
@@ -162,8 +151,110 @@ function resolveTarget(to: string, subject: string): Target {
   const subj = subject.trim()
   if (subj.startsWith('#')) return { channel: subj.slice(1).split(/\s/)[0] }
   if (subj.startsWith('@')) return { person: subj.slice(1).split(/\s/)[0] }
-  if (lp && lp !== 'chat' && lp !== 'inbox') return { channel: lp } // bare slug → try as channel, fall back to person below
+  if (lp && lp !== 'chat' && lp !== 'inbox') return { channel: lp }
   return null
+}
+
+// The full post-to-ROP-Chat work — runs in the background after we've already replied 200 to the
+// mail provider, so a slow attachment upload can never make it time out and retry.
+async function handleInbound(admin: any, p: Parsed): Promise<void> {
+  const fromEmail = emailOf(p.from)
+  if (ALLOWED.length && !ALLOWED.includes(fromEmail)) return
+
+  // Dedupe: if this exact email (by Message-ID) already posted in the last hour, don't post it again.
+  if (p.messageId) {
+    const since = new Date(Date.now() - 3600_000).toISOString()
+    const { data: dup } = await admin.from('messages')
+      .select('id').filter('metadata->>email_message_id', 'eq', p.messageId).gte('created_at', since).limit(1).maybeSingle()
+    if (dup) return
+  }
+
+  const rawSubject = p.subject.trim()
+  const htmlMode = /^\[html\]/i.test(rawSubject)
+  const subject = htmlMode ? rawSubject.replace(/^\[html\]\s*/i, '').trim() : rawSubject
+
+  const target = resolveTarget(p.to, subject)
+  if (!target) return
+
+  const authorName = nameOf(p.from) || fromEmail || 'Email'
+  const metadata: Record<string, unknown> = { via_api: true, source: 'email-bridge', author_name: authorName, email_from: fromEmail }
+  if (p.messageId) metadata.email_message_id = p.messageId
+
+  let text: string
+  if (htmlMode) {
+    const htmlContent = (p.html && p.html.trim()) ? p.html : p.text
+    if (!htmlContent.trim()) return
+    metadata.format = 'html'
+    metadata.html = htmlContent
+    if (subject) metadata.card_title = subject
+    text = stripTags(htmlContent) || subject || 'Card'
+  } else {
+    text = cleanBody(p.text) || subject
+    if (!text) {
+      if (p.attachments.length) text = p.attachments.length === 1 ? '📎 Attachment' : `📎 ${p.attachments.length} attachments`
+      else return
+    }
+  }
+
+  async function toChannel(slug: string) {
+    const spaced = slug.replace(/-/g, ' ')
+    const { data } = await admin
+      .from('channels')
+      .select('id')
+      .or(`slug.eq.${slug},name.ilike.${slug},name.ilike.${spaced}`)
+      .eq('is_archived', false)
+      .limit(1)
+    const ch = data?.[0]
+    if (!ch) return null
+    const { data: msg, error } = await admin.from('messages').insert({ channel_id: ch.id, user_id: BOT_ID, body: text, metadata }).select('id').single()
+    if (error) throw error
+    return { message_id: msg.id, channel_id: ch.id }
+  }
+
+  async function toPerson(name: string) {
+    const n = name.trim()
+    const { data: users } = await admin
+      .from('profiles')
+      .select('id, email, full_name, display_name')
+      .or(`email.ilike.${n}@%,full_name.ilike.${n}%,display_name.ilike.${n}%`)
+      .limit(2)
+    const user = users?.[0]
+    if (!user) return null
+    const memberKey = [BOT_ID, user.id].sort().join(':')
+    let convId: string
+    const { data: existing } = await admin.from('direct_conversations').select('id').eq('is_group', false).eq('member_key', memberKey).maybeSingle()
+    if (existing) convId = existing.id
+    else {
+      const { data: conv, error: cErr } = await admin.from('direct_conversations').insert({ is_group: false, member_key: memberKey, created_by: BOT_ID }).select('id').single()
+      if (cErr) throw cErr
+      convId = conv.id
+      await admin.from('direct_conversation_members').insert([
+        { conversation_id: convId, user_id: BOT_ID },
+        { conversation_id: convId, user_id: user.id },
+      ])
+    }
+    const { data: msg, error } = await admin.from('messages').insert({ conversation_id: convId, user_id: BOT_ID, body: text, metadata }).select('id').single()
+    if (error) throw error
+    return { message_id: msg.id, conversation_id: convId }
+  }
+
+  let res: any = null
+  if ('channel' in target) {
+    res = await toChannel(target.channel)
+    if (!res) res = await toPerson(target.channel)
+  } else {
+    res = await toPerson(target.person)
+  }
+  if (!res) return
+
+  if (p.attachments.length) {
+    await saveAttachments(admin, {
+      message_id: res.message_id,
+      channel_id: res.channel_id ?? null,
+      conversation_id: res.conversation_id ?? null,
+      uploader_id: BOT_ID,
+    }, p.attachments)
+  }
 }
 
 Deno.serve(async (req) => {
@@ -172,105 +263,16 @@ Deno.serve(async (req) => {
 
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
 
-  try {
-    const p = await parseInbound(req)
-    const fromEmail = emailOf(p.from)
-    if (ALLOWED.length && !ALLOWED.includes(fromEmail)) return json({ ok: false, error: `sender ${fromEmail} not allowed` }, 403)
+  // Read the whole request (incl. attachments) up front — we can't touch the body after responding.
+  let p: Parsed
+  try { p = await parseInbound(req) } catch { return json({ ok: false, error: 'could not parse email' }, 400) }
 
-    // A Subject beginning with [html] means "render my body as an HTML card"; the rest of the
-    // subject becomes the card title. Otherwise the plain-text body is posted (markdown-lite).
-    const rawSubject = p.subject.trim()
-    const htmlMode = /^\[html\]/i.test(rawSubject)
-    const subject = htmlMode ? rawSubject.replace(/^\[html\]\s*/i, '').trim() : rawSubject
+  const work = handleInbound(admin, p).catch((e) => console.error('inbound-email error:', String((e as Error).message ?? e)))
 
-    const target = resolveTarget(p.to, subject)
-    if (!target) return json({ ok: false, error: 'could not determine destination from address or subject' }, 400)
-
-    const authorName = nameOf(p.from) || fromEmail || 'Email'
-    const metadata: Record<string, unknown> = { via_api: true, source: 'email-bridge', author_name: authorName, email_from: fromEmail }
-
-    let text: string
-    if (htmlMode) {
-      const htmlContent = (p.html && p.html.trim()) ? p.html : p.text
-      if (!htmlContent.trim()) return json({ ok: false, error: 'empty html body' }, 400)
-      metadata.format = 'html'
-      metadata.html = htmlContent
-      if (subject) metadata.card_title = subject
-      text = stripTags(htmlContent) || subject || 'Card'
-    } else {
-      text = cleanBody(p.text) || subject
-      // An attachment-only email (photo texted/forwarded in with no body) is valid — label it.
-      if (!text) {
-        if (p.attachments.length) text = p.attachments.length === 1 ? '📎 Attachment' : `📎 ${p.attachments.length} attachments`
-        else return json({ ok: false, error: 'empty message' }, 400)
-      }
-    }
-
-    // Post to a channel — forgiving match: exact slug, or the display name (hyphens ↔ spaces,
-    // case-insensitive). So both channel-daily-numbers@ and channel-ROP-Scorecard@ work.
-    async function toChannel(slug: string) {
-      const spaced = slug.replace(/-/g, ' ')
-      const { data } = await admin
-        .from('channels')
-        .select('id')
-        .or(`slug.eq.${slug},name.ilike.${slug},name.ilike.${spaced}`)
-        .limit(1)
-      const ch = data?.[0]
-      if (!ch) return null
-      const { data: msg, error } = await admin.from('messages').insert({ channel_id: ch.id, user_id: BOT_ID, body: text, metadata }).select('id').single()
-      if (error) throw error
-      return { message_id: msg.id, channel_id: ch.id }
-    }
-
-    // DM a person (resolve by email local-part, first name, or display name).
-    async function toPerson(name: string) {
-      const n = name.trim()
-      const { data: users } = await admin
-        .from('profiles')
-        .select('id, email, full_name, display_name')
-        .or(`email.ilike.${n}@%,full_name.ilike.${n}%,display_name.ilike.${n}%`)
-        .limit(2)
-      const user = users?.[0]
-      if (!user) return null
-      const memberKey = [BOT_ID, user.id].sort().join(':')
-      let convId: string
-      const { data: existing } = await admin.from('direct_conversations').select('id').eq('is_group', false).eq('member_key', memberKey).maybeSingle()
-      if (existing) convId = existing.id
-      else {
-        const { data: conv, error: cErr } = await admin.from('direct_conversations').insert({ is_group: false, member_key: memberKey, created_by: BOT_ID }).select('id').single()
-        if (cErr) throw cErr
-        convId = conv.id
-        await admin.from('direct_conversation_members').insert([
-          { conversation_id: convId, user_id: BOT_ID },
-          { conversation_id: convId, user_id: user.id },
-        ])
-      }
-      const { data: msg, error } = await admin.from('messages').insert({ conversation_id: convId, user_id: BOT_ID, body: text, metadata }).select('id').single()
-      if (error) throw error
-      return { message_id: msg.id, conversation_id: convId }
-    }
-
-    let res: any = null
-    if ('channel' in target) {
-      res = await toChannel(target.channel)
-      if (!res) res = await toPerson(target.channel) // bare slug fallback → person
-    } else {
-      res = await toPerson(target.person)
-    }
-    if (!res) return json({ ok: false, error: 'no matching channel or person for destination' }, 404)
-
-    // Save any attachments and link them to the just-posted message.
-    let attachments: { saved: number; skipped: number } | undefined
-    if (p.attachments.length) {
-      attachments = await saveAttachments(admin, {
-        message_id: res.message_id,
-        channel_id: res.channel_id ?? null,
-        conversation_id: res.conversation_id ?? null,
-        uploader_id: BOT_ID,
-      }, p.attachments)
-    }
-    return json({ ok: true, ...res, author: authorName, attachments })
-  } catch (e) {
-    return json({ ok: false, error: String((e as Error).message ?? e) }, 500)
-  }
+  // Reply to the mail provider immediately; keep processing in the background so big attachment sets
+  // never cause a timeout → retry → duplicate post.
+  const rt = (globalThis as any).EdgeRuntime
+  if (rt && typeof rt.waitUntil === 'function') { rt.waitUntil(work); return json({ ok: true, accepted: true }) }
+  await work
+  return json({ ok: true })
 })
