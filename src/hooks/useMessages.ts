@@ -153,17 +153,46 @@ export function useMessages(target: Target, opts: { parentId?: string | null; fo
     }
   }, [key, column, parentFilter, hydrate])
 
+  // Catch up on any messages NEWER than what we already have, and merge them in — WITHOUT resetting
+  // to the newest page. Used by the focus/visibility/online self-heal so that switching windows while
+  // reading history no longer throws away the older pages you just loaded (which looked like "it won't
+  // let me load anything older"). If nothing is loaded yet, fall back to a normal load.
+  const syncLatest = useCallback(async () => {
+    if (!key || parentFilter) return
+    const loaded = messageCache.get(cacheKey)?.filter((m) => !m.id.startsWith('temp-')) ?? []
+    const newest = loaded.length ? loaded[loaded.length - 1].created_at : null
+    if (!newest) { void load(); return }
+    let q = supabase
+      .from('messages')
+      .select('*')
+      .eq(column, key)
+      .gt('created_at', newest)
+      .order('created_at', { ascending: true })
+      .limit(200)
+    if (parentFilter) q = q.eq('parent_message_id', parentFilter)
+    const { data } = await q
+    const rows = (data as MessageRow[]) ?? []
+    if (!rows.length) return
+    const hydrated = await hydrate(rows)
+    setMessages((prev) => {
+      const have = new Set(prev.map((m) => m.id))
+      const add = hydrated.filter((h) => !have.has(h.id))
+      return add.length ? [...prev, ...add] : prev
+    })
+  }, [key, column, parentFilter, cacheKey, hydrate, load])
+
   useEffect(() => {
     load()
   }, [load])
 
   // Self-heal the "new messages don't load" problem: the realtime socket can quietly drop while the
-  // app is backgrounded or the network blips, so re-fetch whenever the app comes back to the
-  // foreground or the connection returns. (Skipped for deep-linked views so we don't yank the user
-  // off a message they navigated to.)
+  // app is backgrounded or the network blips, so re-sync whenever the app comes back to the
+  // foreground or the connection returns. We only pull in NEWER messages and merge them, so reading
+  // back through history survives a window switch. (Skipped for deep-linked views so we don't yank
+  // the user off a message they navigated to.)
   useEffect(() => {
     if (!key || parentFilter || focusId) return
-    const refetch = () => { if (document.visibilityState === 'visible') load() }
+    const refetch = () => { if (document.visibilityState === 'visible') void syncLatest() }
     window.addEventListener('focus', refetch)
     document.addEventListener('visibilitychange', refetch)
     window.addEventListener('online', refetch)
@@ -172,7 +201,7 @@ export function useMessages(target: Target, opts: { parentId?: string | null; fo
       document.removeEventListener('visibilitychange', refetch)
       window.removeEventListener('online', refetch)
     }
-  }, [key, parentFilter, focusId, load])
+  }, [key, parentFilter, focusId, syncLatest])
 
   // Realtime: messages + reactions -------------------------------------------
   useEffect(() => {
