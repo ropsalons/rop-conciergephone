@@ -3,7 +3,13 @@
     "allow": [
       "mcp__Supabase__list_tables",
       "mcp__Supabase__execute_sql",
-      "mcp__github__get_file_contents"
+      "mcp__github__get_file_contents",
+      "mcp__Gmail__create_draft",
+      "mcp__Gmail__update_draft",
+      "mcp__Gmail__send_message",
+      "mcp__Gmail__list_drafts",
+      "mcp__Gmail__get_draft",
+      "mcp__Gmail__trash_message"
     ]
   }
 }
