@@ -60,19 +60,28 @@ export function useMessages(target: Target, opts: { parentId?: string | null; fo
     if (!rows.length) return []
     const ids = rows.map((r) => r.id)
     const dir = useDirectoryStore.getState()
-    const [{ data: reactions }, { data: files }] = await Promise.all([
-      supabase.from('message_reactions').select('*').in('message_id', ids),
-      supabase.from('files').select('*').in('message_id', ids),
-    ])
-    // Ensure any unknown authors are present in the directory cache.
-    const missing = [...new Set(rows.map((r) => r.user_id))].filter((id) => !dir.profilesById[id])
-    if (missing.length) {
-      const { data } = await supabase.from('profiles').select('*').in('id', missing)
-      ;(data as Profile[] | null)?.forEach((p) => dir.upsertProfile(p))
+    // Enrichment (reactions, files, author profiles) is best-effort: a single failing/aborted
+    // request on a flaky connection must NOT reject the whole load — otherwise the caller's
+    // `setLoading(false)` never runs and the view spins forever. Degrade to bare messages instead.
+    let rx: MessageReactionRow[] = []
+    let fl: FileRow[] = []
+    try {
+      const [rxRes, flRes] = await Promise.all([
+        supabase.from('message_reactions').select('*').in('message_id', ids),
+        supabase.from('files').select('*').in('message_id', ids),
+      ])
+      rx = (rxRes.data as MessageReactionRow[]) ?? []
+      fl = (flRes.data as FileRow[]) ?? []
+      // Ensure any unknown authors are present in the directory cache.
+      const missing = [...new Set(rows.map((r) => r.user_id))].filter((id) => !dir.profilesById[id])
+      if (missing.length) {
+        const { data } = await supabase.from('profiles').select('*').in('id', missing)
+        ;(data as Profile[] | null)?.forEach((p) => dir.upsertProfile(p))
+      }
+    } catch (e) {
+      console.error('useMessages: hydrate enrichment failed, showing messages without it', e)
     }
     const byId = useDirectoryStore.getState().profilesById
-    const rx = (reactions ?? []) as MessageReactionRow[]
-    const fl = (files ?? []) as FileRow[]
     return rows.map((r) => ({
       ...r,
       author: byId[r.user_id] ?? null,
@@ -86,51 +95,58 @@ export function useMessages(target: Target, opts: { parentId?: string | null; fo
     // Only show the loader when we have nothing cached to display; otherwise refresh silently.
     if (!messageCache.has(cacheKey)) setLoading(true)
 
-    // Deep-linked to a specific message (search result / notification / shared link)? Load the page
-    // AROUND it — the target plus context on both sides — instead of the newest page. This lets a
-    // click on a search hit from months ago land ON that message, not at the bottom of the channel.
-    // (Skips the thread panel, and only kicks in when the target isn't already in view.)
-    if (focusId && !parentFilter && !messageCache.get(cacheKey)?.some((m) => m.id === focusId)) {
-      const { data: tgt } = await supabase.from('messages').select('created_at').eq('id', focusId).eq(column, key).maybeSingle()
-      const at = (tgt as { created_at?: string } | null)?.created_at
-      if (at) {
-        const [olderRes, newerRes] = await Promise.all([
-          supabase.from('messages').select('*').eq(column, key).lte('created_at', at).order('created_at', { ascending: false }).limit(PAGE),
-          supabase.from('messages').select('*').eq(column, key).gt('created_at', at).order('created_at', { ascending: true }).limit(15),
-        ])
-        const older = ((olderRes.data as MessageRow[]) ?? []).reverse() // …oldest → target
-        const newer = (newerRes.data as MessageRow[]) ?? [] // a little context below the target
-        const rows = [...older, ...newer]
-        if (rows.length) {
-          setHasMore(((olderRes.data as MessageRow[]) ?? []).length === PAGE)
-          oldestRef.current = rows[0]?.created_at ?? null
-          const hydrated = await hydrate(rows)
-          messageCache.set(cacheKey, hydrated)
-          setMessages(hydrated)
-          setLoading(false)
-          return
+    // Everything below is wrapped so the loader is ALWAYS cleared in `finally` — a network error or
+    // an aborted request must never leave the view stuck on "Loading messages…". On failure we keep
+    // whatever was already cached/on-screen instead of blanking.
+    try {
+      // Deep-linked to a specific message (search result / notification / shared link)? Load the page
+      // AROUND it — the target plus context on both sides — instead of the newest page. This lets a
+      // click on a search hit from months ago land ON that message, not at the bottom of the channel.
+      // (Skips the thread panel, and only kicks in when the target isn't already in view.)
+      if (focusId && !parentFilter && !messageCache.get(cacheKey)?.some((m) => m.id === focusId)) {
+        const { data: tgt } = await supabase.from('messages').select('created_at').eq('id', focusId).eq(column, key).maybeSingle()
+        const at = (tgt as { created_at?: string } | null)?.created_at
+        if (at) {
+          const [olderRes, newerRes] = await Promise.all([
+            supabase.from('messages').select('*').eq(column, key).lte('created_at', at).order('created_at', { ascending: false }).limit(PAGE),
+            supabase.from('messages').select('*').eq(column, key).gt('created_at', at).order('created_at', { ascending: true }).limit(15),
+          ])
+          const older = ((olderRes.data as MessageRow[]) ?? []).reverse() // …oldest → target
+          const newer = (newerRes.data as MessageRow[]) ?? [] // a little context below the target
+          const rows = [...older, ...newer]
+          if (rows.length) {
+            setHasMore(((olderRes.data as MessageRow[]) ?? []).length === PAGE)
+            oldestRef.current = rows[0]?.created_at ?? null
+            const hydrated = await hydrate(rows)
+            messageCache.set(cacheKey, hydrated)
+            setMessages(hydrated)
+            return
+          }
         }
+        // Target not found/visible — fall through to a normal newest-page load.
       }
-      // Target not found/visible — fall through to a normal newest-page load.
-    }
 
-    let q = supabase
-      .from('messages')
-      .select('*')
-      .eq(column, key)
-      .order('created_at', { ascending: false })
-      .limit(PAGE)
-    // Thread panel loads one parent's replies. The channel view loads EVERYTHING (roots + replies)
-    // so replies show inline in the flow instead of being hidden behind the thread panel.
-    if (parentFilter) q = q.eq('parent_message_id', parentFilter)
-    const { data } = await q
-    const rows = ((data as MessageRow[]) ?? []).reverse()
-    setHasMore(((data as MessageRow[]) ?? []).length === PAGE)
-    oldestRef.current = rows[0]?.created_at ?? null
-    const hydrated = await hydrate(rows)
-    messageCache.set(cacheKey, hydrated)
-    setMessages(hydrated)
-    setLoading(false)
+      let q = supabase
+        .from('messages')
+        .select('*')
+        .eq(column, key)
+        .order('created_at', { ascending: false })
+        .limit(PAGE)
+      // Thread panel loads one parent's replies. The channel view loads EVERYTHING (roots + replies)
+      // so replies show inline in the flow instead of being hidden behind the thread panel.
+      if (parentFilter) q = q.eq('parent_message_id', parentFilter)
+      const { data } = await q
+      const rows = ((data as MessageRow[]) ?? []).reverse()
+      setHasMore(((data as MessageRow[]) ?? []).length === PAGE)
+      oldestRef.current = rows[0]?.created_at ?? null
+      const hydrated = await hydrate(rows)
+      messageCache.set(cacheKey, hydrated)
+      setMessages(hydrated)
+    } catch (e) {
+      console.error('useMessages: load failed', e)
+    } finally {
+      setLoading(false)
+    }
   }, [key, column, parentFilter, hydrate, cacheKey, focusId])
 
   const loadMore = useCallback(async () => {
