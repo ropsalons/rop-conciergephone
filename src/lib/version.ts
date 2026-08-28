@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.51.5'
+export const APP_VERSION = '1.51.6'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.51.6',
+    date: '2026-08-28',
+    time: '11:15 AM ET',
+    title: 'Android fix: tapping a notification lands on the message again',
+    changes: [
+      'Fixed the Android bug where tapping a notification opened ROP Chat on the home screen instead of the message you tapped. The deep link was being dropped when the app was resumed from the background (Android freezes backgrounded apps, so the “open this message” hand-off could be missed).',
+      'The app now reliably holds onto the tapped target and delivers it the moment ROP Chat comes to the foreground — so you land on exactly the message, in the right channel or DM, and it flashes to show you.',
+    ],
+  },
   {
     version: '1.51.5',
     date: '2026-08-23',

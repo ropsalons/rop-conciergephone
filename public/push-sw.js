@@ -54,9 +54,12 @@ self.addEventListener('notificationclick', function (event) {
       for (var i = 0; i < list.length; i++) {
         var client = list[i]
         if ('focus' in client) {
-          // App already open — route it now and focus (the reliable path). Consume the pending
-          // target so it can't also be delivered via 'client-ready'.
-          pendingNavigate = null
+          // App already open — route it now and focus. We DON'T clear pendingNavigate here: on
+          // Android a backgrounded PWA is often frozen, so this postMessage can be dropped and never
+          // processed. Leaving the target set lets the 'client-ready' handshake (which fires when the
+          // app is brought to the foreground) deliver it reliably as a backstop. The freshness window
+          // (<60s) and single-delivery guard in that handler prevent any stale/duplicate replay, and
+          // re-navigating to the same path is idempotent — so a rare double-deliver is harmless.
           try { client.postMessage({ type: 'navigate', path: hashPath, src: 'click' }) } catch (e) { /* ignore */ }
           if ('navigate' in client) { try { client.navigate(url) } catch (e) { /* ignore */ } }
           return client.focus()
