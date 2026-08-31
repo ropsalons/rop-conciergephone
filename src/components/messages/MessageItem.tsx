@@ -370,8 +370,8 @@ export function MessageItem({ message, grouped, showThread = true, parentPreview
               <Pin className={cn('h-4 w-4', message.is_pinned && 'text-gold-400')} />
             </button>
           )}
-          {isMine && (
-            <button onClick={() => setEditing(true)} className="rounded p-1.5 text-slate-300 hover:bg-white/10" title="Edit">
+          {canModerate && (
+            <button onClick={() => setEditing(true)} className="rounded p-1.5 text-slate-300 hover:bg-white/10" title={isMine ? 'Edit' : 'Edit (admin)'}>
               <Edit className="h-4 w-4" />
             </button>
           )}
@@ -468,8 +468,8 @@ export function MessageItem({ message, grouped, showThread = true, parentPreview
                   onClick={() => { onTogglePin(!message.is_pinned); setSheetOpen(false) }}
                 />
               )}
-              {isMine && (
-                <SheetItem icon={<Edit className="h-5 w-5" />} label="Edit message" onClick={() => { setEditing(true); setSheetOpen(false) }} />
+              {canModerate && (
+                <SheetItem icon={<Edit className="h-5 w-5" />} label={isMine ? 'Edit message' : 'Edit message (admin)'} onClick={() => { setEditing(true); setSheetOpen(false) }} />
               )}
               {canModerate && (
                 <SheetItem icon={<Trash className="h-5 w-5" />} label="Delete message" danger onClick={() => { setSheetOpen(false); setConfirmDel(true) }} />

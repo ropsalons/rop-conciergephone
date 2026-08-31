@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.51.7'
+export const APP_VERSION = '1.51.8'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.51.8',
+    date: '2026-08-31',
+    time: '4:05 PM ET',
+    title: 'Admins can edit any message',
+    changes: [
+      'Owners, admins, and managers can now edit any message — not just their own — including automated posts (announcements, celebrations, reports). The pencil now shows on every message for you, so you can fix a name, a typo, or a tag yourself without asking anyone.',
+      'Everyone else can still only edit their own messages. Deleting already worked this way; editing now matches.',
+    ],
+  },
   {
     version: '1.51.7',
     date: '2026-08-31',
