@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.51.6'
+export const APP_VERSION = '1.51.7'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.51.7',
+    date: '2026-08-31',
+    time: '1:55 PM ET',
+    title: 'Text an event reminder — with a tap-to-RSVP link',
+    changes: [
+      'Events now have a “Text reminder” button (managers/admins). It sends an actual text message to everyone invited who hasn’t responded yet and has a mobile number on file — reminding them of the event and asking if they can make it.',
+      'Each text includes a link that opens the event right in ROP Chat so they can tap Going / Interested / Can’t Go in one step.',
+      'The button shows how many people it will text, and asks you to confirm before sending. The existing in-app “Send reminder to non-responders” nudge is still there too.',
+    ],
+  },
   {
     version: '1.51.6',
     date: '2026-08-28',

@@ -11,7 +11,7 @@ import { EventFormModal } from '@/components/events/EventFormModal'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import {
   Calendar, ChevronLeft, Clock, MapPin, Users, Bell, BellOff, Link as LinkIcon,
-  Edit, Trash, Check, AlertTriangle,
+  Edit, Trash, Check, AlertTriangle, Smartphone,
 } from '@/components/ui/Icons'
 import { canManage, RSVP_OPTIONS } from '@/lib/constants'
 import { cn, displayName } from '@/lib/utils'
@@ -37,6 +37,7 @@ export function EventDetailPage() {
   const [notFound, setNotFound] = useState(false)
   const [editing, setEditing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [confirmText, setConfirmText] = useState(false)
   const [busy, setBusy] = useState(false)
 
   async function load() {
@@ -66,10 +67,16 @@ export function EventDetailPage() {
   }, [rsvps])
 
   const recipients = useMemo(() => (event ? eventRecipients(event, profiles) : []), [event, profiles])
-  const noResponse = useMemo(() => {
+  const noResponders = useMemo(() => {
     const responded = new Set(rsvps.map((r) => r.user_id))
-    return recipients.filter((p) => !responded.has(p.id)).length
+    return recipients.filter((p) => !responded.has(p.id))
   }, [recipients, rsvps])
+  const noResponse = noResponders.length
+  // Non-responders we can actually text (a mobile number on file).
+  const textablePhones = useMemo(
+    () => [...new Set(noResponders.map((p) => p.phone).filter((x): x is string => !!x && x.trim().length >= 10))],
+    [noResponders],
+  )
 
   const canEdit = !!event && (canManage(access) || event.created_by === me)
 
@@ -108,6 +115,26 @@ export function EventDetailPage() {
     setBusy(false)
     if (error) return toast({ kind: 'error', title: 'Could not send reminder', body: error.message })
     toast({ kind: 'success', title: 'Reminder sent', body: `${typeof data === 'number' ? data : 0} people nudged.` })
+  }
+
+  // Text (SMS) the non-responders a reminder + a tap-to-RSVP link that opens this event in the app.
+  async function textReminder() {
+    if (!event || !eventId) return
+    if (!textablePhones.length) {
+      return toast({ kind: 'error', title: 'No one to text', body: 'Everyone has responded, or the non-responders have no mobile number on file.' })
+    }
+    setBusy(true)
+    const link = `${window.location.origin}/#/events/${eventId}`
+    const body =
+      `Reminder from ROP: "${event.title}" — ${eventDayLabel(event)}, ${eventTimeRange(event)} ET` +
+      `${event.location ? ` at ${event.location}` : ''}. Can you make it? Tap to RSVP in ROP Chat: ${link}`
+    const { data, error } = await supabase.functions.invoke('send-sms', { body: { to: textablePhones, body } })
+    setBusy(false)
+    const sent = (data as { sent?: number } | null)?.sent
+    if (error || (data as { ok?: boolean } | null)?.ok === false) {
+      return toast({ kind: 'error', title: 'Could not send texts', body: error?.message ?? 'Only admins can send texts. Ask an admin to send it.' })
+    }
+    toast({ kind: 'success', title: 'Texts sent', body: `${typeof sent === 'number' ? sent : textablePhones.length} people texted a reminder + RSVP link.` })
   }
 
   async function cancelEvent() {
@@ -240,6 +267,11 @@ export function EventDetailPage() {
               <button onClick={sendReminder} disabled={busy} className="btn-ghost px-3 py-1.5 text-sm">
                 <Bell className="h-4 w-4" /> Send reminder to non-responders
               </button>
+              <button onClick={() => setConfirmText(true)} disabled={busy || textablePhones.length === 0}
+                title={textablePhones.length === 0 ? 'No non-responders with a mobile number on file' : undefined}
+                className="btn-ghost px-3 py-1.5 text-sm text-brand-200">
+                <Smartphone className="h-4 w-4" /> Text reminder{textablePhones.length ? ` (${textablePhones.length})` : ''}
+              </button>
               <button onClick={cancelEvent} disabled={busy} className="btn-ghost px-3 py-1.5 text-sm text-amber-300">
                 <AlertTriangle className="h-4 w-4" /> {event.is_cancelled ? 'Restore event' : 'Cancel event'}
               </button>
@@ -281,6 +313,10 @@ export function EventDetailPage() {
       )}
       <ConfirmDialog open={confirmDelete} onClose={() => setConfirmDelete(false)} onConfirm={doDelete}
         title="Delete this event?" body="This removes the event and everyone's responses. This can't be undone." confirmLabel="Delete" danger />
+      <ConfirmDialog open={confirmText} onClose={() => setConfirmText(false)} onConfirm={textReminder}
+        title={`Text ${textablePhones.length} ${textablePhones.length === 1 ? 'person' : 'people'}?`}
+        body={`This sends a text reminder about "${event.title}" — with a tap-to-RSVP link — to everyone invited who hasn't responded yet and has a mobile number on file.`}
+        confirmLabel="Send texts" />
     </div>
   )
 }
