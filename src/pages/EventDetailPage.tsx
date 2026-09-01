@@ -13,12 +13,12 @@ import {
   Calendar, ChevronLeft, Clock, MapPin, Users, Bell, BellOff, Link as LinkIcon,
   Edit, Trash, Check, AlertTriangle, Smartphone,
 } from '@/components/ui/Icons'
-import { canManage, RSVP_OPTIONS } from '@/lib/constants'
+import { canManage, isAdmin, RSVP_OPTIONS } from '@/lib/constants'
 import { cn, displayName } from '@/lib/utils'
 import {
   categoryMeta, categoryGradient, isAcademyCategory, eventDayLabel, eventTimeRange, mapsUrl, eventRecipients,
 } from '@/lib/events'
-import type { EventRow, EventRsvpRow, RsvpResponse } from '@/types'
+import type { EventRow, EventRsvpRow, RsvpResponse, EventAttendanceRow, AttendanceStatus } from '@/types'
 
 export function EventDetailPage() {
   const { eventId } = useParams()
@@ -31,6 +31,7 @@ export function EventDetailPage() {
 
   const [event, setEvent] = useState<EventRow | null>(null)
   const [rsvps, setRsvps] = useState<EventRsvpRow[]>([])
+  const [attendance, setAttendance] = useState<EventAttendanceRow[]>([])
   const [views, setViews] = useState(0)
   const [subscribed, setSubscribed] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -45,12 +46,14 @@ export function EventDetailPage() {
     const { data: ev } = await supabase.from('events').select('*').eq('id', eventId).maybeSingle()
     if (!ev) { setNotFound(true); setLoading(false); return }
     setEvent(ev as EventRow)
-    const [{ data: rs }, { count }, { data: sub }] = await Promise.all([
+    const [{ data: rs }, { count }, { data: sub }, { data: att }] = await Promise.all([
       supabase.from('event_rsvps').select('*').eq('event_id', eventId),
       supabase.from('event_views').select('*', { count: 'exact', head: true }).eq('event_id', eventId),
       me ? supabase.from('event_subscriptions').select('event_id').eq('event_id', eventId).eq('user_id', me).maybeSingle() : Promise.resolve({ data: null }),
+      supabase.from('event_attendance').select('*').eq('event_id', eventId),
     ])
     setRsvps((rs as EventRsvpRow[]) ?? [])
+    setAttendance((att as EventAttendanceRow[]) ?? [])
     setViews(count ?? 0)
     setSubscribed(!!sub)
     setLoading(false)
@@ -79,6 +82,42 @@ export function EventDetailPage() {
   )
 
   const canEdit = !!event && (canManage(access) || event.created_by === me)
+  const canMarkAttendance = isAdmin(access)
+
+  const attendanceByUser = useMemo(() => {
+    const m: Record<string, EventAttendanceRow> = {}
+    for (const a of attendance) m[a.user_id] = a
+    return m
+  }, [attendance])
+  const goingByUser = useMemo(() => {
+    const s = new Set<string>()
+    for (const r of rsvps) if (r.response === 'going') s.add(r.user_id)
+    return s
+  }, [rsvps])
+  const attendedCount = useMemo(() => attendance.filter((a) => a.status === 'attended').length, [attendance])
+
+  // Admin marks one person present/absent. Attended → they earn the event's credit hours.
+  async function mark(userId: string, status: AttendanceStatus) {
+    if (!eventId) return
+    // optimistic
+    setAttendance((prev) => {
+      const others = prev.filter((a) => a.user_id !== userId)
+      const hours = status === 'attended' ? (event?.credit_hours ?? 0) : 0
+      return [...others, { event_id: eventId, user_id: userId, status, hours, marked_by: me ?? null, marked_at: new Date().toISOString() }]
+    })
+    const { error } = await (supabase.rpc as any)('set_event_attendance', { p_event_id: eventId, p_user_id: userId, p_status: status })
+    if (error) { toast({ kind: 'error', title: 'Could not save', body: error.message }); void load() }
+  }
+  async function clearMark(userId: string) {
+    if (!eventId) return
+    setAttendance((prev) => prev.filter((a) => a.user_id !== userId))
+    await (supabase.rpc as any)('clear_event_attendance', { p_event_id: eventId, p_user_id: userId })
+  }
+  // One tap: everyone who confirmed "Going" gets marked attended.
+  async function markAllGoingAttended() {
+    const ids = recipients.filter((p) => goingByUser.has(p.id)).map((p) => p.id)
+    for (const id of ids) await mark(id, 'attended')
+  }
 
   async function setRsvp(resp: RsvpResponse) {
     if (!eventId || !me) return
@@ -246,6 +285,13 @@ export function EventDetailPage() {
             )}
             {event.organizer && <Row label="Organizer">{event.organizer}</Row>}
             {event.price && <Row label="Price">{event.price}</Row>}
+            {(event.credit_hours != null || event.credit_type) && (
+              <Row label="Credit">
+                {event.credit_hours != null && <span className="font-medium text-gold-200">{event.credit_hours} hr{event.credit_hours === 1 ? '' : 's'}</span>}
+                {event.credit_hours != null && event.credit_type && ' · '}
+                {event.credit_type}
+              </Row>
+            )}
             <Row icon={<Users className="h-4 w-4" />} label="Invited">
               {recipients.length} {recipients.length === 1 ? 'person' : 'people'} · {noResponse} no response · {views} view{views === 1 ? '' : 's'}
             </Row>
@@ -275,6 +321,58 @@ export function EventDetailPage() {
               <button onClick={cancelEvent} disabled={busy} className="btn-ghost px-3 py-1.5 text-sm text-amber-300">
                 <AlertTriangle className="h-4 w-4" /> {event.is_cancelled ? 'Restore event' : 'Cancel event'}
               </button>
+            </div>
+          )}
+
+          {/* Attendance (admins) — mark who actually showed; attended earns the event's credit hours. */}
+          {canMarkAttendance && (
+            <div className="mt-6 rounded-xl border border-white/10 bg-brand-950/40 p-4">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-semibold text-white">Attendance</p>
+                  <p className="text-xs text-slate-400">
+                    {attendedCount} attended · {attendance.reduce((s, a) => s + (a.hours ?? 0), 0)} hrs credited
+                    {event.credit_hours != null ? ` · ${event.credit_hours} hr each` : ''}
+                  </p>
+                </div>
+                <button onClick={markAllGoingAttended} className="btn-ghost px-3 py-1.5 text-xs">
+                  <Check className="h-3.5 w-3.5" /> Mark all who confirmed
+                </button>
+              </div>
+              {recipients.length === 0 ? (
+                <p className="text-xs text-slate-500">This event was open to everyone — attendance marking works best with a specific invite list.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {recipients.map((p) => {
+                    const cur = attendanceByUser[p.id]?.status
+                    const going = goingByUser.has(p.id)
+                    const chip = (s: AttendanceStatus, label: string, on: string) => (
+                      <button
+                        key={s}
+                        onClick={() => (cur === s ? clearMark(p.id) : mark(p.id, s))}
+                        className={cn('rounded-md px-2 py-1 text-xs font-medium transition',
+                          cur === s ? on : 'bg-white/5 text-slate-400 hover:bg-white/10')}
+                      >
+                        {label}
+                      </button>
+                    )
+                    return (
+                      <div key={p.id} className="flex items-center gap-2 rounded-lg px-1 py-1">
+                        <Avatar profile={p} size="xs" />
+                        <span className="min-w-0 flex-1 truncate text-sm text-slate-100">
+                          {displayName(p)}
+                          {going && <span className="ml-1.5 text-[11px] text-emerald-300">✓ confirmed</span>}
+                        </span>
+                        <div className="flex gap-1">
+                          {chip('attended', 'Attended', 'bg-emerald-500/25 text-emerald-200')}
+                          {chip('no_show', 'No-show', 'bg-rose-500/25 text-rose-200')}
+                          {chip('excused', 'Excused', 'bg-slate-400/25 text-slate-100')}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           )}
 

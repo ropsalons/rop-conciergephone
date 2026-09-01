@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.51.9'
+export const APP_VERSION = '1.52.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.52.0',
+    date: '2026-08-31',
+    time: '5:20 PM ET',
+    title: 'Training Log — attendance & continuing-education hours',
+    changes: [
+      'Events can now carry Credit hours and a Credit type (Advanced Education, Continuing Education, Concierge Training, Staff Meeting, Special Event, or your own). Hours default to the event’s length and are editable.',
+      'Staff confirm the same way they always have — tap Going on the event. After it happens, admins open the event and mark who actually attended (Attended / No-show / Excused). Everyone who confirmed can be marked attended in one tap; attended earns the event’s hours.',
+      'New “Training Log” page (managers only, up by Resources): browse every tracked event with its roster and hours, or flip to “By person” to see each teammate’s all-time hours and the events they attended — their record stays intact even after a promotion.',
+    ],
+  },
   {
     version: '1.51.9',
     date: '2026-08-31',

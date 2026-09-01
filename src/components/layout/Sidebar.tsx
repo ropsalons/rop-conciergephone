@@ -18,11 +18,11 @@ import { UnreadBadge, AccessBadge } from '@/components/ui/Badge'
 import {
   Hash, Lock, Megaphone, Home, MessageSquare, Users, Search, Bell, Plus,
   Star, LifeBuoy, Shield, Settings, Calendar, Link as LinkIcon, AlertTriangle,
-  Eye, EyeOff, ArrowUpDown, GripVertical, Bookmark, ChevronDown, BellOff,
+  Eye, EyeOff, ArrowUpDown, GripVertical, Bookmark, ChevronDown, BellOff, GraduationCap,
 } from '@/components/ui/Icons'
 import { conversationName, otherMembers } from '@/lib/dm'
 import { cn } from '@/lib/utils'
-import { APP_NAME, isAdmin, titleLabel } from '@/lib/constants'
+import { APP_NAME, isAdmin, canManage, titleLabel } from '@/lib/constants'
 import { APP_VERSION } from '@/lib/version'
 import { CreateChannelModal } from '@/components/channels/CreateChannelModal'
 import { BrowseChannelsModal } from '@/components/channels/BrowseChannelsModal'
@@ -572,6 +572,11 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           <NavLink to="/resources" onClick={go} className={({ isActive }) => cn(NAV_LINK, isActive ? active : idle)}>
             <LinkIcon className="h-4 w-4" /> Resources
           </NavLink>
+          {canManage(profile?.access_level) && (
+            <NavLink to="/training-log" onClick={go} className={({ isActive }) => cn(NAV_LINK, isActive ? active : idle)}>
+              <GraduationCap className="h-4 w-4" /> Training Log
+            </NavLink>
+          )}
           <button onClick={() => { setHelpOpen(true); go() }} className={cn(NAV_LINK, idle, 'w-full')}>
             <LifeBuoy className="h-4 w-4" /> Help &amp; Guide
           </button>

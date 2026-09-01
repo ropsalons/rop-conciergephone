@@ -28,6 +28,7 @@ import { SchedulingPage } from '@/pages/SchedulingPage'
 import { EventsPage } from '@/pages/EventsPage'
 import { EventDetailPage } from '@/pages/EventDetailPage'
 import { ResourcesPage } from '@/pages/ResourcesPage'
+import { TrainingLogPage } from '@/pages/TrainingLogPage'
 import { AdminPage } from '@/pages/AdminPage'
 import { DeactivatedPage } from '@/pages/DeactivatedPage'
 import { ShareTargetModal } from '@/components/share/ShareTargetModal'
@@ -95,6 +96,7 @@ export default function App() {
           <Route path="events" element={<EventsPage />} />
           <Route path="events/:eventId" element={<EventDetailPage />} />
           <Route path="resources" element={<ResourcesPage />} />
+          <Route path="training-log" element={<TrainingLogPage />} />
           <Route path="admin" element={<AdminPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

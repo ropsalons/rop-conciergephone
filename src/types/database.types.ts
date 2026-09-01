@@ -366,6 +366,8 @@ export type EventRow = {
   created_by: string | null
   is_cancelled: boolean
   reminder_sent_at: string | null
+  credit_hours: number | null
+  credit_type: string | null
   created_at: string
   updated_at: string
 }
@@ -375,6 +377,15 @@ export type EventRsvpRow = {
   response: RsvpResponse
   created_at: string
   updated_at: string
+}
+export type AttendanceStatus = 'attended' | 'no_show' | 'excused'
+export type EventAttendanceRow = {
+  event_id: string
+  user_id: string
+  status: AttendanceStatus
+  hours: number
+  marked_by: string | null
+  marked_at: string
 }
 export type EventViewRow = { event_id: string; user_id: string; viewed_at: string }
 export type EventSubscriptionRow = { event_id: string; user_id: string; created_at: string }
@@ -424,6 +435,7 @@ export type Database = {
       scheduling_posts: TableFor<SchedulingPostRow>
       events: TableFor<EventRow>
       event_rsvps: TableFor<EventRsvpRow>
+      event_attendance: TableFor<EventAttendanceRow>
       event_views: TableFor<EventViewRow>
       event_subscriptions: TableFor<EventSubscriptionRow>
       resources: TableFor<ResourceRow>

@@ -41,6 +41,8 @@ export function EventFormModal({
   const [price, setPrice] = useState(existing?.price ?? '')
   const [capacity, setCapacity] = useState(existing?.capacity != null ? String(existing.capacity) : '')
   const [registrationOpen, setRegistrationOpen] = useState(existing?.registration_open ?? true)
+  const [creditHours, setCreditHours] = useState(existing?.credit_hours != null ? String(existing.credit_hours) : '')
+  const [creditType, setCreditType] = useState(existing?.credit_type ?? '')
   const [coverUrl, setCoverUrl] = useState(existing?.cover_url ?? '')
   const [uploadingCover, setUploadingCover] = useState(false)
   const [audience, setAudience] = useState<EventAudience>(existing?.audience ?? 'all')
@@ -52,6 +54,14 @@ export function EventFormModal({
   const [saving, setSaving] = useState(false)
 
   const canBlast = canManage(access) || (editing && existing?.created_by === me)
+
+  // Suggested credit hours = the event's duration (start → end), rounded to the nearest quarter hour.
+  const autoHours = useMemo(() => {
+    if (!startAt || !endAt) return null
+    const ms = new Date(endAt).getTime() - new Date(startAt).getTime()
+    if (!(ms > 0)) return null
+    return Math.round((ms / 3_600_000) * 4) / 4
+  }, [startAt, endAt])
 
   const people = useMemo(() => profiles.filter((p) => p.is_active && p.id !== me), [profiles, me])
   const shownPeople = useMemo(() => {
@@ -109,6 +119,8 @@ export function EventFormModal({
       location_id: audience === 'location' ? locationId : null,
       department_id: audience === 'department' ? departmentId : null,
       target_user_ids: audience === 'users' ? targetIds : null,
+      credit_hours: creditHours.trim() ? Math.max(0, Number(creditHours) || 0) : autoHours,
+      credit_type: creditType.trim() || null,
     }
     let row: EventRow | null = null
     if (editing && existing) {
@@ -246,6 +258,32 @@ export function EventFormModal({
           <input type="checkbox" className="h-4 w-4 accent-gold-500" checked={registrationOpen} onChange={(e) => setRegistrationOpen(e.target.checked)} />
           <span>Registration open <span className="text-slate-400">— turn off to close sign-ups</span></span>
         </label>
+
+        {/* Continuing-education / attendance credit. Attendees earn these hours once an admin marks
+            them present. Hours default to the event's duration; type is free text with suggestions. */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="label">Credit type <span className="text-slate-500">(for tracking)</span></label>
+            <input className="input" list="credit-type-options" value={creditType} onChange={(e) => setCreditType(e.target.value)}
+              placeholder="e.g. Advanced Education" />
+            <datalist id="credit-type-options">
+              <option value="Advanced Education" />
+              <option value="Continuing Education" />
+              <option value="Concierge Training" />
+              <option value="Staff Meeting" />
+              <option value="Special Event" />
+            </datalist>
+          </div>
+          <div>
+            <label className="label">Credit hours</label>
+            <input type="number" min="0" step="0.25" className="input" value={creditHours}
+              onChange={(e) => setCreditHours(e.target.value)}
+              placeholder={autoHours != null ? `${autoHours} (from time)` : 'e.g. 2'} />
+            <p className="mt-1 text-[11px] text-slate-500">
+              {autoHours != null ? `Auto: ${autoHours} hr from start–end. ` : ''}Leave blank to use the event's length.
+            </p>
+          </div>
+        </div>
 
         <div>
           <label className="label">Who's invited</label>
