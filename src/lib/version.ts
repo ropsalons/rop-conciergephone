@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.51.8'
+export const APP_VERSION = '1.51.9'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.51.9',
+    date: '2026-08-31',
+    time: '4:40 PM ET',
+    title: 'New channels show up on their own',
+    changes: [
+      'When you get added to a channel, it now appears in your sidebar automatically — the app rebuilds your channel list whenever you return to it (or your connection comes back), instead of needing a full reload.',
+      'Fixed a related gotcha: a brand-new channel could be hidden by the “hide quiet channels” setting because it had no activity yet. Favoriting a channel (star it) always keeps it visible at the top.',
+    ],
+  },
   {
     version: '1.51.8',
     date: '2026-08-31',

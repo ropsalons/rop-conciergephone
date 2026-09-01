@@ -100,7 +100,15 @@ export function useAppBootstrap() {
     const heartbeat = setInterval(() => setPresence(document.hidden ? 'away' : 'online'), 60_000)
     const onVisibility = () => setPresence(document.hidden ? 'away' : 'online')
     const onUnload = () => setPresence('offline')
+    // Rebuild the channel list whenever the app comes back to the foreground (or the connection
+    // returns). The realtime membership subscription can miss an add/remove while the app is
+    // backgrounded or the socket has dropped, which left people needing a full reload to see a
+    // channel they were just added to. This self-heals it — no manual refresh needed.
+    const refreshSidebar = () => { if (document.visibilityState === 'visible') void useChatStore.getState().loadSidebar() }
     document.addEventListener('visibilitychange', onVisibility)
+    document.addEventListener('visibilitychange', refreshSidebar)
+    window.addEventListener('focus', refreshSidebar)
+    window.addEventListener('online', refreshSidebar)
     window.addEventListener('beforeunload', onUnload)
 
     return () => {
@@ -108,6 +116,9 @@ export function useAppBootstrap() {
       supabase.removeChannel(membershipChannel)
       clearInterval(heartbeat)
       document.removeEventListener('visibilitychange', onVisibility)
+      document.removeEventListener('visibilitychange', refreshSidebar)
+      window.removeEventListener('focus', refreshSidebar)
+      window.removeEventListener('online', refreshSidebar)
       window.removeEventListener('beforeunload', onUnload)
     }
     // Depend on userId ONLY. `prefs` is intentionally read via prefsRef inside the handler so that a
