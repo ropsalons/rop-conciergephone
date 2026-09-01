@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.52.1'
+export const APP_VERSION = '1.52.2'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.52.2',
+    date: '2026-08-31',
+    time: '6:15 PM ET',
+    title: 'Invite a whole group to an event',
+    changes: [
+      'When creating or editing an event, you can now invite a group in one tap — Rising Stars, Silver Stylists, Stylists in Training, Concierge, or All Stylists — instead of picking people one by one. It drops the group into “Specific people,” where you can still add or remove anyone.',
+      'Works on past events too: open any event → Edit → tap a group (or adjust individuals) → Save.',
+      'Backfilled past trainings and meetings with credit hours (from each event’s calendar length) and a type, so they now show up in the Training Log with everyone’s hours.',
+    ],
+  },
   {
     version: '1.52.1',
     date: '2026-08-31',

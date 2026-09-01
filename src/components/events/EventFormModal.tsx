@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
 import { useDirectoryStore } from '@/stores/directoryStore'
@@ -52,6 +52,28 @@ export function EventFormModal({
   const [userQuery, setUserQuery] = useState('')
   const [notify, setNotify] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [cohorts, setCohorts] = useState<{ id: string; name: string; memberIds: string[] }[]>([])
+
+  // Load cohorts (Rising Stars, Silver, Stylists in Training, Concierge, …) so a whole group can be
+  // invited in one tap. Picking a group drops its people into "Specific people," which you can tweak.
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      const [{ data: cos }, { data: cms }] = await Promise.all([
+        supabase.from('cohorts').select('id,name').order('name'),
+        supabase.from('cohort_members').select('cohort_id,user_id'),
+      ])
+      if (!alive) return
+      const byCohort: Record<string, string[]> = {}
+      for (const m of ((cms as { cohort_id: string; user_id: string }[]) ?? [])) (byCohort[m.cohort_id] ??= []).push(m.user_id)
+      setCohorts(((cos as { id: string; name: string }[]) ?? []).map((c) => ({ id: c.id, name: c.name, memberIds: byCohort[c.id] ?? [] })))
+    })()
+    return () => { alive = false }
+  }, [])
+  const addGroup = (ids: string[]) => {
+    setAudience('users')
+    setTargetIds((prev) => [...new Set([...prev, ...ids.filter((id) => id !== me)])])
+  }
 
   const canBlast = canManage(access) || (editing && existing?.created_by === me)
 
@@ -293,6 +315,17 @@ export function EventFormModal({
             <option value="department">A specific department</option>
             <option value="users">Specific people</option>
           </select>
+          {cohorts.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              <span className="w-full text-[11px] text-slate-500">Or invite a group (adds them to Specific people — you can then add or remove anyone):</span>
+              {cohorts.map((c) => (
+                <button key={c.id} type="button" onClick={() => addGroup(c.memberIds)}
+                  className="rounded-full border border-brand-400/40 bg-brand-400/10 px-2.5 py-1 text-xs text-brand-100 hover:bg-brand-400/20">
+                  + {c.name} <span className="text-slate-400">({c.memberIds.length})</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {audience === 'location' && (
