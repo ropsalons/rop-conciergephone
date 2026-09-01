@@ -19,7 +19,7 @@ async function sf(sql: string): Promise<string[][]> {
     'Content-Type': 'application/json',
     Accept: 'application/json',
   }
-  const r = await fetch(SF_URL, { method: 'POST', headers, body: JSON.stringify({ statement: sql, timeout: 60, warehouse: 'COMPUTE_WH', role: 'ROP_CONNECT_READONLY', database: 'ANALYTICS', schema: 'MARTS' }) })
+  const r = await fetch(SF_URL, { method: 'POST', headers, body: JSON.stringify({ statement: sql, timeout: 60, warehouse: (Deno.env.get('SF_WAREHOUSE') ?? 'COMPUTE_WH'), role: 'ROP_CONNECT_READONLY', parameters: { QUERY_TAG: 'rop-connect:daily-scorecard' }, database: 'ANALYTICS', schema: 'MARTS' }) })
   let j: any = await r.json()
   if (r.status === 202 && j.statementHandle) {
     for (let i = 0; i < 12; i++) { await new Promise((res) => setTimeout(res, 1500)); const g = await fetch(SF_URL + '/' + j.statementHandle, { headers }); if (g.status === 200) { j = await g.json(); break } }
@@ -180,12 +180,43 @@ function widget(salons: string[][], stylists: string[][], co: string[]): string 
 })();</script>`
 }
 
+// ---- Scorecard cache (reuse the central `kv` Edge Function; no new infra). Prevents rebuilding the
+// same heavy Snowflake dataset on redundant/manual invocations within the window and lets a transient
+// Snowflake failure still post last-good numbers. Cache age is logged only; never shown on the card. ----
+const SC_CACHE_KEY = 'sf:scorecard:v1'
+const SC_TTL_MS = 55 * 60 * 1000
+const KV_URL = 'https://qrigzwactbwbpuufehxo.supabase.co/functions/v1/kv'
+async function kvGet(k: string): Promise<any> {
+  try { const r = await fetch(KV_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-cron-secret': CRON_SECRET }, body: JSON.stringify({ op: 'get', k }) }); const j = await r.json().catch(() => null); return j && j.ok ? j.v : null } catch { return null }
+}
+async function kvSet(k: string, v: any): Promise<void> {
+  try { await fetch(KV_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-cron-secret': CRON_SECRET }, body: JSON.stringify({ op: 'set', k, v }) }) } catch { /* best effort */ }
+}
+
 async function buildAndPost() {
-  const [c] = await sf(COMPANY_SQL)
-  const salons = await sf(SALON_SQL)
-  const stylists = await sf(STYLIST_SQL)
-  let rebookYtd = ''
-  try { const [[rb]] = await sf(REBOOK_SQL); rebookYtd = rb } catch (_) { /* optional */ }
+  let dataset: any = null, fromCache = false, ageMs: number | null = null
+  const cached = await kvGet(SC_CACHE_KEY)
+  ageMs = cached && cached.computed_at ? (Date.now() - Date.parse(cached.computed_at)) : null
+  if (cached && cached.c && ageMs != null && ageMs < SC_TTL_MS) { dataset = cached; fromCache = true }
+  if (!dataset) {
+    try {
+      const [c0] = await sf(COMPANY_SQL)
+      const salons0 = await sf(SALON_SQL)
+      const stylists0 = await sf(STYLIST_SQL)
+      let rebookYtd0 = ''
+      try { const [[rb]] = await sf(REBOOK_SQL); rebookYtd0 = rb } catch (_) { /* optional */ }
+      dataset = { computed_at: new Date().toISOString(), c: c0, salons: salons0, stylists: stylists0, rebookYtd: rebookYtd0 }
+      kvSet(SC_CACHE_KEY, dataset)
+    } catch (e) {
+      if (cached && cached.c) { dataset = cached; fromCache = true; console.log(`scorecard: Snowflake failed, serving last-good cache age=${ageMs != null ? Math.round(ageMs / 1000) : '?'}s`) }
+      else throw e
+    }
+  }
+  console.log(`scorecard cache ${fromCache ? 'HIT' : 'MISS'} age=${ageMs != null ? Math.round(ageMs / 1000) + 's' : 'n/a'}`)
+  const c = dataset.c
+  const salons = dataset.salons
+  const stylists = dataset.stylists
+  const rebookYtd = dataset.rebookYtd
 
   const refLabel = c[0]
   const nowET = new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date())

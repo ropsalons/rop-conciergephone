@@ -29,7 +29,7 @@ async function sf(sql: string): Promise<string[][]> {
     'Content-Type': 'application/json',
     Accept: 'application/json',
   }
-  const r = await fetch(SF_URL, { method: 'POST', headers, body: JSON.stringify({ statement: sql, timeout: 60, warehouse: 'COMPUTE_WH', role: 'ROP_CONNECT_READONLY', database: 'BLVD_SHARE', schema: 'BOULEVARD' }) })
+  const r = await fetch(SF_URL, { method: 'POST', headers, body: JSON.stringify({ statement: sql, timeout: 60, warehouse: (Deno.env.get('SF_WAREHOUSE') ?? 'COMPUTE_WH'), role: 'ROP_CONNECT_READONLY', parameters: { QUERY_TAG: 'rop-connect:staff-sync' }, database: 'BLVD_SHARE', schema: 'BOULEVARD' }) })
   let j: any = await r.json()
   if (r.status === 202 && j.statementHandle) {
     for (let i = 0; i < 12; i++) { await new Promise((res) => setTimeout(res, 1500)); const g = await fetch(SF_URL + '/' + j.statementHandle, { headers }); if (g.status === 200) { j = await g.json(); break } }
