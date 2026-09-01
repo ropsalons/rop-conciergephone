@@ -387,6 +387,8 @@ export type EventAttendanceRow = {
   marked_by: string | null
   marked_at: string
 }
+export type CohortRow = { id: string; name: string; description: string | null; created_at: string }
+export type CohortMemberRow = { cohort_id: string; user_id: string; added_at: string }
 export type EventViewRow = { event_id: string; user_id: string; viewed_at: string }
 export type EventSubscriptionRow = { event_id: string; user_id: string; created_at: string }
 
@@ -436,6 +438,8 @@ export type Database = {
       events: TableFor<EventRow>
       event_rsvps: TableFor<EventRsvpRow>
       event_attendance: TableFor<EventAttendanceRow>
+      cohorts: TableFor<CohortRow>
+      cohort_members: TableFor<CohortMemberRow>
       event_views: TableFor<EventViewRow>
       event_subscriptions: TableFor<EventSubscriptionRow>
       resources: TableFor<ResourceRow>

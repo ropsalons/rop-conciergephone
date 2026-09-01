@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.52.0'
+export const APP_VERSION = '1.52.1'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.52.1',
+    date: '2026-08-31',
+    time: '5:45 PM ET',
+    title: 'Training Log: cohorts, the hours matrix & CSV exports',
+    changes: [
+      'Added Cohorts to the Training Log — starting with “Rising Stars” (Stylists-in-Training + Silver stylists + their leaders, pulled from Boulevard). Membership is sticky, so a promotion never drops someone from their history.',
+      'New “Cohorts” view shows a grid: everyone in the cohort down the side, their sessions across the top, hours earned in each cell, and a running total per person. Export the whole grid to CSV in one tap.',
+      'Each person’s transcript (in “By person”) can now be exported to CSV for their file.',
+    ],
+  },
   {
     version: '1.52.0',
     date: '2026-08-31',
