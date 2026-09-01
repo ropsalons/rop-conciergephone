@@ -49,7 +49,7 @@ async function runSnowflake(sql: string): Promise<{ columns: string[]; rows: str
   const r = await fetch(SF_URL, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ statement: sql, timeout: 60, warehouse: 'COMPUTE_WH', role: 'ROP_CONNECT_READONLY', database: 'ANALYTICS', schema: 'MARTS' }),
+    body: JSON.stringify({ statement: sql, timeout: 60, warehouse: (Deno.env.get('SF_WAREHOUSE') ?? 'COMPUTE_WH'), role: 'ROP_CONNECT_READONLY', parameters: { QUERY_TAG: 'rop-connect:sf-query' }, database: 'ANALYTICS', schema: 'MARTS' }),
   })
   let j: any = await r.json()
   if (r.status === 202 && j.statementHandle) {
