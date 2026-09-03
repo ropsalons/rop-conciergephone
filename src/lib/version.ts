@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.53.2'
+export const APP_VERSION = '1.53.3'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.53.3',
+    date: '2026-09-03',
+    time: '6:05 PM ET',
+    title: 'Schedule: jump to any week fast',
+    changes: [
+      'Tap the week label to open a mini calendar and jump straight to any week — no more clicking week by week.',
+      'Added quick buttons: Today, Next wk, and +1 mo.',
+    ],
+  },
   {
     version: '1.53.2',
     date: '2026-09-03',

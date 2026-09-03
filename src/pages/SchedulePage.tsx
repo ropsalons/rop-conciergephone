@@ -89,6 +89,7 @@ export function SchedulePage() {
   const [showRequest, setShowRequest] = useState(false)
   const [manageOpen, setManageOpen] = useState(false)
   const [editCell, setEditCell] = useState<{ uid: string; dk: string } | null>(null)
+  const [calOpen, setCalOpen] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
   const [assigning, setAssigning] = useState<string | null>(null)
 
@@ -356,13 +357,23 @@ export function SchedulePage() {
               <button onClick={() => setMonday(addDays(monday, -7))} aria-label="Previous week" className="rounded-lg border border-white/10 p-1.5 text-slate-300 hover:bg-white/10">
                 <ChevronLeft className="h-4 w-4" />
               </button>
-              <div className="min-w-[8.5rem] text-center text-sm font-semibold text-white">{weekLabel(monday)}</div>
+              <div className="relative">
+                <button onClick={() => setCalOpen((o) => !o)} title="Pick a week" className="min-w-[8.5rem] rounded-lg px-2 py-1.5 text-center text-sm font-semibold text-white hover:bg-white/10">
+                  {weekLabel(monday)}
+                </button>
+                {calOpen && (
+                  <>
+                    <div className="fixed inset-0 z-30" onClick={() => setCalOpen(false)} />
+                    <MiniCalendar selectedMonday={monday} onPick={(d) => { setMonday(startOfWeekMonday(d)); setCalOpen(false) }} />
+                  </>
+                )}
+              </div>
               <button onClick={() => setMonday(addDays(monday, 7))} aria-label="Next week" className="rounded-lg border border-white/10 p-1.5 text-slate-300 hover:bg-white/10">
                 <ChevronLeft className="h-4 w-4 rotate-180" />
               </button>
-              <button onClick={() => setMonday(startOfWeekMonday(new Date()))} className="ml-1 rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-slate-300 hover:bg-white/10">
-                Today
-              </button>
+              <button onClick={() => setMonday(startOfWeekMonday(new Date()))} className="ml-1 rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-slate-300 hover:bg-white/10">Today</button>
+              <button onClick={() => setMonday(addDays(monday, 7))} className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-slate-300 hover:bg-white/10">Next wk</button>
+              <button onClick={() => setMonday(startOfWeekMonday(new Date(monday.getFullYear(), monday.getMonth() + 1, monday.getDate())))} className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-slate-300 hover:bg-white/10">+1 mo</button>
               {showActual && <span className="ml-1 text-xs text-gold-300">{actualLoading ? 'Loading actual hours…' : 'Actual hours from ROP Time'}</span>}
             </div>
             <div className="ml-auto flex items-center gap-2">
@@ -493,6 +504,40 @@ export function SchedulePage() {
       {editCell && (
         <DayEditModal userId={editCell.uid} workDate={editCell.dk} onClose={() => setEditCell(null)} onSaved={() => { setEditCell(null); load() }} />
       )}
+    </div>
+  )
+}
+
+// ── Mini month calendar (jump to any week) ────────────────────────────────────
+function MiniCalendar({ selectedMonday, onPick }: { selectedMonday: Date; onPick: (d: Date) => void }) {
+  const [cursor, setCursor] = useState(() => new Date(selectedMonday.getFullYear(), selectedMonday.getMonth(), 1))
+  const y = cursor.getFullYear()
+  const m = cursor.getMonth()
+  const startOffset = (new Date(y, m, 1).getDay() + 6) % 7 // Monday-first
+  const daysInMonth = new Date(y, m + 1, 0).getDate()
+  const weekEnd = addDays(selectedMonday, 6)
+  const todayK = dateKey(new Date())
+  const cells: (Date | null)[] = []
+  for (let i = 0; i < startOffset; i++) cells.push(null)
+  for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(y, m, d))
+  return (
+    <div className="absolute left-0 top-full z-40 mt-1 w-64 rounded-xl border border-white/10 bg-brand-900 p-2 shadow-2xl">
+      <div className="mb-1 flex items-center justify-between px-1">
+        <button onClick={() => setCursor(new Date(y, m - 1, 1))} aria-label="Previous month" className="rounded p-1 text-slate-300 hover:bg-white/10"><ChevronLeft className="h-4 w-4" /></button>
+        <span className="text-sm font-semibold text-white">{cursor.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
+        <button onClick={() => setCursor(new Date(y, m + 1, 1))} aria-label="Next month" className="rounded p-1 text-slate-300 hover:bg-white/10"><ChevronLeft className="h-4 w-4 rotate-180" /></button>
+      </div>
+      <div className="grid grid-cols-7 gap-0.5 text-center text-[10px] text-slate-500">
+        {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map((d) => <div key={d}>{d}</div>)}
+      </div>
+      <div className="grid grid-cols-7 gap-0.5">
+        {cells.map((d, i) => d ? (
+          <button key={i} onClick={() => onPick(d)}
+            className={cn('rounded py-1 text-xs', d >= selectedMonday && d <= weekEnd ? 'bg-brand-500/30 text-white' : 'text-slate-300 hover:bg-white/10', dateKey(d) === todayK && 'ring-1 ring-brand-400')}>
+            {d.getDate()}
+          </button>
+        ) : <div key={i} />)}
+      </div>
     </div>
   )
 }
