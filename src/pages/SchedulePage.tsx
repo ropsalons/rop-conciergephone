@@ -18,6 +18,7 @@ import type {
 } from '@/types'
 import { TimeOffModal } from '@/components/schedule/TimeOffModal'
 import { ManageScheduleModal } from '@/components/schedule/ManageScheduleModal'
+import { DayEditModal } from '@/components/schedule/DayEditModal'
 
 type Entry =
   | { kind: 'shift'; time: string; role: ScheduleRole; locId: string | null; alsoPhones: boolean; note?: string | null }
@@ -63,6 +64,7 @@ export function SchedulePage() {
   const [view, setView] = useState<'grid' | 'day'>('grid')
   const [showRequest, setShowRequest] = useState(false)
   const [manageOpen, setManageOpen] = useState(false)
+  const [editCell, setEditCell] = useState<{ uid: string; dk: string } | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [assigning, setAssigning] = useState<string | null>(null)
 
@@ -278,7 +280,7 @@ export function SchedulePage() {
             </div>
             <div className="ml-auto flex items-center gap-2">
               <button onClick={() => setShowRequest(true)} className="btn-primary px-3 py-1.5 text-sm">
-                <span className="inline-flex items-center gap-1"><Plus className="h-4 w-4" /> Time off</span>
+                <span className="inline-flex items-center gap-1"><Plus className="h-4 w-4" /> Request time off</span>
               </button>
               {manager && (
                 <button onClick={() => setManageOpen(true)} className="btn-ghost px-3 py-1.5 text-sm" title="Manage schedules">
@@ -292,6 +294,11 @@ export function SchedulePage() {
             <FullPageLoader label="Loading schedule…" />
           ) : (
             <>
+              <div className="rounded-xl border border-brand-500/30 bg-brand-500/5 px-3 py-2 text-xs text-slate-300">
+                <span className="font-semibold text-brand-200">Need a day off?</span> Tap{' '}
+                <span className="font-semibold text-white">Request time off</span> at the top of this page — pick your dates, say if you need someone to cover, and send. A manager approves it and everyone involved is notified.
+              </div>
+
               {/* Manager: pending approvals */}
               {manager && pendingRequests.length > 0 && (
                 <div className="rounded-xl border border-amber-500/30 bg-amber-900/10 p-3">
@@ -375,7 +382,8 @@ export function SchedulePage() {
                   body={manager ? 'Use Manage to set up each person’s normal week.' : 'Nothing scheduled yet.'} />
               ) : view === 'grid' ? (
                 <ScheduleGrid days={days} groups={groups} cells={cells} pendingCells={pendingCells} profilesById={profilesById}
-                  locName={locName} todayKey={todayKey} phonesOnDate={phonesOnDate} phonesTargetFor={phonesTargetFor} />
+                  locName={locName} todayKey={todayKey} phonesOnDate={phonesOnDate} phonesTargetFor={phonesTargetFor}
+                  onEditCell={manager ? (uid, dk) => setEditCell({ uid, dk }) : undefined} />
               ) : (
                 <ScheduleDayView days={days} groups={groups} cells={cells} profilesById={profilesById} locName={locName}
                   todayKey={todayKey} phonesOnDate={phonesOnDate} phonesTargetFor={phonesTargetFor} />
@@ -383,7 +391,7 @@ export function SchedulePage() {
 
               <p className="text-[11px] leading-relaxed text-slate-500">
                 Bold green = someone covering a shift. Amber dot = pending time-off request. Times are Eastern.
-                {manager ? ' Managers can approve time off, assign coverage, and set each person’s normal week under Manage.' : ' Request time off with the button above — a manager approves it.'}
+                {manager ? ' Managers: tap any day in the grid to change it just for that day, or use Manage to set someone’s normal week, cover qualifications, and phones/desk targets.' : ' Request time off with the button above — a manager approves it.'}
               </p>
             </>
           )}
@@ -401,6 +409,14 @@ export function SchedulePage() {
           userIds={scheduleUserIds}
           onClose={() => setManageOpen(false)}
           onSaved={() => load()}
+        />
+      )}
+      {editCell && (
+        <DayEditModal
+          userId={editCell.uid}
+          workDate={editCell.dk}
+          onClose={() => setEditCell(null)}
+          onSaved={() => { setEditCell(null); load() }}
         />
       )}
     </div>
@@ -459,10 +475,11 @@ function CellEntries({ entries, locName, homeLocId }: { entries: Entry[]; locNam
   )
 }
 
-function ScheduleGrid({ days, groups, cells, pendingCells, profilesById, locName, todayKey, phonesOnDate, phonesTargetFor }: {
+function ScheduleGrid({ days, groups, cells, pendingCells, profilesById, locName, todayKey, phonesOnDate, phonesTargetFor, onEditCell }: {
   days: Date[]; groups: { key: string; label: string; userIds: string[] }[]; cells: Map<string, Entry[]>; pendingCells: Set<string>
   profilesById: Record<string, any>; locName: (id?: string | null) => string | undefined; todayKey: string
   phonesOnDate: (dk: string) => number; phonesTargetFor: (wd: number) => number
+  onEditCell?: (uid: string, dk: string) => void
 }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-white/10">
@@ -488,7 +505,7 @@ function ScheduleGrid({ days, groups, cells, pendingCells, profilesById, locName
         </thead>
         <tbody>
           {groups.map((g) => (
-            <GroupRows key={g.key} group={g} days={days} cells={cells} pendingCells={pendingCells} profilesById={profilesById} locName={locName} todayKey={todayKey} />
+            <GroupRows key={g.key} group={g} days={days} cells={cells} pendingCells={pendingCells} profilesById={profilesById} locName={locName} todayKey={todayKey} onEditCell={onEditCell} />
           ))}
         </tbody>
       </table>
@@ -496,9 +513,10 @@ function ScheduleGrid({ days, groups, cells, pendingCells, profilesById, locName
   )
 }
 
-function GroupRows({ group, days, cells, pendingCells, profilesById, locName, todayKey }: {
+function GroupRows({ group, days, cells, pendingCells, profilesById, locName, todayKey, onEditCell }: {
   group: { key: string; label: string; userIds: string[] }; days: Date[]; cells: Map<string, Entry[]>; pendingCells: Set<string>
   profilesById: Record<string, any>; locName: (id?: string | null) => string | undefined; todayKey: string
+  onEditCell?: (uid: string, dk: string) => void
 }) {
   return (
     <>
@@ -523,7 +541,10 @@ function GroupRows({ group, days, cells, pendingCells, profilesById, locName, to
               const entries = cells.get(`${uid}|${dk}`) ?? []
               const pending = pendingCells.has(`${uid}|${dk}`)
               return (
-                <td key={dk} className={cn('relative px-2 py-2', dk === todayKey && 'bg-brand-500/5')}>
+                <td key={dk}
+                  onClick={onEditCell ? () => onEditCell(uid, dk) : undefined}
+                  className={cn('relative px-2 py-2', dk === todayKey && 'bg-brand-500/5', onEditCell && 'cursor-pointer hover:bg-white/5')}
+                  title={onEditCell ? 'Tap to edit this day' : undefined}>
                   {pending && <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-amber-400" title="Pending time-off request" />}
                   <CellEntries entries={entries} locName={locName} homeLocId={homeLoc} />
                 </td>
