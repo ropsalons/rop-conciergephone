@@ -10,21 +10,24 @@ import { Clock, ChevronLeft, Plus, Smartphone, Settings } from '@/components/ui/
 import { isAdmin, canManage } from '@/lib/constants'
 import { cn, displayName } from '@/lib/utils'
 import {
-  addDays, dateKey, startOfWeekMonday, weekLabel, dayHeadLabel, fmtRange, dateInRange,
+  addDays, dateKey, startOfWeekMonday, weekLabel, dayHeadLabel, fmtRange, dateInRange, hoursBetween,
 } from '@/lib/schedule'
 import type {
   ScheduleDefaultShiftRow, ScheduleQualificationRow, ScheduleTargetRow,
-  TimeOffRequestRow, ScheduleCoverageRow, ScheduleOverrideRow, ScheduleRole,
+  TimeOffRequestRow, ScheduleCoverageRow, ScheduleOverrideRow, ScheduleRole, LocationRow,
 } from '@/types'
 import { TimeOffModal } from '@/components/schedule/TimeOffModal'
 import { ManageScheduleModal } from '@/components/schedule/ManageScheduleModal'
 import { DayEditModal } from '@/components/schedule/DayEditModal'
 
 type Entry =
-  | { kind: 'shift'; time: string; role: ScheduleRole; locId: string | null; alsoPhones: boolean; note?: string | null }
-  | { kind: 'offsite'; time: string; note?: string | null }
+  | { kind: 'shift'; time: string; hours: number; role: ScheduleRole; locId: string | null; alsoPhones: boolean; note?: string | null }
+  | { kind: 'offsite'; time: string; hours: number; note?: string | null }
   | { kind: 'off'; reason?: string | null; coverNote?: 'covered' | 'needs coverage' }
-  | { kind: 'covering'; time: string; role: 'desk' | 'phones'; locId: string | null; forName: string; note?: string | null }
+  | { kind: 'covering'; time: string; hours: number; role: 'desk' | 'phones'; locId: string | null; forName: string; note?: string | null }
+
+const PHONES = 'phones'
+const OFFSITE = 'offsite'
 
 function salonShort(name?: string): string {
   if (!name) return ''
@@ -32,6 +35,23 @@ function salonShort(name?: string): string {
   if (/village/i.test(name)) return 'Vill'
   if (/promenade/i.test(name)) return 'Prom'
   return name.split(' ')[0]
+}
+const fmtH = (n: number) => `${Math.round(n * 10) / 10}h`
+
+// Which "location bucket" a scheduled entry counts toward. A desk shift (even if
+// also on phones) counts toward its salon; a phones shift toward Phones.
+function schedBucket(e: Entry): string | null {
+  if (e.kind === 'shift') return e.role === 'phones' ? PHONES : (e.locId ?? OFFSITE)
+  if (e.kind === 'covering') return e.role === 'phones' ? PHONES : (e.locId ?? OFFSITE)
+  if (e.kind === 'offsite') return OFFSITE
+  return null
+}
+// Map a ROP Time location string ('Bayfront'/'Village'/'Promenade'/'Remote') to a bucket key.
+function actualBucket(loc: string | null, locations: LocationRow[]): string {
+  if (!loc) return OFFSITE
+  if (/remote/i.test(loc)) return PHONES
+  const m = locations.find((l) => salonShort(l.name) === salonShort(loc))
+  return m ? m.id : OFFSITE
 }
 
 export function SchedulePage() {
@@ -44,7 +64,8 @@ export function SchedulePage() {
   const departments = useDirectoryStore((s) => s.departments)
   const toast = useUIStore((s) => s.toast)
 
-  const manager = isAdmin(access) // owner/admin: approve time off, manage templates
+  const manager = isAdmin(access) // owner/admin: approve, manage
+  const canSeeActual = canManage(access) // leader+ can view actual hours
   const conciergeDeptId = useMemo(() => departments.find((d) => d.slug === 'concierge')?.id ?? null, [departments])
   const canView =
     manager ||
@@ -62,6 +83,9 @@ export function SchedulePage() {
   const [overrides, setOverrides] = useState<ScheduleOverrideRow[]>([])
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<'grid' | 'day'>('grid')
+  const [showActual, setShowActual] = useState(false)
+  const [actual, setActual] = useState<{ user_id: string; work_date: string; location: string | null; hours: number }[]>([])
+  const [actualLoading, setActualLoading] = useState(false)
   const [showRequest, setShowRequest] = useState(false)
   const [manageOpen, setManageOpen] = useState(false)
   const [editCell, setEditCell] = useState<{ uid: string; dk: string } | null>(null)
@@ -97,21 +121,29 @@ export function SchedulePage() {
     load()
   }, [load])
 
-  // Everyone who should have a row this week.
+  // Pull actual hours from ROP Time when the toggle is on.
+  useEffect(() => {
+    if (!showActual || !canSeeActual) return
+    let cancelled = false
+    setActualLoading(true)
+    ;(async () => {
+      const { data, error } = await (supabase.rpc as any)('sched_actual_hours', { p_start: weekStartKey, p_end: weekEndKey })
+      if (cancelled) return
+      if (error) toast({ kind: 'error', title: 'Could not load actual hours', body: error.message })
+      setActual(error ? [] : ((data as any[]) ?? []))
+      setActualLoading(false)
+    })()
+    return () => { cancelled = true }
+  }, [showActual, canSeeActual, weekStartKey, weekEndKey, toast])
+
   const scheduleUserIds = useMemo(() => {
     const s = new Set<string>()
     defaults.forEach((d) => s.add(d.user_id))
-    coverage.forEach((c) => {
-      if (c.covering_user_id) s.add(c.covering_user_id)
-      if (c.covered_user_id) s.add(c.covered_user_id)
-    })
-    profiles.forEach((p) => {
-      if (p.is_active && conciergeDeptId && p.department_id === conciergeDeptId) s.add(p.id)
-    })
+    coverage.forEach((c) => { if (c.covering_user_id) s.add(c.covering_user_id); if (c.covered_user_id) s.add(c.covered_user_id) })
+    profiles.forEach((p) => { if (p.is_active && conciergeDeptId && p.department_id === conciergeDeptId) s.add(p.id) })
     return [...s].filter((id) => profilesById[id])
   }, [defaults, coverage, profiles, conciergeDeptId, profilesById])
 
-  // Rows grouped by salon, then a Remote / Phones group.
   const groups = useMemo(() => {
     const byLoc = new Map<string | null, string[]>()
     for (const uid of scheduleUserIds) {
@@ -133,7 +165,6 @@ export function SchedulePage() {
 
   const locName = useCallback((id?: string | null) => locations.find((l) => l.id === id)?.name, [locations])
 
-  // Resolve every (user, date) cell: defaults − time off + overrides + coverage.
   const { cells, pendingCells } = useMemo(() => {
     const m = new Map<string, Entry[]>()
     const pend = new Set<string>()
@@ -164,39 +195,83 @@ export function SchedulePage() {
         }
         const ovShift = ovs.find((o) => !o.is_off)
         if (ovShift) {
-          if (ovShift.role === 'offsite') push(uid, dk, { kind: 'offsite', time: fmtRange(ovShift.start_time, ovShift.end_time), note: ovShift.note })
-          else push(uid, dk, { kind: 'shift', time: fmtRange(ovShift.start_time, ovShift.end_time), role: (ovShift.role ?? 'desk') as ScheduleRole, locId: ovShift.location_id, alsoPhones: false, note: ovShift.note })
+          const h = hoursBetween(ovShift.start_time, ovShift.end_time)
+          if (ovShift.role === 'offsite') push(uid, dk, { kind: 'offsite', time: fmtRange(ovShift.start_time, ovShift.end_time), hours: h, note: ovShift.note })
+          else push(uid, dk, { kind: 'shift', time: fmtRange(ovShift.start_time, ovShift.end_time), hours: h, role: (ovShift.role ?? 'desk') as ScheduleRole, locId: ovShift.location_id, alsoPhones: false, note: ovShift.note })
         } else {
           const ds = defaults.filter((x) => x.user_id === uid && x.weekday === wd)
           for (const s of ds) {
-            if (s.role === 'offsite') push(uid, dk, { kind: 'offsite', time: fmtRange(s.start_time, s.end_time), note: s.note })
-            else push(uid, dk, { kind: 'shift', time: fmtRange(s.start_time, s.end_time), role: s.role, locId: s.location_id, alsoPhones: s.also_phones, note: s.note })
+            const h = hoursBetween(s.start_time, s.end_time)
+            if (s.role === 'offsite') push(uid, dk, { kind: 'offsite', time: fmtRange(s.start_time, s.end_time), hours: h, note: s.note })
+            else push(uid, dk, { kind: 'shift', time: fmtRange(s.start_time, s.end_time), hours: h, role: s.role, locId: s.location_id, alsoPhones: s.also_phones, note: s.note })
           }
         }
       }
     }
-    // Covering shifts land in the covering person's cell.
     for (const c of coverage) {
       if (!c.covering_user_id || c.status === 'cancelled') continue
       const forName = c.covered_user_id ? displayName(profilesById[c.covered_user_id]) : 'open shift'
-      push(c.covering_user_id, c.work_date, { kind: 'covering', time: fmtRange(c.start_time, c.end_time), role: c.role, locId: c.location_id, forName, note: c.note })
+      push(c.covering_user_id, c.work_date, { kind: 'covering', time: fmtRange(c.start_time, c.end_time), hours: hoursBetween(c.start_time, c.end_time), role: c.role, locId: c.location_id, forName, note: c.note })
     }
     return { cells: m, pendingCells: pend }
   }, [days, scheduleUserIds, timeOff, overrides, coverage, defaults, profilesById])
 
+  // ── Hours totals (scheduled from the grid; actual from ROP Time) ──────────────
+  const schedByUser = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const [k, entries] of cells) {
+      const uid = k.split('|')[0]
+      for (const e of entries) if ('hours' in e) m.set(uid, (m.get(uid) ?? 0) + e.hours)
+    }
+    return m
+  }, [cells])
+  const schedByBucket = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const entries of cells.values()) {
+      for (const e of entries) {
+        const b = schedBucket(e)
+        if (b && 'hours' in e) m.set(b, (m.get(b) ?? 0) + e.hours)
+      }
+    }
+    return m
+  }, [cells])
+  const actualByCell = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const r of actual) m.set(`${r.user_id}|${r.work_date}`, (m.get(`${r.user_id}|${r.work_date}`) ?? 0) + Number(r.hours))
+    return m
+  }, [actual])
+  const actualByUser = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const r of actual) m.set(r.user_id, (m.get(r.user_id) ?? 0) + Number(r.hours))
+    return m
+  }, [actual])
+  const actualByBucket = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const r of actual) {
+      const b = actualBucket(r.location, locations)
+      m.set(b, (m.get(b) ?? 0) + Number(r.hours))
+    }
+    return m
+  }, [actual, locations])
+
+  const bucketList = useMemo(() => {
+    const out = locations.map((l) => ({ key: l.id, label: l.name.split(' ')[0] }))
+    out.push({ key: PHONES, label: 'Phones' }, { key: OFFSITE, label: 'Offsite' })
+    return out
+  }, [locations])
+
+  const totalForUser = useCallback((uid: string) => (showActual ? actualByUser.get(uid) : schedByUser.get(uid)) ?? 0, [showActual, actualByUser, schedByUser])
+  const totalForBucket = useCallback((b: string) => (showActual ? actualByBucket.get(b) : schedByBucket.get(b)) ?? 0, [showActual, actualByBucket, schedByBucket])
+  const grandTotal = useMemo(() => bucketList.reduce((s, b) => s + totalForBucket(b.key), 0), [bucketList, totalForBucket])
+
   const pendingRequests = useMemo(() => timeOff.filter((t) => t.status === 'pending'), [timeOff])
-  const openCoverage = useMemo(
-    () => coverage.filter((c) => c.status === 'open').sort((a, b) => a.work_date.localeCompare(b.work_date)),
-    [coverage],
-  )
+  const openCoverage = useMemo(() => coverage.filter((c) => c.status === 'open').sort((a, b) => a.work_date.localeCompare(b.work_date)), [coverage])
 
   const eligible = useCallback(
     (uid: string, role: 'desk' | 'phones', locId: string | null) =>
       quals.some((q) => q.user_id === uid && q.role === role && (q.location_id === null || locId === null || q.location_id === locId)),
     [quals],
   )
-
-  // Phones staffing per day vs target.
   const phonesTargetFor = useCallback(
     (wd: number) => targets.filter((t) => t.scope === 'phones' && (t.weekday === null || t.weekday === wd)).reduce((mx, t) => Math.max(mx, t.min_count), 0),
     [targets],
@@ -251,20 +326,31 @@ export function SchedulePage() {
         title="Schedule"
         subtitle="Concierge — who's on & off"
         actions={
-          <div className="flex rounded-lg border border-white/10 p-0.5 text-xs">
-            {(['grid', 'day'] as const).map((v) => (
-              <button key={v} onClick={() => setView(v)}
-                className={cn('rounded-md px-3 py-1 font-medium', view === v ? 'bg-brand-500 text-white' : 'text-slate-300 hover:text-white')}>
-                {v === 'grid' ? 'Week' : 'By day'}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            {canSeeActual && (
+              <div className="flex rounded-lg border border-white/10 p-0.5 text-xs">
+                {([['sched', 'Scheduled'], ['actual', 'Actual']] as const).map(([k, lbl]) => (
+                  <button key={k} onClick={() => setShowActual(k === 'actual')}
+                    className={cn('rounded-md px-2.5 py-1 font-medium', (showActual ? 'actual' : 'sched') === k ? 'bg-gold-500 text-black' : 'text-slate-300 hover:text-white')}>
+                    {lbl}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="flex rounded-lg border border-white/10 p-0.5 text-xs">
+              {(['grid', 'day'] as const).map((v) => (
+                <button key={v} onClick={() => setView(v)}
+                  className={cn('rounded-md px-3 py-1 font-medium', view === v ? 'bg-brand-500 text-white' : 'text-slate-300 hover:text-white')}>
+                  {v === 'grid' ? 'Week' : 'By day'}
+                </button>
+              ))}
+            </div>
           </div>
         }
       />
 
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
         <div className="mx-auto max-w-5xl space-y-4">
-          {/* Week nav + actions */}
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1">
               <button onClick={() => setMonday(addDays(monday, -7))} aria-label="Previous week" className="rounded-lg border border-white/10 p-1.5 text-slate-300 hover:bg-white/10">
@@ -277,6 +363,7 @@ export function SchedulePage() {
               <button onClick={() => setMonday(startOfWeekMonday(new Date()))} className="ml-1 rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-slate-300 hover:bg-white/10">
                 Today
               </button>
+              {showActual && <span className="ml-1 text-xs text-gold-300">{actualLoading ? 'Loading actual hours…' : 'Actual hours from ROP Time'}</span>}
             </div>
             <div className="ml-auto flex items-center gap-2">
               <button onClick={() => setShowRequest(true)} className="btn-primary px-3 py-1.5 text-sm">
@@ -299,7 +386,6 @@ export function SchedulePage() {
                 <span className="font-semibold text-white">Request time off</span> at the top of this page — pick your dates, say if you need someone to cover, and send. A manager approves it and everyone involved is notified.
               </div>
 
-              {/* Manager: pending approvals */}
               {manager && pendingRequests.length > 0 && (
                 <div className="rounded-xl border border-amber-500/30 bg-amber-900/10 p-3">
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-amber-300">Needs approval</p>
@@ -317,13 +403,9 @@ export function SchedulePage() {
                           </span>
                           <div className="ml-auto flex gap-1">
                             <button disabled={!!busy} onClick={() => rpc('sched_decide_time_off', { p_id: r.id, p_approve: true }, 'Approved')}
-                              className="rounded-md bg-emerald-600/80 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-600">
-                              Approve
-                            </button>
+                              className="rounded-md bg-emerald-600/80 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-600">Approve</button>
                             <button disabled={!!busy} onClick={() => rpc('sched_decide_time_off', { p_id: r.id, p_approve: false }, 'Denied')}
-                              className="rounded-md bg-white/10 px-2.5 py-1 text-xs font-semibold text-slate-200 hover:bg-white/20">
-                              Deny
-                            </button>
+                              className="rounded-md bg-white/10 px-2.5 py-1 text-xs font-semibold text-slate-200 hover:bg-white/20">Deny</button>
                           </div>
                         </div>
                       )
@@ -332,7 +414,6 @@ export function SchedulePage() {
                 </div>
               )}
 
-              {/* Open coverage */}
               {openCoverage.length > 0 && (
                 <div className="rounded-xl border border-rose-500/30 bg-rose-900/10 p-3">
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-rose-300">Needs coverage</p>
@@ -381,17 +462,22 @@ export function SchedulePage() {
                 <EmptyState icon={<Clock className="h-8 w-8" />} title="No schedules yet"
                   body={manager ? 'Use Manage to set up each person’s normal week.' : 'Nothing scheduled yet.'} />
               ) : view === 'grid' ? (
-                <ScheduleGrid days={days} groups={groups} cells={cells} pendingCells={pendingCells} profilesById={profilesById}
-                  locName={locName} todayKey={todayKey} phonesOnDate={phonesOnDate} phonesTargetFor={phonesTargetFor}
-                  onEditCell={manager ? (uid, dk) => setEditCell({ uid, dk }) : undefined} />
+                <>
+                  <ScheduleGrid days={days} groups={groups} cells={cells} pendingCells={pendingCells} profilesById={profilesById}
+                    locName={locName} todayKey={todayKey} phonesOnDate={phonesOnDate} phonesTargetFor={phonesTargetFor}
+                    showActual={showActual} actualByCell={actualByCell} totalForUser={totalForUser}
+                    onEditCell={manager ? (uid, dk) => setEditCell({ uid, dk }) : undefined} />
+                  <TotalsStrip bucketList={bucketList} totalForBucket={totalForBucket} grandTotal={grandTotal} showActual={showActual} />
+                </>
               ) : (
                 <ScheduleDayView days={days} groups={groups} cells={cells} profilesById={profilesById} locName={locName}
-                  todayKey={todayKey} phonesOnDate={phonesOnDate} phonesTargetFor={phonesTargetFor} />
+                  todayKey={todayKey} phonesOnDate={phonesOnDate} phonesTargetFor={phonesTargetFor} showActual={showActual} actualByCell={actualByCell} />
               )}
 
               <p className="text-[11px] leading-relaxed text-slate-500">
                 Bold green = someone covering a shift. Amber dot = pending time-off request. Times are Eastern.
-                {manager ? ' Managers: tap any day in the grid to change it just for that day, or use Manage to set someone’s normal week, cover qualifications, and phones/desk targets.' : ' Request time off with the button above — a manager approves it.'}
+                {canSeeActual ? ' Toggle Scheduled/Actual up top to compare planned vs worked hours (actual pulled live from ROP Time). Totals: a desk shift counts toward its salon even if they’re also on phones; phones-only time counts toward Phones.' : ''}
+                {manager ? ' Managers: tap any day in the grid to change it just for that day, or use Manage for normal weeks, cover qualifications, and phones/desk targets.' : ' Request time off with the button above — a manager approves it.'}
               </p>
             </>
           )}
@@ -399,26 +485,39 @@ export function SchedulePage() {
       </div>
 
       {showRequest && (
-        <TimeOffModal
-          onClose={() => setShowRequest(false)}
-          onSaved={() => { setShowRequest(false); toast({ kind: 'success', title: 'Time-off request sent', body: 'A manager will review it.' }); load() }}
-        />
+        <TimeOffModal onClose={() => setShowRequest(false)} onSaved={() => { setShowRequest(false); toast({ kind: 'success', title: 'Time-off request sent', body: 'A manager will review it.' }); load() }} />
       )}
       {manageOpen && (
-        <ManageScheduleModal
-          userIds={scheduleUserIds}
-          onClose={() => setManageOpen(false)}
-          onSaved={() => load()}
-        />
+        <ManageScheduleModal userIds={scheduleUserIds} onClose={() => setManageOpen(false)} onSaved={() => load()} />
       )}
       {editCell && (
-        <DayEditModal
-          userId={editCell.uid}
-          workDate={editCell.dk}
-          onClose={() => setEditCell(null)}
-          onSaved={() => { setEditCell(null); load() }}
-        />
+        <DayEditModal userId={editCell.uid} workDate={editCell.dk} onClose={() => setEditCell(null)} onSaved={() => { setEditCell(null); load() }} />
       )}
+    </div>
+  )
+}
+
+// ── Location totals strip ─────────────────────────────────────────────────────
+function TotalsStrip({ bucketList, totalForBucket, grandTotal, showActual }: {
+  bucketList: { key: string; label: string }[]; totalForBucket: (b: string) => number; grandTotal: number; showActual: boolean
+}) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-brand-950/40 p-3">
+      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+        {showActual ? 'Actual hours by location (worked)' : 'Scheduled hours by location'}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {bucketList.map((b) => (
+          <div key={b.key} className="rounded-lg bg-white/5 px-3 py-1.5 text-sm">
+            <span className="text-slate-300">{b.label}</span>{' '}
+            <span className={cn('font-semibold', showActual ? 'text-gold-200' : 'text-white')}>{fmtH(totalForBucket(b.key))}</span>
+          </div>
+        ))}
+        <div className="ml-auto rounded-lg bg-white/10 px-3 py-1.5 text-sm">
+          <span className="text-slate-300">Total</span>{' '}
+          <span className={cn('font-bold', showActual ? 'text-gold-200' : 'text-white')}>{fmtH(grandTotal)}</span>
+        </div>
+      </div>
     </div>
   )
 }
@@ -450,21 +549,16 @@ function CellEntries({ entries, locName, homeLocId }: { entries: Entry[]; locNam
           return (
             <div key={i} className="rounded bg-emerald-500/10 px-1 py-0.5 text-[11px] leading-tight">
               <div className="font-semibold text-emerald-300">Covering {e.forName}</div>
-              <div className="text-emerald-200/80">
-                {e.time}{e.role === 'phones' ? ' · phones' : e.locId ? ' · ' + salonShort(locName(e.locId)) : ''}
-              </div>
+              <div className="text-emerald-200/80">{e.time}{e.role === 'phones' ? ' · phones' : e.locId ? ' · ' + salonShort(locName(e.locId)) : ''}</div>
               {e.note ? <div className="text-emerald-200/60">{e.note}</div> : null}
             </div>
           )
         }
-        // shift
         const away = e.locId && e.locId !== homeLocId
         return (
           <div key={i} className="text-[11px] leading-tight text-slate-100">
             <span className="font-medium">{e.time}</span>
-            {e.role === 'phones' ? (
-              <span className="ml-1 inline-flex items-center gap-0.5 text-brand-300"><Smartphone className="h-3 w-3" /></span>
-            ) : null}
+            {e.role === 'phones' ? <span className="ml-1 inline-flex items-center gap-0.5 text-brand-300"><Smartphone className="h-3 w-3" /></span> : null}
             {e.alsoPhones ? <span className="ml-1 inline-flex items-center text-brand-300"><Smartphone className="h-3 w-3" /></span> : null}
             {away ? <span className="ml-1 rounded bg-white/10 px-1 text-[10px] text-slate-300">{salonShort(locName(e.locId))}</span> : null}
             {e.note && /verify|est\./i.test(e.note) ? <span className="ml-1 text-amber-400/70" title={e.note}>⚠</span> : null}
@@ -475,10 +569,18 @@ function CellEntries({ entries, locName, homeLocId }: { entries: Entry[]; locNam
   )
 }
 
-function ScheduleGrid({ days, groups, cells, pendingCells, profilesById, locName, todayKey, phonesOnDate, phonesTargetFor, onEditCell }: {
+// Actual worked hours for a single cell.
+function ActualCell({ hours, wasScheduled }: { hours: number | undefined; wasScheduled: boolean }) {
+  if (hours && hours > 0) return <span className="text-[12px] font-semibold text-gold-200">{fmtH(hours)}</span>
+  if (wasScheduled) return <span className="text-[11px] text-rose-300/70" title="Scheduled but no hours recorded">0</span>
+  return <span className="text-slate-600">·</span>
+}
+
+function ScheduleGrid({ days, groups, cells, pendingCells, profilesById, locName, todayKey, phonesOnDate, phonesTargetFor, showActual, actualByCell, totalForUser, onEditCell }: {
   days: Date[]; groups: { key: string; label: string; userIds: string[] }[]; cells: Map<string, Entry[]>; pendingCells: Set<string>
   profilesById: Record<string, any>; locName: (id?: string | null) => string | undefined; todayKey: string
   phonesOnDate: (dk: string) => number; phonesTargetFor: (wd: number) => number
+  showActual: boolean; actualByCell: Map<string, number>; totalForUser: (uid: string) => number
   onEditCell?: (uid: string, dk: string) => void
 }) {
   return (
@@ -501,11 +603,13 @@ function ScheduleGrid({ days, groups, cells, pendingCells, profilesById, locName
                 </th>
               )
             })}
+            <th className="min-w-[4rem] px-2 py-2 text-right font-medium">{showActual ? 'Actual' : 'Sched'}</th>
           </tr>
         </thead>
         <tbody>
           {groups.map((g) => (
-            <GroupRows key={g.key} group={g} days={days} cells={cells} pendingCells={pendingCells} profilesById={profilesById} locName={locName} todayKey={todayKey} onEditCell={onEditCell} />
+            <GroupRows key={g.key} group={g} days={days} cells={cells} pendingCells={pendingCells} profilesById={profilesById}
+              locName={locName} todayKey={todayKey} showActual={showActual} actualByCell={actualByCell} totalForUser={totalForUser} onEditCell={onEditCell} />
           ))}
         </tbody>
       </table>
@@ -513,15 +617,16 @@ function ScheduleGrid({ days, groups, cells, pendingCells, profilesById, locName
   )
 }
 
-function GroupRows({ group, days, cells, pendingCells, profilesById, locName, todayKey, onEditCell }: {
+function GroupRows({ group, days, cells, pendingCells, profilesById, locName, todayKey, showActual, actualByCell, totalForUser, onEditCell }: {
   group: { key: string; label: string; userIds: string[] }; days: Date[]; cells: Map<string, Entry[]>; pendingCells: Set<string>
   profilesById: Record<string, any>; locName: (id?: string | null) => string | undefined; todayKey: string
+  showActual: boolean; actualByCell: Map<string, number>; totalForUser: (uid: string) => number
   onEditCell?: (uid: string, dk: string) => void
 }) {
   return (
     <>
       <tr>
-        <td colSpan={days.length + 1} className="sticky left-0 bg-brand-900/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+        <td colSpan={days.length + 2} className="sticky left-0 bg-brand-900/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
           {group.label}
         </td>
       </tr>
@@ -538,18 +643,23 @@ function GroupRows({ group, days, cells, pendingCells, profilesById, locName, to
             </td>
             {days.map((d) => {
               const dk = dateKey(d)
-              const entries = cells.get(`${uid}|${dk}`) ?? []
-              const pending = pendingCells.has(`${uid}|${dk}`)
+              const key = `${uid}|${dk}`
+              const entries = cells.get(key) ?? []
+              const pending = pendingCells.has(key)
+              const wasScheduled = entries.some((e) => e.kind !== 'off')
               return (
                 <td key={dk}
                   onClick={onEditCell ? () => onEditCell(uid, dk) : undefined}
                   className={cn('relative px-2 py-2', dk === todayKey && 'bg-brand-500/5', onEditCell && 'cursor-pointer hover:bg-white/5')}
                   title={onEditCell ? 'Tap to edit this day' : undefined}>
                   {pending && <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-amber-400" title="Pending time-off request" />}
-                  <CellEntries entries={entries} locName={locName} homeLocId={homeLoc} />
+                  {showActual ? <ActualCell hours={actualByCell.get(key)} wasScheduled={wasScheduled} /> : <CellEntries entries={entries} locName={locName} homeLocId={homeLoc} />}
                 </td>
               )
             })}
+            <td className="px-2 py-2 text-right">
+              <span className={cn('text-sm font-semibold', showActual ? 'text-gold-200' : 'text-white')}>{fmtH(totalForUser(uid))}</span>
+            </td>
           </tr>
         )
       })}
@@ -557,11 +667,12 @@ function GroupRows({ group, days, cells, pendingCells, profilesById, locName, to
   )
 }
 
-// ── By-day view (mobile-friendly) ─────────────────────────────────────────────
-function ScheduleDayView({ days, groups, cells, profilesById, locName, todayKey, phonesOnDate, phonesTargetFor }: {
+// ── By-day view ───────────────────────────────────────────────────────────────
+function ScheduleDayView({ days, groups, cells, profilesById, locName, todayKey, phonesOnDate, phonesTargetFor, showActual, actualByCell }: {
   days: Date[]; groups: { key: string; label: string; userIds: string[] }[]; cells: Map<string, Entry[]>
   profilesById: Record<string, any>; locName: (id?: string | null) => string | undefined; todayKey: string
   phonesOnDate: (dk: string) => number; phonesTargetFor: (wd: number) => number
+  showActual: boolean; actualByCell: Map<string, number>
 }) {
   const allUserIds = groups.flatMap((g) => g.userIds)
   return (
@@ -592,13 +703,13 @@ function ScheduleDayView({ days, groups, cells, profilesById, locName, todayKey,
               <div className="space-y-1.5">
                 {working.map(({ uid, entries }) => {
                   const p = profilesById[uid]
+                  const act = actualByCell.get(`${uid}|${dk}`)
                   return (
                     <div key={uid} className="flex items-start gap-2">
                       <Avatar profile={p} size="xs" />
                       <span className="w-28 shrink-0 truncate text-sm text-slate-100">{displayName(p)}</span>
-                      <div className="min-w-0 flex-1">
-                        <CellEntries entries={entries} locName={locName} homeLocId={p?.location_id ?? null} />
-                      </div>
+                      <div className="min-w-0 flex-1"><CellEntries entries={entries} locName={locName} homeLocId={p?.location_id ?? null} /></div>
+                      {showActual && <span className="shrink-0 text-xs font-semibold text-gold-200">{act ? fmtH(act) : '—'}</span>}
                     </div>
                   )
                 })}

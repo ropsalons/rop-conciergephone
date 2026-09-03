@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.53.0'
+export const APP_VERSION = '1.53.1'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.53.1',
+    date: '2026-09-03',
+    time: '5:10 PM ET',
+    title: 'Schedule: scheduled vs actual hours + totals',
+    changes: [
+      'Added a Scheduled/Actual toggle (managers) on the Schedule. "Actual" pulls each person’s real worked hours live from ROP Time and shows them per day.',
+      'New right-hand column totals each person’s hours for the week (scheduled or actual).',
+      'New totals strip shows hours by location — each salon, Phones, and Offsite — plus a grand total. A desk shift counts toward its salon even if the person is also on phones; phones-only time counts toward Phones.',
+    ],
+  },
   {
     version: '1.53.0',
     date: '2026-09-03',

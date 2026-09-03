@@ -562,6 +562,10 @@ export type Database = {
       sched_decide_time_off: { Args: { p_id: string; p_approve: boolean; p_note?: string | null }; Returns: undefined }
       sched_claim_coverage: { Args: { p_id: string }; Returns: undefined }
       sched_assign_coverage: { Args: { p_id: string; p_user: string }; Returns: undefined }
+      sched_actual_hours: {
+        Args: { p_start: string; p_end: string }
+        Returns: { user_id: string; work_date: string; location: string | null; hours: number }[]
+      }
     }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>
