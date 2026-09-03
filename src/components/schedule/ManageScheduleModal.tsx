@@ -180,8 +180,8 @@ export function ManageScheduleModal({ userIds, onClose, onSaved }: { userIds: st
                             {DOW_SHORT.map((d, i) => <option key={i} value={i}>{d}</option>)}
                           </select>
                           <select className="input w-auto py-1 text-xs" value={s.role} onChange={(e) => updateShift(s.key, { role: e.target.value as ScheduleRole })}>
-                            <option value="desk">Desk</option>
-                            <option value="phones">Phones</option>
+                            <option value="desk">Desk (in-salon)</option>
+                            <option value="phones">Remote phones</option>
                             <option value="offsite">Offsite</option>
                           </select>
                           {s.role === 'desk' && (
@@ -199,7 +199,7 @@ export function ManageScheduleModal({ userIds, onClose, onSaved }: { userIds: st
                           {s.role === 'desk' && (
                             <label className="flex items-center gap-1.5 text-xs text-slate-300">
                               <input type="checkbox" checked={s.also_phones} onChange={(e) => updateShift(s.key, { also_phones: e.target.checked })} />
-                              also on phones
+                              also on phones (in-salon)
                             </label>
                           )}
                           <input className="input flex-1 py-1 text-xs" placeholder="Note (optional)" value={s.note} onChange={(e) => updateShift(s.key, { note: e.target.value })} />
@@ -214,7 +214,7 @@ export function ManageScheduleModal({ userIds, onClose, onSaved }: { userIds: st
                 <label className="label">Can cover</label>
                 <div className="flex flex-wrap gap-3">
                   <label className="flex items-center gap-1.5 text-sm text-slate-200">
-                    <input type="checkbox" checked={hasQual('phones', null)} onChange={() => toggleQual('phones', null)} /> Phones
+                    <input type="checkbox" checked={hasQual('phones', null)} onChange={() => toggleQual('phones', null)} /> Remote phones
                   </label>
                   {locations.map((l) => (
                     <label key={l.id} className="flex items-center gap-1.5 text-sm text-slate-200">

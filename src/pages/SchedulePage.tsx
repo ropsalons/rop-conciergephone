@@ -159,7 +159,7 @@ export function SchedulePage() {
       if (ids?.length) out.push({ key: loc.id, label: loc.name, userIds: sortUsers(ids) })
     }
     const remote = byLoc.get(null)
-    if (remote?.length) out.push({ key: 'remote', label: 'Remote / Phones', userIds: sortUsers(remote) })
+    if (remote?.length) out.push({ key: 'remote', label: 'Remote phones', userIds: sortUsers(remote) })
     return out
   }, [scheduleUserIds, profilesById, locations])
 
@@ -197,7 +197,7 @@ export function SchedulePage() {
         if (ovShift) {
           const h = hoursBetween(ovShift.start_time, ovShift.end_time)
           if (ovShift.role === 'offsite') push(uid, dk, { kind: 'offsite', time: fmtRange(ovShift.start_time, ovShift.end_time), hours: h, note: ovShift.note })
-          else push(uid, dk, { kind: 'shift', time: fmtRange(ovShift.start_time, ovShift.end_time), hours: h, role: (ovShift.role ?? 'desk') as ScheduleRole, locId: ovShift.location_id, alsoPhones: false, note: ovShift.note })
+          else push(uid, dk, { kind: 'shift', time: fmtRange(ovShift.start_time, ovShift.end_time), hours: h, role: (ovShift.role ?? 'desk') as ScheduleRole, locId: ovShift.location_id, alsoPhones: ovShift.also_phones, note: ovShift.note })
         } else {
           const ds = defaults.filter((x) => x.user_id === uid && x.weekday === wd)
           for (const s of ds) {
@@ -427,7 +427,7 @@ export function SchedulePage() {
                             {new Date(c.work_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                           </span>
                           <span className="text-xs text-slate-300">
-                            {c.role === 'phones' ? 'Phones' : salonShort(locName(c.location_id)) + ' desk'}
+                            {c.role === 'phones' ? 'Remote phones' : salonShort(locName(c.location_id)) + ' desk'}
                             {c.start_time ? ` · ${fmtRange(c.start_time, c.end_time)}` : ''}
                             {c.covered_user_id ? ` · for ${displayName(profilesById[c.covered_user_id])}` : ''}
                             {c.note ? ` · ${c.note}` : ''}
@@ -558,8 +558,8 @@ function CellEntries({ entries, locName, homeLocId }: { entries: Entry[]; locNam
         return (
           <div key={i} className="text-[11px] leading-tight text-slate-100">
             <span className="font-medium">{e.time}</span>
-            {e.role === 'phones' ? <span className="ml-1 inline-flex items-center gap-0.5 text-brand-300"><Smartphone className="h-3 w-3" /></span> : null}
-            {e.alsoPhones ? <span className="ml-1 inline-flex items-center text-brand-300"><Smartphone className="h-3 w-3" /></span> : null}
+            {e.role === 'phones' ? <span className="ml-1 inline-flex items-center gap-0.5 rounded bg-brand-500/15 px-1 text-[10px] text-brand-200"><Smartphone className="h-3 w-3" /> Remote</span> : null}
+            {e.alsoPhones ? <span className="ml-1 inline-flex items-center gap-0.5 rounded bg-brand-500/15 px-1 text-[10px] text-brand-200"><Smartphone className="h-3 w-3" /> phones</span> : null}
             {away ? <span className="ml-1 rounded bg-white/10 px-1 text-[10px] text-slate-300">{salonShort(locName(e.locId))}</span> : null}
             {e.note && /verify|est\./i.test(e.note) ? <span className="ml-1 text-amber-400/70" title={e.note}>⚠</span> : null}
           </div>

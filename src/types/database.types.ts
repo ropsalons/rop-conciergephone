@@ -470,6 +470,7 @@ export type ScheduleOverrideRow = {
   location_id: string | null
   start_time: string | null
   end_time: string | null
+  also_phones: boolean
   note: string | null
   created_by: string | null
   created_at: string

@@ -31,6 +31,7 @@ export function DayEditModal({ userId, workDate, onClose, onSaved }: {
   const [locId, setLocId] = useState<string | null>(null)
   const [start, setStart] = useState('08:30')
   const [end, setEnd] = useState('17:00')
+  const [alsoPhones, setAlsoPhones] = useState(false)
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -50,6 +51,7 @@ export function DayEditModal({ userId, workDate, onClose, onSaved }: {
         setLocId(o.location_id)
         setStart(hhmm(o.start_time) || '08:30')
         setEnd(hhmm(o.end_time) || '17:00')
+        setAlsoPhones(o.also_phones)
         setNote(o.note ?? '')
       } else if (def) {
         setWorking(true)
@@ -57,6 +59,7 @@ export function DayEditModal({ userId, workDate, onClose, onSaved }: {
         setLocId(def.location_id)
         setStart(hhmm(def.start_time))
         setEnd(hhmm(def.end_time))
+        setAlsoPhones(def.also_phones)
         setNote('')
       } else {
         setWorking(false)
@@ -77,6 +80,7 @@ export function DayEditModal({ userId, workDate, onClose, onSaved }: {
         location_id: working && role === 'desk' ? locId : null,
         start_time: working ? start : null,
         end_time: working ? end : null,
+        also_phones: working && role === 'desk' ? alsoPhones : false,
         note: note || null,
         created_by: me,
       })
@@ -129,8 +133,8 @@ export function DayEditModal({ userId, workDate, onClose, onSaved }: {
                 <div>
                   <label className="label">Role</label>
                   <select className="input" value={role} onChange={(e) => setRole(e.target.value as ScheduleRole)}>
-                    <option value="desk">Desk</option>
-                    <option value="phones">Phones</option>
+                    <option value="desk">Desk (in-salon)</option>
+                    <option value="phones">Remote phones</option>
                     <option value="offsite">Offsite</option>
                   </select>
                 </div>
@@ -154,6 +158,12 @@ export function DayEditModal({ userId, workDate, onClose, onSaved }: {
                   <input type="time" step={900} className="input" value={end} onChange={(e) => setEnd(e.target.value)} />
                 </div>
               </div>
+              {role === 'desk' && (
+                <label className="flex items-center gap-2 text-sm text-slate-200">
+                  <input type="checkbox" checked={alsoPhones} onChange={(e) => setAlsoPhones(e.target.checked)} />
+                  Also answering phones (in-salon)
+                </label>
+              )}
               <div>
                 <label className="label">Note (optional)</label>
                 <input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. covering Bayfront, on phones till noon…" />

@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.53.1'
+export const APP_VERSION = '1.53.2'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.53.2',
+    date: '2026-09-03',
+    time: '5:40 PM ET',
+    title: 'Schedule: remote vs in-salon phones',
+    changes: [
+      'Phones now clearly distinguishes Remote phones (off-site, like Mickey — and Marina when she’s home) from in-salon phones (a desk coordinator also covering phones, like Carolyn).',
+      'When editing a shift (in Manage or by tapping a day), pick “Remote phones,” or check “also answering phones (in-salon)” on a desk shift.',
+      'Remote-phones time totals under Phones; in-salon phone time counts toward that salon.',
+    ],
+  },
   {
     version: '1.53.1',
     date: '2026-09-03',
