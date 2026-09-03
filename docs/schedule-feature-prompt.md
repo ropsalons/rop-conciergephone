@@ -71,7 +71,7 @@ SEED DATA (Concierge roster — set salons/qualifications as data, let managers 
 - Village on Venetian Bay: Alexi DiLella (admin), Sophia Spector
 - Promenade: Alexa Spector, Carolyn Warnkin (desk + on-site phones), Leana Amaya
 - Remote phones: Micksuane "Mickey" Velazquez
-- Default weekly hours for each person will be entered in-app by a manager (or imported from the time system). Do NOT hardcode hours and do NOT import them from Boulevard.
+- Default weekly hours to seed each person's template are in "Seed default schedules" below (derived from ROP Time, the accurate source). Do NOT use Boulevard. Load them as editable data a manager can adjust — do not hardcode them in code.
 
 KEEP IT SIMPLE
 - This is NOT a Walmart-style shift scheduler. Optimize for "most weeks are the same, I just log the exceptions." Minimize clicks. A manager should be able to set up a normal week once and then only touch it for time off and coverage.
@@ -98,9 +98,43 @@ DELIVERABLES
 - **Notifications:** request→approver, approved/denied→requester, needs-coverage→eligible team, claimed→manager.
 - **Extensibility:** department-scoped so Associates can be added later.
 
-## Open item — real default schedules
+## Seed default schedules (derived from ROP Time, 4 weeks Aug 4–31, 2026)
 
-Seed the real default hours from `time.ropsalons.com` (the accurate source).
-Not yet imported because that domain is blocked by the build environment's egress
-proxy; get it allowlisted + an API key, or export the schedule and import it.
-Boulevard shift data is **not** to be used.
+Source: ROP Time timekeeping API (`https://time.ropsalons.com`, read-only),
+payroll-accurate `/api/hours?by=job` plus live `segments`. Boulevard was **not**
+used. Days worked and salon are hard data (appeared 3–4 of 4 weeks). Start times
+are exact only for live-punch staff (Mickey); everyone else clocks via OnTheClock,
+which exposes daily hours only, so their start is assumed at salon open (8:30) and
+end = open + typical hours. Items marked ⚠ are short shifts where AM-vs-PM start
+should be confirmed with a manager before trusting the seed.
+
+| Person | Role / salon | Mon | Tue | Wed | Thu | Fri | Sat |
+|---|---|---|---|---|---|---|---|
+| Alexa Spector | Desk · Promenade | — | ⚠ ~4.5h | 8:30–15:00 | 8:30–14:15 | occ. | 8:30–17:00 |
+| Carolyn Warnkin | Desk + on-site phones · Promenade (Bayfront Sat) | — | 8:30–15:30 | 8:30–16:00 | 8:30–15:00 | 8:30–18:00 | 8:30–17:00 (Bayfront) |
+| Gustavo Marinelli | Desk · Bayfront | — | — | 8:30–14:30 | occ. | ⚠ ~4.2h | — |
+| Leana Amaya | Desk · Promenade (part-time) | — | ⚠ ~4h | — | ⚠ ~4.8h | — | — |
+| Marina Murphy | Desk (no phones) · Bayfront | 8:30–18:00 | 8:30–16:00 | 8:30–18:00 | 8:30–14:00 | 8:30–18:00 | occ. |
+| Micksuane "Mickey" Velazquez | Remote phones (live punches, exact) | 8:30–14:30 | 8:30–15:00 | 8:30–14:00 | 8:30–18:00 | 8:30–16:30 | — |
+| Sophia Spector | Desk · Village | — | — | 8:30–16:30 | — | 8:30–16:30 | 8:30–17:30 |
+| Alexi DiLella | Desk · Village | no ROP Time clock data — set manually |
+| Robert DiLella III | Desk · Bayfront | no ROP Time clock data — set manually |
+| Lisa Denove | Desk · Bayfront | no ROP Time clock data — set manually |
+
+### Keeping it live (optional, recommended)
+ROP Time is read-only and the salon PWA's Supabase project can call it directly
+from Postgres via the `http` extension (no egress needed), e.g.:
+
+```sql
+select (http((
+  'GET',
+  'https://time.ropsalons.com/api/hours?start=YYYY-MM-DD&end=YYYY-MM-DD&by=job',
+  array[http_header('x-api-key','<ROP_TIME_KEY>')], null, null
+)::http_request)).content::jsonb;
+```
+
+Use `/api/hours?by=job` for payroll-accurate daily hours by salon/role (covers
+live + OnTheClock), `resource=segments` / `resource=punches` for exact clock
+in/out (live-punch staff only), and `resource=employees` for the roster. A future
+enhancement can auto-suggest each person's default week from the trailing few
+weeks of ROP Time and flag when someone's actual hours drift from their template.
