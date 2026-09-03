@@ -18,7 +18,7 @@ import { UnreadBadge, AccessBadge } from '@/components/ui/Badge'
 import {
   Hash, Lock, Megaphone, Home, MessageSquare, Users, Search, Bell, Plus,
   Star, LifeBuoy, Shield, Settings, Calendar, Link as LinkIcon, AlertTriangle,
-  Eye, EyeOff, ArrowUpDown, GripVertical, Bookmark, ChevronDown, BellOff, GraduationCap,
+  Eye, EyeOff, ArrowUpDown, GripVertical, Bookmark, ChevronDown, BellOff, GraduationCap, Clock,
 } from '@/components/ui/Icons'
 import { conversationName, otherMembers } from '@/lib/dm'
 import { cn } from '@/lib/utils'
@@ -569,6 +569,11 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           <NavLink to="/events" onClick={go} className={({ isActive }) => cn(NAV_LINK, isActive ? active : idle)}>
             <Calendar className="h-4 w-4" /> Events
           </NavLink>
+          {(canManage(profile?.access_level) || profile?.role === 'concierge' || profile?.secondary_role === 'concierge') && (
+            <NavLink to="/schedule" onClick={go} className={({ isActive }) => cn(NAV_LINK, isActive ? active : idle)}>
+              <Clock className="h-4 w-4" /> Schedule
+            </NavLink>
+          )}
           <NavLink to="/resources" onClick={go} className={({ isActive }) => cn(NAV_LINK, isActive ? active : idle)}>
             <LinkIcon className="h-4 w-4" /> Resources
           </NavLink>

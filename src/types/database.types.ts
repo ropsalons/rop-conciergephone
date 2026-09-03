@@ -406,6 +406,91 @@ export type ResourceRow = {
   updated_at: string
 }
 
+// ── Schedule feature ────────────────────────────────────────────────────────
+export type ScheduleRole = 'desk' | 'phones' | 'offsite'
+export type ScheduleDefaultShiftRow = {
+  id: string
+  user_id: string
+  weekday: number // 0=Sun .. 6=Sat
+  role: ScheduleRole
+  location_id: string | null
+  start_time: string // 'HH:MM:SS'
+  end_time: string
+  also_phones: boolean
+  note: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+export type ScheduleQualificationRow = {
+  id: string
+  user_id: string
+  role: 'desk' | 'phones'
+  location_id: string | null
+  created_at: string
+}
+export type TimeOffStatus = 'pending' | 'approved' | 'denied'
+export type TimeOffRequestRow = {
+  id: string
+  user_id: string
+  start_date: string
+  end_date: string
+  reason: string | null
+  status: TimeOffStatus
+  needs_coverage: boolean
+  cover_user_id: string | null
+  decided_by: string | null
+  decided_at: string | null
+  decision_note: string | null
+  created_at: string
+}
+export type CoverageStatus = 'open' | 'claimed' | 'assigned' | 'confirmed' | 'cancelled'
+export type ScheduleCoverageRow = {
+  id: string
+  work_date: string
+  covered_user_id: string | null
+  covering_user_id: string | null
+  role: 'desk' | 'phones'
+  location_id: string | null
+  start_time: string | null
+  end_time: string | null
+  note: string | null
+  status: CoverageStatus
+  time_off_id: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+export type ScheduleOverrideRow = {
+  id: string
+  user_id: string
+  work_date: string
+  is_off: boolean
+  role: ScheduleRole | null
+  location_id: string | null
+  start_time: string | null
+  end_time: string | null
+  note: string | null
+  created_by: string | null
+  created_at: string
+}
+export type ScheduleTargetRow = {
+  id: string
+  weekday: number | null
+  scope: 'desk' | 'phones'
+  location_id: string | null
+  start_time: string | null
+  end_time: string | null
+  min_count: number
+  note: string | null
+  created_at: string
+}
+export type ScheduleDepartmentRow = {
+  department_id: string
+  enabled: boolean
+  created_at: string
+}
+
 type TableFor<Row> = { Row: Row; Insert: Partial<Row>; Update: Partial<Row>; Relationships: [] }
 
 export type Database = {
@@ -444,6 +529,13 @@ export type Database = {
       event_subscriptions: TableFor<EventSubscriptionRow>
       resources: TableFor<ResourceRow>
       audit_logs: TableFor<AuditLogRow>
+      schedule_departments: TableFor<ScheduleDepartmentRow>
+      schedule_qualifications: TableFor<ScheduleQualificationRow>
+      schedule_default_shifts: TableFor<ScheduleDefaultShiftRow>
+      time_off_requests: TableFor<TimeOffRequestRow>
+      schedule_coverage: TableFor<ScheduleCoverageRow>
+      schedule_overrides: TableFor<ScheduleOverrideRow>
+      schedule_targets: TableFor<ScheduleTargetRow>
     }
     Views: Record<string, never>
     Functions: {
@@ -463,6 +555,13 @@ export type Database = {
       mark_event_viewed: { Args: { p_event_id: string }; Returns: undefined }
       set_event_subscription: { Args: { p_event_id: string; p_on: boolean }; Returns: undefined }
       notify_event: { Args: { p_event_id: string; p_kind?: string }; Returns: number }
+      sched_request_time_off: {
+        Args: { p_start: string; p_end: string; p_reason?: string | null; p_cover_user?: string | null; p_needs_coverage?: boolean }
+        Returns: string
+      }
+      sched_decide_time_off: { Args: { p_id: string; p_approve: boolean; p_note?: string | null }; Returns: undefined }
+      sched_claim_coverage: { Args: { p_id: string }; Returns: undefined }
+      sched_assign_coverage: { Args: { p_id: string; p_user: string }; Returns: undefined }
     }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>

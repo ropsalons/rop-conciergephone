@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.52.2'
+export const APP_VERSION = '1.53.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,19 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.53.0',
+    date: '2026-09-03',
+    time: '3:30 PM ET',
+    title: 'New: the Schedule tab (Concierge)',
+    changes: [
+      'Added a Schedule tab for the Concierge team — see the whole week at a glance: who’s on, who’s off, who’s covering, at each salon and on phones. Switch between the Week grid and a By-day view.',
+      'Each person has a normal week that just repeats, so you only ever enter the exceptions. Everyone’s normal week is pre-loaded from ROP Time.',
+      'Request time off right in the app — name who’s covering you, or flag that you need coverage. A manager approves it, and everyone involved gets notified.',
+      'Needs-coverage shifts show up for eligible coordinators to claim, or a manager can assign them. Whoever’s covering shows in bold green on the grid.',
+      'Managers can set each person’s normal week, who’s qualified to cover what, and how many people are needed on phones/desk (the grid flags days that fall short).',
+    ],
+  },
   {
     version: '1.52.2',
     date: '2026-08-31',
