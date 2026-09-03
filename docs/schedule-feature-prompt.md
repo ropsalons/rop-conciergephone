@@ -67,8 +67,8 @@ PERMISSIONS
 - Managers/admins can approve/deny, set default templates, set headcount targets, set qualifications, and assign coverage.
 
 SEED DATA (Concierge roster — set salons/qualifications as data, let managers fill default hours in-app)
-- Bayfront: Gustavo Marinelli (admin), Lisa Denove, Marina Murphy (remote + desk, no phones), Robert DiLella III (admin)
-- Village on Venetian Bay: Alexi DiLella (admin), Sophia Spector
+- Bayfront: Gustavo Marinelli (admin), Marina Murphy (remote + desk, no phones), Robert DiLella III (admin — Mon offsite/admin, Tue–Fri Bayfront)
+- Village on Venetian Bay: Alexi "Lexi" DiLella (admin — Mon offsite/marketing, Tue–Fri Village), Sophia Spector
 - Promenade: Alexa Spector, Carolyn Warnkin (desk + on-site phones), Leana Amaya
 - Remote phones: Micksuane "Mickey" Velazquez
 - Default weekly hours to seed each person's template are in "Seed default schedules" below (derived from ROP Time, the accurate source). Do NOT use Boulevard. Load them as editable data a manager can adjust — do not hardcode them in code.
@@ -117,9 +117,14 @@ should be confirmed with a manager before trusting the seed.
 | Marina Murphy | Desk (no phones) · Bayfront | 8:30–18:00 | 8:30–16:00 | 8:30–18:00 | 8:30–14:00 | 8:30–18:00 | occ. |
 | Micksuane "Mickey" Velazquez | Remote phones (live punches, exact) | 8:30–14:30 | 8:30–15:00 | 8:30–14:00 | 8:30–18:00 | 8:30–16:30 | — |
 | Sophia Spector | Desk · Village | — | — | 8:30–16:30 | — | 8:30–16:30 | 8:30–17:30 |
-| Alexi DiLella | Desk · Village | no ROP Time clock data — set manually |
-| Robert DiLella III | Desk · Bayfront | no ROP Time clock data — set manually |
-| Lisa Denove | Desk · Bayfront | no ROP Time clock data — set manually |
+| Alexi "Lexi" DiLella | Desk · Village (+ Mon marketing) | Offsite · marketing | 8:30–17:00 (est.) | 8:30–17:00 (est.) | 8:30–17:00 (est.) | 8:30–17:00 (est.) | — |
+| Robert DiLella III | Desk · Bayfront (+ Mon admin) | Offsite · admin | 8:30–17:00 (est.) | 8:30–17:00 (est.) | 8:30–17:00 (est.) | 8:30–17:00 (est.) | — |
+
+Notes: Lexi and Robert III don't clock in ROP Time, so their Tue–Fri times are
+estimated at a standard salon-open full day (8:30–17:00) from the Village/Bayfront
+trend; adjust once known. Monday is offsite for both (Lexi = marketing, Robert III
+= admin) — model it as an off-salon "working, not on a desk" status, not time off.
+Lisa Denove was terminated in Gusto and is intentionally excluded.
 
 ### Keeping it live (optional, recommended)
 ROP Time is read-only and the salon PWA's Supabase project can call it directly
