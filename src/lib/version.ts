@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.55.0'
+export const APP_VERSION = '1.55.1'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.55.1',
+    date: '2026-09-04',
+    time: '11:35 AM ET',
+    title: 'Schedule tidy-up: correct rosters',
+    changes: [
+      'The Stylists tab now lists actual stylists only — people Boulevard schedules as coordinators (e.g. remote concierge) no longer appear there.',
+      'Filtered guests, vendor reps, bots, and test accounts out of all schedule tabs.',
+      'Fixed home salons (Waleska→Promenade, Jeidy→Village, Monica→Village, Karissa→Promenade). Marketing/social hours count under “Other,” stylist hours under Stylists.',
+    ],
+  },
   {
     version: '1.55.0',
     date: '2026-09-04',

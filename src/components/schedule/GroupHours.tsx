@@ -13,7 +13,7 @@ export type GroupKey = 'stylists' | 'associates' | 'other'
 const GROUP_DEFS: Record<GroupKey, { label: string; depts: string[]; roles: string[]; useBlvd: boolean }> = {
   stylists: { label: 'Stylists', depts: ['Stylist', 'Nails', 'Assistant', 'Specialist'], roles: ['stylist', 'assistant', 'specialist'], useBlvd: true },
   associates: { label: 'Associates', depts: ['Associate'], roles: ['associate'], useBlvd: false },
-  other: { label: 'Other', depts: ['Marketing'], roles: ['marketing', 'media', 'leadership'], useBlvd: false },
+  other: { label: 'Other', depts: ['Marketing', 'Social'], roles: ['marketing', 'media', 'leadership'], useBlvd: false },
 }
 
 const fmtH = (n: number) => `${Math.round(n * 10) / 10}h`
@@ -50,13 +50,16 @@ export function GroupHours({ groupKey, days, actual, blvd, assocSched, actualLoa
   const userIds = useMemo(() => {
     const s = new Set<string>()
     const roles = new Set(def.roles)
+    // Roster = people whose home role is in this group, plus anyone who logged
+    // hours in this group's departments. (Boulevard is used for scheduled hours
+    // but NOT for membership — it schedules concierge/coordinators too, who
+    // don't belong on the Stylists page.)
     profiles.forEach((p) => { if (p.is_active && (roles.has(p.role) || (p.secondary_role && roles.has(p.secondary_role)))) s.add(p.id) })
     ropRows.forEach((r) => s.add(r.user_id))
-    if (def.useBlvd) blvd.forEach((b) => s.add(b.user_id))
     if (groupKey === 'associates') assocSched.forEach((a) => s.add(a.user_id))
     // Never list guests, vendor reps, bots, or test accounts.
     return [...s].filter((id) => { const p = profilesById[id]; return p && !p.is_external && !p.is_external_guest })
-  }, [profiles, ropRows, blvd, assocSched, def, groupKey, profilesById])
+  }, [profiles, ropRows, assocSched, groupKey, profilesById, def.roles])
   const idSet = useMemo(() => new Set(userIds), [userIds])
 
   const blvdForGroup = useMemo(() => (def.useBlvd ? blvd.filter((b) => idSet.has(b.user_id)) : []), [blvd, idSet, def.useBlvd])
