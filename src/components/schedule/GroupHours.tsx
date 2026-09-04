@@ -1,6 +1,7 @@
 import { Fragment, useMemo, useState } from 'react'
 import { useDirectoryStore } from '@/stores/directoryStore'
 import { Avatar } from '@/components/ui/Avatar'
+import { Refresh } from '@/components/ui/Icons'
 import { cn, displayName } from '@/lib/utils'
 import { dateKey, dayHeadLabel } from '@/lib/schedule'
 
@@ -25,8 +26,9 @@ function salonShort(name?: string | null): string {
 }
 type Row = { user_id: string; work_date: string; location: string | null; hours: number }
 
-export function GroupHours({ groupKey, days, actual, blvd, actualLoading, todayKey }: {
+export function GroupHours({ groupKey, days, actual, blvd, actualLoading, todayKey, onRefresh, refreshing }: {
   groupKey: GroupKey; days: Date[]; actual: ActualRow[]; blvd: BlvdRow[]; actualLoading: boolean; todayKey: string
+  onRefresh?: () => void; refreshing?: boolean
 }) {
   const profiles = useDirectoryStore((s) => s.profiles)
   const profilesById = useDirectoryStore((s) => s.profilesById)
@@ -123,7 +125,17 @@ export function GroupHours({ groupKey, days, actual, blvd, actualLoading, todayK
 
   return (
     <div className="space-y-3">
-      {toggle && <div className="flex items-center gap-2">{toggle}<span className="text-xs text-slate-400">{mode === 'scheduled' ? 'Rostered hours from Boulevard' : 'Worked hours (ROP Time; booked hours for staff who don’t clock)'}</span></div>}
+      {scheduledSupported && (
+        <div className="flex flex-wrap items-center gap-2">
+          {toggle}
+          {onRefresh && (
+            <button onClick={onRefresh} disabled={refreshing} className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-2.5 py-1 text-xs text-slate-300 hover:bg-white/10 disabled:opacity-50">
+              <Refresh className={cn('h-3.5 w-3.5', refreshing && 'animate-spin')} /> {refreshing ? 'Refreshing…' : 'Refresh now'}
+            </button>
+          )}
+          <span className="text-xs text-slate-400">{mode === 'scheduled' ? 'Rostered hours from Boulevard' : 'Worked hours (ROP Time; booked hours for staff who don’t clock)'}</span>
+        </div>
+      )}
       <div className="overflow-x-auto rounded-xl border border-white/10">
         <table className="min-w-full border-collapse text-sm">
           <thead>

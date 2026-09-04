@@ -133,25 +133,37 @@ export function SchedulePage() {
     load()
   }, [load])
 
-  // Pull actual hours from ROP Time — for the concierge toggle, and always for the group tabs.
+  // Pull actual hours from ROP Time + Boulevard — for the concierge toggle, and always for the group tabs.
   const needActual = canSeeActual && (showActual || tab !== 'concierge')
-  useEffect(() => {
+  const [refreshingBlvd, setRefreshingBlvd] = useState(false)
+  const loadActual = useCallback(async () => {
     if (!needActual) return
-    let cancelled = false
     setActualLoading(true)
-    ;(async () => {
-      const [a, b] = await Promise.all([
-        (supabase.rpc as any)('sched_actual_hours', { p_start: weekStartKey, p_end: weekEndKey }),
-        (supabase.rpc as any)('sched_blvd_hours', { p_start: weekStartKey, p_end: weekEndKey }),
-      ])
-      if (cancelled) return
-      if (a.error) toast({ kind: 'error', title: 'Could not load actual hours', body: a.error.message })
-      setActual(a.error ? [] : ((a.data as any[]) ?? []))
-      setBlvd(b.error ? [] : ((b.data as any[]) ?? []))
-      setActualLoading(false)
-    })()
-    return () => { cancelled = true }
+    const [a, b] = await Promise.all([
+      (supabase.rpc as any)('sched_actual_hours', { p_start: weekStartKey, p_end: weekEndKey }),
+      (supabase.rpc as any)('sched_blvd_hours', { p_start: weekStartKey, p_end: weekEndKey }),
+    ])
+    if (a.error) toast({ kind: 'error', title: 'Could not load actual hours', body: a.error.message })
+    setActual(a.error ? [] : ((a.data as any[]) ?? []))
+    setBlvd(b.error ? [] : ((b.data as any[]) ?? []))
+    setActualLoading(false)
   }, [needActual, weekStartKey, weekEndKey, toast])
+  useEffect(() => { loadActual() }, [loadActual])
+
+  // Manager taps "Refresh now": pull fresh Boulevard hours from the server, then reload.
+  const refreshBlvd = useCallback(async () => {
+    setRefreshingBlvd(true)
+    try {
+      const { error } = await supabase.functions.invoke('blvd-sync')
+      if (error) throw error
+      await loadActual()
+      toast({ kind: 'success', title: 'Boulevard hours refreshed' })
+    } catch (e: any) {
+      toast({ kind: 'error', title: 'Refresh failed', body: e?.message })
+    } finally {
+      setRefreshingBlvd(false)
+    }
+  }, [loadActual, toast])
 
   const scheduleUserIds = useMemo(() => {
     const s = new Set<string>()
@@ -419,7 +431,8 @@ export function SchedulePage() {
           </div>
 
           {tab !== 'concierge' ? (
-            <GroupHours groupKey={tab} days={days} actual={actual} blvd={blvd} actualLoading={actualLoading} todayKey={todayKey} />
+            <GroupHours groupKey={tab} days={days} actual={actual} blvd={blvd} actualLoading={actualLoading} todayKey={todayKey}
+              onRefresh={refreshBlvd} refreshing={refreshingBlvd} />
           ) : loading ? (
             <FullPageLoader label="Loading schedule…" />
           ) : (
