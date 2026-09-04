@@ -173,7 +173,7 @@ export function SchedulePage() {
     defaults.forEach((d) => s.add(d.user_id))
     coverage.forEach((c) => { if (c.covering_user_id) s.add(c.covering_user_id); if (c.covered_user_id) s.add(c.covered_user_id) })
     profiles.forEach((p) => { if (p.is_active && conciergeDeptId && p.department_id === conciergeDeptId) s.add(p.id) })
-    return [...s].filter((id) => profilesById[id])
+    return [...s].filter((id) => { const p = profilesById[id]; return p && !p.is_external && !p.is_external_guest })
   }, [defaults, coverage, profiles, conciergeDeptId, profilesById])
 
   const groups = useMemo(() => {

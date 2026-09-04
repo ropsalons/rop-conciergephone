@@ -54,7 +54,8 @@ export function GroupHours({ groupKey, days, actual, blvd, assocSched, actualLoa
     ropRows.forEach((r) => s.add(r.user_id))
     if (def.useBlvd) blvd.forEach((b) => s.add(b.user_id))
     if (groupKey === 'associates') assocSched.forEach((a) => s.add(a.user_id))
-    return [...s].filter((id) => profilesById[id])
+    // Never list guests, vendor reps, bots, or test accounts.
+    return [...s].filter((id) => { const p = profilesById[id]; return p && !p.is_external && !p.is_external_guest })
   }, [profiles, ropRows, blvd, assocSched, def, groupKey, profilesById])
   const idSet = useMemo(() => new Set(userIds), [userIds])
 

@@ -70,6 +70,7 @@ export type ProfileRow = {
   secondary_location_id: string | null
   department_id: string | null
   is_external: boolean
+  is_external_guest: boolean
   title: string | null
   phone: string | null
   bio: string | null
