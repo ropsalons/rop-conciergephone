@@ -1,20 +1,17 @@
-import { Fragment, useMemo } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { useDirectoryStore } from '@/stores/directoryStore'
 import { Avatar } from '@/components/ui/Avatar'
 import { cn, displayName } from '@/lib/utils'
 import { dateKey, dayHeadLabel } from '@/lib/schedule'
 
 export type ActualRow = { user_id: string; work_date: string; location: string | null; department: string | null; hours: number }
+export type BlvdRow = { user_id: string; work_date: string; location: string | null; role_name: string | null; scheduled_hours: number | null; booked_hours: number | null }
 export type GroupKey = 'stylists' | 'associates' | 'other'
 
-// Which ROP Time departments + ROP Chat roles belong to each tab. Hours are
-// attributed by the department the person actually clocked as that day, so a
-// dual-role person (e.g. a silver stylist who sometimes works associate) lands
-// in the right tab for the hours they worked in that role.
-const GROUP_DEFS: Record<GroupKey, { label: string; depts: string[]; roles: string[] }> = {
-  stylists: { label: 'Stylists', depts: ['Stylist', 'Nails', 'Assistant', 'Specialist'], roles: ['stylist', 'assistant', 'specialist'] },
-  associates: { label: 'Associates', depts: ['Associate'], roles: ['associate'] },
-  other: { label: 'Other', depts: ['Marketing'], roles: ['marketing', 'media', 'leadership'] },
+const GROUP_DEFS: Record<GroupKey, { label: string; depts: string[]; roles: string[]; useBlvd: boolean }> = {
+  stylists: { label: 'Stylists', depts: ['Stylist', 'Nails', 'Assistant', 'Specialist'], roles: ['stylist', 'assistant', 'specialist'], useBlvd: true },
+  associates: { label: 'Associates', depts: ['Associate'], roles: ['associate'], useBlvd: false },
+  other: { label: 'Other', depts: ['Marketing'], roles: ['marketing', 'media', 'leadership'], useBlvd: false },
 }
 
 const fmtH = (n: number) => `${Math.round(n * 10) / 10}h`
@@ -22,58 +19,73 @@ function salonShort(name?: string | null): string {
   if (!name) return ''
   if (/bayfront/i.test(name)) return 'Bay'
   if (/village/i.test(name)) return 'Vill'
-  if (/promenade/i.test(name)) return 'Prom'
+  if (/promenade|bonita/i.test(name)) return 'Prom'
   if (/remote/i.test(name)) return 'Remote'
   return name.split(' ')[0]
 }
+type Row = { user_id: string; work_date: string; location: string | null; hours: number }
 
-export function GroupHours({ groupKey, days, actual, actualLoading, todayKey }: {
-  groupKey: GroupKey; days: Date[]; actual: ActualRow[]; actualLoading: boolean; todayKey: string
+export function GroupHours({ groupKey, days, actual, blvd, actualLoading, todayKey }: {
+  groupKey: GroupKey; days: Date[]; actual: ActualRow[]; blvd: BlvdRow[]; actualLoading: boolean; todayKey: string
 }) {
   const profiles = useDirectoryStore((s) => s.profiles)
   const profilesById = useDirectoryStore((s) => s.profilesById)
   const locations = useDirectoryStore((s) => s.locations)
   const def = GROUP_DEFS[groupKey]
+  const [mode, setMode] = useState<'actual' | 'scheduled'>('actual')
+  const scheduledSupported = def.useBlvd
 
-  // Rows for this group only (by the department actually worked).
-  const rows = useMemo(() => {
+  // ROP Time rows for this group (by the department actually worked).
+  const ropRows = useMemo<Row[]>(() => {
     const dset = new Set(def.depts.map((d) => d.toLowerCase()))
     return actual.filter((r) => r.department && dset.has(r.department.toLowerCase()))
+      .map((r) => ({ user_id: r.user_id, work_date: r.work_date, location: r.location, hours: Number(r.hours) }))
   }, [actual, def.depts])
+  const ropUsers = useMemo(() => new Set(ropRows.map((r) => r.user_id)), [ropRows])
 
-  // People to show: anyone whose home role is in this group, plus anyone who
-  // logged hours in this group's departments this week.
+  // People shown in this tab: home role in the group, plus anyone with hours logged here.
   const userIds = useMemo(() => {
     const s = new Set<string>()
     const roles = new Set(def.roles)
     profiles.forEach((p) => { if (p.is_active && (roles.has(p.role) || (p.secondary_role && roles.has(p.secondary_role)))) s.add(p.id) })
-    rows.forEach((r) => s.add(r.user_id))
+    ropRows.forEach((r) => s.add(r.user_id))
+    if (def.useBlvd) blvd.forEach((b) => s.add(b.user_id))
     return [...s].filter((id) => profilesById[id])
-  }, [profiles, rows, def.roles, profilesById])
+  }, [profiles, ropRows, blvd, def, profilesById])
+  const idSet = useMemo(() => new Set(userIds), [userIds])
+
+  const blvdForGroup = useMemo(() => (def.useBlvd ? blvd.filter((b) => idSet.has(b.user_id)) : []), [blvd, idSet, def.useBlvd])
+
+  // Scheduled rows (Boulevard rostered hours) and actual rows (ROP Time worked,
+  // with Boulevard booked hours filling in for people who don't clock).
+  const schedRows = useMemo<Row[]>(
+    () => blvdForGroup.map((b) => ({ user_id: b.user_id, work_date: b.work_date, location: b.location, hours: Number(b.scheduled_hours ?? 0) })).filter((r) => r.hours > 0),
+    [blvdForGroup],
+  )
+  const actualRows = useMemo<Row[]>(() => {
+    const bookedFallback = blvdForGroup
+      .filter((b) => !ropUsers.has(b.user_id))
+      .map((b) => ({ user_id: b.user_id, work_date: b.work_date, location: b.location, hours: Number(b.booked_hours ?? 0) }))
+      .filter((r) => r.hours > 0)
+    return [...ropRows, ...bookedFallback]
+  }, [ropRows, blvdForGroup, ropUsers])
+
+  const rows = mode === 'scheduled' && scheduledSupported ? schedRows : actualRows
 
   const cell = useMemo(() => {
     const m = new Map<string, number>()
-    for (const r of rows) {
-      const k = `${r.user_id}|${r.work_date}`
-      m.set(k, (m.get(k) ?? 0) + Number(r.hours))
-    }
+    for (const r of rows) { const k = `${r.user_id}|${r.work_date}`; m.set(k, (m.get(k) ?? 0) + r.hours) }
     return m
   }, [rows])
   const totalByUser = useMemo(() => {
     const m = new Map<string, number>()
-    for (const r of rows) m.set(r.user_id, (m.get(r.user_id) ?? 0) + Number(r.hours))
+    for (const r of rows) m.set(r.user_id, (m.get(r.user_id) ?? 0) + r.hours)
     return m
   }, [rows])
 
-  // Group people by home salon for readability.
   const groups = useMemo(() => {
     const byLoc = new Map<string | null, string[]>()
-    for (const uid of userIds) {
-      const loc = profilesById[uid]?.location_id ?? null
-      const arr = byLoc.get(loc) ?? []
-      arr.push(uid)
-      byLoc.set(loc, arr)
-    }
+    for (const uid of userIds) { const loc = profilesById[uid]?.location_id ?? null; const arr = byLoc.get(loc) ?? []; arr.push(uid); byLoc.set(loc, arr) }
     const sortU = (ids: string[]) => ids.sort((a, b) => (totalByUser.get(b) ?? 0) - (totalByUser.get(a) ?? 0) || displayName(profilesById[a]).localeCompare(displayName(profilesById[b])))
     const out: { key: string; label: string; userIds: string[] }[] = []
     for (const l of locations) { const ids = byLoc.get(l.id); if (ids?.length) out.push({ key: l.id, label: l.name, userIds: sortU(ids) }) }
@@ -81,7 +93,6 @@ export function GroupHours({ groupKey, days, actual, actualLoading, todayKey }: 
     return out
   }, [userIds, profilesById, locations, totalByUser])
 
-  // Location totals (by where the hours were actually worked).
   const bucketList = useMemo(() => {
     const out = locations.map((l) => ({ key: salonShort(l.name), label: l.name.split(' ')[0] }))
     out.push({ key: 'Remote', label: 'Remote' }, { key: 'Other', label: 'Other' })
@@ -89,20 +100,30 @@ export function GroupHours({ groupKey, days, actual, actualLoading, todayKey }: 
   }, [locations])
   const byBucket = useMemo(() => {
     const m = new Map<string, number>()
+    const keys = new Set(bucketList.map((b) => b.key))
     for (const r of rows) {
-      const known = bucketList.some((b) => b.key === salonShort(r.location))
-      const key = /remote/i.test(r.location ?? '') ? 'Remote' : known ? salonShort(r.location) : 'Other'
-      m.set(key, (m.get(key) ?? 0) + Number(r.hours))
+      const s = salonShort(r.location)
+      const key = /remote/i.test(r.location ?? '') ? 'Remote' : keys.has(s) ? s : 'Other'
+      m.set(key, (m.get(key) ?? 0) + r.hours)
     }
     return m
   }, [rows, bucketList])
   const grand = useMemo(() => [...byBucket.values()].reduce((a, b) => a + b, 0), [byBucket])
 
-  if (actualLoading) return <p className="py-8 text-center text-sm text-slate-400">Loading {def.label.toLowerCase()} hours from ROP Time…</p>
+  const toggle = scheduledSupported ? (
+    <div className="flex rounded-lg border border-white/10 p-0.5 text-xs">
+      {([['scheduled', 'Scheduled'], ['actual', 'Actual']] as const).map(([k, lbl]) => (
+        <button key={k} onClick={() => setMode(k)} className={cn('rounded-md px-2.5 py-1 font-medium', mode === k ? 'bg-gold-500 text-black' : 'text-slate-300 hover:text-white')}>{lbl}</button>
+      ))}
+    </div>
+  ) : null
+
+  if (actualLoading) return <p className="py-8 text-center text-sm text-slate-400">Loading {def.label.toLowerCase()} hours…</p>
   if (userIds.length === 0) return <p className="py-8 text-center text-sm text-slate-500">No {def.label.toLowerCase()} hours recorded for this week yet.</p>
 
   return (
     <div className="space-y-3">
+      {toggle && <div className="flex items-center gap-2">{toggle}<span className="text-xs text-slate-400">{mode === 'scheduled' ? 'Rostered hours from Boulevard' : 'Worked hours (ROP Time; booked hours for staff who don’t clock)'}</span></div>}
       <div className="overflow-x-auto rounded-xl border border-white/10">
         <table className="min-w-full border-collapse text-sm">
           <thead>
@@ -146,7 +167,7 @@ export function GroupHours({ groupKey, days, actual, actualLoading, todayKey }: 
       </div>
 
       <div className="rounded-xl border border-white/10 bg-brand-950/40 p-3">
-        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{def.label} — actual hours by location (worked)</p>
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{def.label} — {mode === 'scheduled' ? 'scheduled' : 'actual'} hours by location</p>
         <div className="flex flex-wrap gap-2">
           {bucketList.map((b) => (
             <div key={b.key} className="rounded-lg bg-white/5 px-3 py-1.5 text-sm">
@@ -160,7 +181,11 @@ export function GroupHours({ groupKey, days, actual, actualLoading, todayKey }: 
           </div>
         </div>
       </div>
-      <p className="text-[11px] text-slate-500">Live actual hours from ROP Time. Dual-role people (e.g. a stylist who sometimes works associate) count in each tab only for the hours they worked in that role. Scheduled hours for this group are coming next.</p>
+      <p className="text-[11px] text-slate-500">
+        {scheduledSupported
+          ? 'Scheduled = Boulevard rostered hours. Actual = worked hours from ROP Time, with Boulevard booked-appointment hours for staff who don’t clock. Dual-role people count in each tab only for the hours worked in that role.'
+          : 'Live worked hours from ROP Time. Associate schedules aren’t reliable in Boulevard, so scheduled hours for this group are coming from ROP Time averages next.'}
+      </p>
     </div>
   )
 }

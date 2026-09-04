@@ -567,6 +567,10 @@ export type Database = {
         Args: { p_start: string; p_end: string }
         Returns: { user_id: string; work_date: string; location: string | null; department: string | null; hours: number }[]
       }
+      sched_blvd_hours: {
+        Args: { p_start: string; p_end: string }
+        Returns: { user_id: string; work_date: string; location: string | null; role_name: string | null; scheduled_hours: number | null; booked_hours: number | null }[]
+      }
     }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>

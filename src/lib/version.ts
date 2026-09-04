@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.54.0'
+export const APP_VERSION = '1.54.1'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.54.1',
+    date: '2026-09-03',
+    time: '10:20 PM ET',
+    title: 'Stylists: scheduled + booked hours from Boulevard',
+    changes: [
+      'The Stylists tab now has a Scheduled/Actual toggle. Scheduled = rostered hours pulled from Boulevard; Actual = worked hours from ROP Time.',
+      'For stylists who don’t clock in ROP Time (e.g. Jade, Lisa, Kristie, Pascal, Ludby, Diana), their actual reflects booked-appointment hours from Boulevard.',
+      'Per-person and per-salon totals follow the toggle, so you can compare rostered vs worked by location.',
+    ],
+  },
   {
     version: '1.54.0',
     date: '2026-09-03',

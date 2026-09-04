@@ -95,6 +95,7 @@ export function SchedulePage() {
   const [tab, setTab] = useState<TabKey>('concierge')
   const [showActual, setShowActual] = useState(false)
   const [actual, setActual] = useState<{ user_id: string; work_date: string; location: string | null; department: string | null; hours: number }[]>([])
+  const [blvd, setBlvd] = useState<{ user_id: string; work_date: string; location: string | null; role_name: string | null; scheduled_hours: number | null; booked_hours: number | null }[]>([])
   const [actualLoading, setActualLoading] = useState(false)
   const [showRequest, setShowRequest] = useState(false)
   const [manageOpen, setManageOpen] = useState(false)
@@ -139,10 +140,14 @@ export function SchedulePage() {
     let cancelled = false
     setActualLoading(true)
     ;(async () => {
-      const { data, error } = await (supabase.rpc as any)('sched_actual_hours', { p_start: weekStartKey, p_end: weekEndKey })
+      const [a, b] = await Promise.all([
+        (supabase.rpc as any)('sched_actual_hours', { p_start: weekStartKey, p_end: weekEndKey }),
+        (supabase.rpc as any)('sched_blvd_hours', { p_start: weekStartKey, p_end: weekEndKey }),
+      ])
       if (cancelled) return
-      if (error) toast({ kind: 'error', title: 'Could not load actual hours', body: error.message })
-      setActual(error ? [] : ((data as any[]) ?? []))
+      if (a.error) toast({ kind: 'error', title: 'Could not load actual hours', body: a.error.message })
+      setActual(a.error ? [] : ((a.data as any[]) ?? []))
+      setBlvd(b.error ? [] : ((b.data as any[]) ?? []))
       setActualLoading(false)
     })()
     return () => { cancelled = true }
@@ -414,7 +419,7 @@ export function SchedulePage() {
           </div>
 
           {tab !== 'concierge' ? (
-            <GroupHours groupKey={tab} days={days} actual={actual} actualLoading={actualLoading} todayKey={todayKey} />
+            <GroupHours groupKey={tab} days={days} actual={actual} blvd={blvd} actualLoading={actualLoading} todayKey={todayKey} />
           ) : loading ? (
             <FullPageLoader label="Loading schedule…" />
           ) : (
