@@ -96,6 +96,7 @@ export function SchedulePage() {
   const [showActual, setShowActual] = useState(false)
   const [actual, setActual] = useState<{ user_id: string; work_date: string; location: string | null; department: string | null; hours: number }[]>([])
   const [blvd, setBlvd] = useState<{ user_id: string; work_date: string; location: string | null; role_name: string | null; scheduled_hours: number | null; booked_hours: number | null }[]>([])
+  const [assocSched, setAssocSched] = useState<{ user_id: string; weekday: number; hours: number | null; location: string | null }[]>([])
   const [actualLoading, setActualLoading] = useState(false)
   const [showRequest, setShowRequest] = useState(false)
   const [manageOpen, setManageOpen] = useState(false)
@@ -139,13 +140,15 @@ export function SchedulePage() {
   const loadActual = useCallback(async () => {
     if (!needActual) return
     setActualLoading(true)
-    const [a, b] = await Promise.all([
+    const [a, b, c] = await Promise.all([
       (supabase.rpc as any)('sched_actual_hours', { p_start: weekStartKey, p_end: weekEndKey }),
       (supabase.rpc as any)('sched_blvd_hours', { p_start: weekStartKey, p_end: weekEndKey }),
+      (supabase.rpc as any)('sched_assoc_sched'),
     ])
     if (a.error) toast({ kind: 'error', title: 'Could not load actual hours', body: a.error.message })
     setActual(a.error ? [] : ((a.data as any[]) ?? []))
     setBlvd(b.error ? [] : ((b.data as any[]) ?? []))
+    setAssocSched(c.error ? [] : ((c.data as any[]) ?? []))
     setActualLoading(false)
   }, [needActual, weekStartKey, weekEndKey, toast])
   useEffect(() => { loadActual() }, [loadActual])
@@ -431,7 +434,7 @@ export function SchedulePage() {
           </div>
 
           {tab !== 'concierge' ? (
-            <GroupHours groupKey={tab} days={days} actual={actual} blvd={blvd} actualLoading={actualLoading} todayKey={todayKey}
+            <GroupHours groupKey={tab} days={days} actual={actual} blvd={blvd} assocSched={assocSched} actualLoading={actualLoading} todayKey={todayKey}
               onRefresh={refreshBlvd} refreshing={refreshingBlvd} />
           ) : loading ? (
             <FullPageLoader label="Loading schedule…" />

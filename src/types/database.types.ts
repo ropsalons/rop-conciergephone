@@ -571,6 +571,10 @@ export type Database = {
         Args: { p_start: string; p_end: string }
         Returns: { user_id: string; work_date: string; location: string | null; role_name: string | null; scheduled_hours: number | null; booked_hours: number | null }[]
       }
+      sched_assoc_sched: {
+        Args: Record<string, never>
+        Returns: { user_id: string; weekday: number; hours: number | null; location: string | null }[]
+      }
     }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>

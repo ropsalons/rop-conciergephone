@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.54.2'
+export const APP_VERSION = '1.55.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,16 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.55.0',
+    date: '2026-09-04',
+    time: '10:55 AM ET',
+    title: 'Associates: scheduled hours + nightly sync confirmation',
+    changes: [
+      'The Associates tab now has a Scheduled/Actual toggle. Since Boulevard associate schedules aren’t reliable, “Scheduled” is each person’s typical week inferred from their last 8 weeks in ROP Time (refreshed nightly).',
+      'The nightly Boulevard sync now DMs Rob a one-line ✅ confirmation (or a ⚠️ with the error if it fails), so you always know it ran.',
+    ],
+  },
   {
     version: '1.54.2',
     date: '2026-09-04',

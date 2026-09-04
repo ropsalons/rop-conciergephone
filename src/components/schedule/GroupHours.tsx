@@ -7,6 +7,7 @@ import { dateKey, dayHeadLabel } from '@/lib/schedule'
 
 export type ActualRow = { user_id: string; work_date: string; location: string | null; department: string | null; hours: number }
 export type BlvdRow = { user_id: string; work_date: string; location: string | null; role_name: string | null; scheduled_hours: number | null; booked_hours: number | null }
+export type AssocSchedRow = { user_id: string; weekday: number; hours: number | null; location: string | null }
 export type GroupKey = 'stylists' | 'associates' | 'other'
 
 const GROUP_DEFS: Record<GroupKey, { label: string; depts: string[]; roles: string[]; useBlvd: boolean }> = {
@@ -26,8 +27,8 @@ function salonShort(name?: string | null): string {
 }
 type Row = { user_id: string; work_date: string; location: string | null; hours: number }
 
-export function GroupHours({ groupKey, days, actual, blvd, actualLoading, todayKey, onRefresh, refreshing }: {
-  groupKey: GroupKey; days: Date[]; actual: ActualRow[]; blvd: BlvdRow[]; actualLoading: boolean; todayKey: string
+export function GroupHours({ groupKey, days, actual, blvd, assocSched, actualLoading, todayKey, onRefresh, refreshing }: {
+  groupKey: GroupKey; days: Date[]; actual: ActualRow[]; blvd: BlvdRow[]; assocSched: AssocSchedRow[]; actualLoading: boolean; todayKey: string
   onRefresh?: () => void; refreshing?: boolean
 }) {
   const profiles = useDirectoryStore((s) => s.profiles)
@@ -35,7 +36,7 @@ export function GroupHours({ groupKey, days, actual, blvd, actualLoading, todayK
   const locations = useDirectoryStore((s) => s.locations)
   const def = GROUP_DEFS[groupKey]
   const [mode, setMode] = useState<'actual' | 'scheduled'>('actual')
-  const scheduledSupported = def.useBlvd
+  const scheduledSupported = groupKey === 'stylists' || groupKey === 'associates'
 
   // ROP Time rows for this group (by the department actually worked).
   const ropRows = useMemo<Row[]>(() => {
@@ -52,18 +53,32 @@ export function GroupHours({ groupKey, days, actual, blvd, actualLoading, todayK
     profiles.forEach((p) => { if (p.is_active && (roles.has(p.role) || (p.secondary_role && roles.has(p.secondary_role)))) s.add(p.id) })
     ropRows.forEach((r) => s.add(r.user_id))
     if (def.useBlvd) blvd.forEach((b) => s.add(b.user_id))
+    if (groupKey === 'associates') assocSched.forEach((a) => s.add(a.user_id))
     return [...s].filter((id) => profilesById[id])
-  }, [profiles, ropRows, blvd, def, profilesById])
+  }, [profiles, ropRows, blvd, assocSched, def, groupKey, profilesById])
   const idSet = useMemo(() => new Set(userIds), [userIds])
 
   const blvdForGroup = useMemo(() => (def.useBlvd ? blvd.filter((b) => idSet.has(b.user_id)) : []), [blvd, idSet, def.useBlvd])
 
   // Scheduled rows (Boulevard rostered hours) and actual rows (ROP Time worked,
   // with Boulevard booked hours filling in for people who don't clock).
-  const schedRows = useMemo<Row[]>(
-    () => blvdForGroup.map((b) => ({ user_id: b.user_id, work_date: b.work_date, location: b.location, hours: Number(b.scheduled_hours ?? 0) })).filter((r) => r.hours > 0),
-    [blvdForGroup],
-  )
+  const schedRows = useMemo<Row[]>(() => {
+    if (groupKey === 'stylists') {
+      return blvdForGroup.map((b) => ({ user_id: b.user_id, work_date: b.work_date, location: b.location, hours: Number(b.scheduled_hours ?? 0) })).filter((r) => r.hours > 0)
+    }
+    if (groupKey === 'associates') {
+      // Expand each associate's inferred weekday hours onto the visible week.
+      const mine = assocSched.filter((a) => idSet.has(a.user_id))
+      const out: Row[] = []
+      for (const a of mine) {
+        for (const d of days) {
+          if (d.getDay() === a.weekday && (a.hours ?? 0) > 0) out.push({ user_id: a.user_id, work_date: dateKey(d), location: a.location, hours: Number(a.hours) })
+        }
+      }
+      return out
+    }
+    return []
+  }, [groupKey, blvdForGroup, assocSched, idSet, days])
   const actualRows = useMemo<Row[]>(() => {
     const bookedFallback = blvdForGroup
       .filter((b) => !ropUsers.has(b.user_id))
@@ -128,12 +143,16 @@ export function GroupHours({ groupKey, days, actual, blvd, actualLoading, todayK
       {scheduledSupported && (
         <div className="flex flex-wrap items-center gap-2">
           {toggle}
-          {onRefresh && (
+          {onRefresh && groupKey === 'stylists' && (
             <button onClick={onRefresh} disabled={refreshing} className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-2.5 py-1 text-xs text-slate-300 hover:bg-white/10 disabled:opacity-50">
               <Refresh className={cn('h-3.5 w-3.5', refreshing && 'animate-spin')} /> {refreshing ? 'Refreshing…' : 'Refresh now'}
             </button>
           )}
-          <span className="text-xs text-slate-400">{mode === 'scheduled' ? 'Rostered hours from Boulevard' : 'Worked hours (ROP Time; booked hours for staff who don’t clock)'}</span>
+          <span className="text-xs text-slate-400">
+            {groupKey === 'associates'
+              ? (mode === 'scheduled' ? 'Typical week (inferred from ROP Time)' : 'Worked hours from ROP Time')
+              : (mode === 'scheduled' ? 'Rostered hours from Boulevard' : 'Worked hours (ROP Time; booked hours for staff who don’t clock)')}
+          </span>
         </div>
       )}
       <div className="overflow-x-auto rounded-xl border border-white/10">
@@ -194,9 +213,11 @@ export function GroupHours({ groupKey, days, actual, blvd, actualLoading, todayK
         </div>
       </div>
       <p className="text-[11px] text-slate-500">
-        {scheduledSupported
+        {groupKey === 'stylists'
           ? 'Scheduled = Boulevard rostered hours. Actual = worked hours from ROP Time, with Boulevard booked-appointment hours for staff who don’t clock. Dual-role people count in each tab only for the hours worked in that role.'
-          : 'Live worked hours from ROP Time. Associate schedules aren’t reliable in Boulevard, so scheduled hours for this group are coming from ROP Time averages next.'}
+          : groupKey === 'associates'
+          ? 'Scheduled = each person’s typical week, inferred from their last 8 weeks in ROP Time (Boulevard associate schedules aren’t reliable). Actual = worked hours from ROP Time.'
+          : 'Live worked hours from ROP Time.'}
       </p>
     </div>
   )
