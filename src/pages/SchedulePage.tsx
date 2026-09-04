@@ -19,6 +19,15 @@ import type {
 import { TimeOffModal } from '@/components/schedule/TimeOffModal'
 import { ManageScheduleModal } from '@/components/schedule/ManageScheduleModal'
 import { DayEditModal } from '@/components/schedule/DayEditModal'
+import { GroupHours, type GroupKey } from '@/components/schedule/GroupHours'
+
+type TabKey = 'concierge' | GroupKey
+const GROUP_TABS: { key: TabKey; label: string }[] = [
+  { key: 'concierge', label: 'Concierge' },
+  { key: 'stylists', label: 'Stylists' },
+  { key: 'associates', label: 'Associates' },
+  { key: 'other', label: 'Other' },
+]
 
 type Entry =
   | { kind: 'shift'; time: string; hours: number; role: ScheduleRole; locId: string | null; alsoPhones: boolean; note?: string | null }
@@ -83,8 +92,9 @@ export function SchedulePage() {
   const [overrides, setOverrides] = useState<ScheduleOverrideRow[]>([])
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<'grid' | 'day'>('grid')
+  const [tab, setTab] = useState<TabKey>('concierge')
   const [showActual, setShowActual] = useState(false)
-  const [actual, setActual] = useState<{ user_id: string; work_date: string; location: string | null; hours: number }[]>([])
+  const [actual, setActual] = useState<{ user_id: string; work_date: string; location: string | null; department: string | null; hours: number }[]>([])
   const [actualLoading, setActualLoading] = useState(false)
   const [showRequest, setShowRequest] = useState(false)
   const [manageOpen, setManageOpen] = useState(false)
@@ -122,9 +132,10 @@ export function SchedulePage() {
     load()
   }, [load])
 
-  // Pull actual hours from ROP Time when the toggle is on.
+  // Pull actual hours from ROP Time — for the concierge toggle, and always for the group tabs.
+  const needActual = canSeeActual && (showActual || tab !== 'concierge')
   useEffect(() => {
-    if (!showActual || !canSeeActual) return
+    if (!needActual) return
     let cancelled = false
     setActualLoading(true)
     ;(async () => {
@@ -135,7 +146,7 @@ export function SchedulePage() {
       setActualLoading(false)
     })()
     return () => { cancelled = true }
-  }, [showActual, canSeeActual, weekStartKey, weekEndKey, toast])
+  }, [needActual, weekStartKey, weekEndKey, toast])
 
   const scheduleUserIds = useMemo(() => {
     const s = new Set<string>()
@@ -327,6 +338,7 @@ export function SchedulePage() {
         title="Schedule"
         subtitle="Concierge — who's on & off"
         actions={
+          tab === 'concierge' ? (
           <div className="flex items-center gap-2">
             {canSeeActual && (
               <div className="flex rounded-lg border border-white/10 p-0.5 text-xs">
@@ -347,11 +359,22 @@ export function SchedulePage() {
               ))}
             </div>
           </div>
+          ) : undefined
         }
       />
 
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
         <div className="mx-auto max-w-5xl space-y-4">
+          {canSeeActual && (
+            <div className="flex gap-1 overflow-x-auto rounded-lg border border-white/10 p-0.5 text-sm">
+              {GROUP_TABS.map((t) => (
+                <button key={t.key} onClick={() => setTab(t.key)}
+                  className={cn('whitespace-nowrap rounded-md px-3 py-1.5 font-medium', tab === t.key ? 'bg-brand-500 text-white' : 'text-slate-300 hover:text-white')}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1">
               <button onClick={() => setMonday(addDays(monday, -7))} aria-label="Previous week" className="rounded-lg border border-white/10 p-1.5 text-slate-300 hover:bg-white/10">
@@ -376,19 +399,23 @@ export function SchedulePage() {
               <button onClick={() => setMonday(startOfWeekMonday(new Date(monday.getFullYear(), monday.getMonth() + 1, monday.getDate())))} className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-slate-300 hover:bg-white/10">+1 mo</button>
               {showActual && <span className="ml-1 text-xs text-gold-300">{actualLoading ? 'Loading actual hours…' : 'Actual hours from ROP Time'}</span>}
             </div>
-            <div className="ml-auto flex items-center gap-2">
-              <button onClick={() => setShowRequest(true)} className="btn-primary px-3 py-1.5 text-sm">
-                <span className="inline-flex items-center gap-1"><Plus className="h-4 w-4" /> Request time off</span>
-              </button>
-              {manager && (
-                <button onClick={() => setManageOpen(true)} className="btn-ghost px-3 py-1.5 text-sm" title="Manage schedules">
-                  <span className="inline-flex items-center gap-1"><Settings className="h-4 w-4" /> Manage</span>
+            {tab === 'concierge' && (
+              <div className="ml-auto flex items-center gap-2">
+                <button onClick={() => setShowRequest(true)} className="btn-primary px-3 py-1.5 text-sm">
+                  <span className="inline-flex items-center gap-1"><Plus className="h-4 w-4" /> Request time off</span>
                 </button>
-              )}
-            </div>
+                {manager && (
+                  <button onClick={() => setManageOpen(true)} className="btn-ghost px-3 py-1.5 text-sm" title="Manage schedules">
+                    <span className="inline-flex items-center gap-1"><Settings className="h-4 w-4" /> Manage</span>
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
-          {loading ? (
+          {tab !== 'concierge' ? (
+            <GroupHours groupKey={tab} days={days} actual={actual} actualLoading={actualLoading} todayKey={todayKey} />
+          ) : loading ? (
             <FullPageLoader label="Loading schedule…" />
           ) : (
             <>

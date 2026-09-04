@@ -2,7 +2,7 @@
 // Bump APP_VERSION and prepend a CHANGELOG entry whenever you ship a change.
 // Shown in the Help window (Version history) and the sidebar footer.
 
-export const APP_VERSION = '1.53.3'
+export const APP_VERSION = '1.54.0'
 
 export interface ChangelogEntry {
   version: string
@@ -14,6 +14,18 @@ export interface ChangelogEntry {
 
 // Newest first.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.54.0',
+    date: '2026-09-03',
+    time: '6:45 PM ET',
+    title: 'Schedule: tabs for every group',
+    changes: [
+      'Added tabs across the top of the Schedule (managers): Concierge · Stylists · Associates · Other.',
+      'Stylists / Associates / Other show everyone’s live hours from ROP Time — per day, per person, with per-salon and group totals.',
+      'Hours are counted by the role each person actually worked that day, so a stylist who sometimes works associate is totaled correctly in each tab (no double-counting).',
+      'Coming next: scheduled hours for these groups (stylist rosters + booked hours pulled from Boulevard).',
+    ],
+  },
   {
     version: '1.53.3',
     date: '2026-09-03',

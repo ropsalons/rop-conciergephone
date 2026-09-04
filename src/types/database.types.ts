@@ -565,7 +565,7 @@ export type Database = {
       sched_assign_coverage: { Args: { p_id: string; p_user: string }; Returns: undefined }
       sched_actual_hours: {
         Args: { p_start: string; p_end: string }
-        Returns: { user_id: string; work_date: string; location: string | null; hours: number }[]
+        Returns: { user_id: string; work_date: string; location: string | null; department: string | null; hours: number }[]
       }
     }
     Enums: Record<string, never>
