@@ -10,20 +10,14 @@
 //   Headers: { "Authorization": "Bearer rop_ai_…", "Content-Type": "application/json" }
 //   Body:    { "action": "<action>", ...params, "idempotency_key"?: "<uuid>" }
 //
-// Actions: list_channels · list_users · read_channel_messages · read_thread · search_messages ·
-//          post_message · reply_thread · delete_message · send_dm · send_group_dm · create_channel ·
-//          delete_channel · create_task · update_task · register_webhook · request_approval · list_approvals
-//
-// delete_message is a SOFT delete (is_deleted=true, original text kept on the row) so an admin can
-// always restore it, exactly like a staff delete in the app. delete_channel ARCHIVES a channel
-// (is_archived=true) — also reversible; channels are never hard-deleted.
-//
-// The endpoint uses the service role (bypassing RLS) but ONLY after validating the agent and
-// enforcing its scope in code — content the agent isn't allowed to see is never returned.
+// Writes accept an optional "report" string (stored on the message metadata) used to tag automated
+// reports (e.g. "monthly_stylist") so downstream mirroring/routing can key off it. send_dm and
+// post_message also accept "html" to render a rich card.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4'
 
 const BOT_ID = '00000000-0000-4000-8000-00000000b010' // the inactive "Integrations" account AI posts as
+const FALLBACK_FORWARD = 'e9e00d78-8935-4ff2-a43a-9605786062c0' // Leadership & Operations — catch-all for dead channels
 
 function cors(req: Request) {
   return {
@@ -145,9 +139,6 @@ Deno.serve(async (req) => {
   const correlationId = crypto.randomUUID()
   const sourceIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null
 
-  // Body — parsed up front so the agent token may also arrive IN the JSON body ({ "token": "rop_ai_…" }
-  // or "key"), not just the Authorization header. That lets a client which can't set headers (e.g. a
-  // ChatGPT Action with auth left as "None") authenticate with a single paste.
   let body: any
   try { body = await req.json() } catch { return json({ ok: false, error: 'Body must be JSON' }, 400) }
 
@@ -171,8 +162,8 @@ Deno.serve(async (req) => {
   const action = String(body.action ?? '')
   const idem: string | null =
     (req.headers.get('x-idempotency-key') || (typeof body.idempotency_key === 'string' ? body.idempotency_key : '')) || null
+  const reportTag = typeof body.report === 'string' && body.report.trim() ? body.report.trim().slice(0, 60) : undefined
 
-  // Durable audit — always recorded, even on denial/error.
   async function audit(status: string, allowed: boolean, extra: Record<string, unknown> = {}, channelId: string | null = null, error?: string) {
     try {
       await admin.from('ai_audit_logs').insert({
@@ -184,22 +175,18 @@ Deno.serve(async (req) => {
   }
   const deny = (msg: string, code = 403) => { void audit('denied', false, { reason: msg }); return json({ ok: false, error: msg, correlation_id: correlationId }, code) }
 
-  // ── Global kill-switch ────────────────────────────────────────────────────
   const { data: settings } = await admin.from('ai_settings').select('ai_enabled').eq('only_row', true).maybeSingle()
   if (settings && settings.ai_enabled === false) return deny('All AI access is currently disabled by an administrator.', 503)
 
-  // ── Rate limit (per agent, rolling 60s) ───────────────────────────────────
   const since = new Date(Date.now() - 60_000).toISOString()
   const { count: recent } = await admin
     .from('ai_audit_logs').select('id', { count: 'exact', head: true })
     .eq('agent_id', A.id).gte('created_at', since)
   if ((recent ?? 0) >= A.rate_per_min) { await audit('rate_limited', false); return json({ ok: false, error: 'Rate limit exceeded', correlation_id: correlationId }, 429) }
 
-  // ── Permission: action must be allowed for this agent ─────────────────────
   if (!action) return deny('Missing "action"', 400)
   if (!A.allowed_actions.includes(action)) return deny(`Action "${action}" is not permitted for this agent.`)
 
-  // Idempotency replay for writes.
   if (idem) {
     const { data: prior } = await admin
       .from('ai_audit_logs').select('meta,status')
@@ -207,19 +194,17 @@ Deno.serve(async (req) => {
     if (prior?.meta && (prior.meta as any).message_id) return json({ ok: true, replayed: true, ...(prior.meta as any), correlation_id: correlationId })
   }
 
-  // Channel resolution + access helpers.
-  async function resolveChannel(sel: string): Promise<{ id: string; slug: string; name: string; type: string; is_archived: boolean; ai_excluded: boolean } | null> {
+  type Chan = { id: string; slug: string; name: string; type: string; is_archived: boolean; ai_excluded: boolean; forward_to_channel_id: string | null }
+
+  async function resolveChannel(sel: string): Promise<Chan | null> {
     if (!sel) return null
     const s = sel.trim()
     if (uuidRe.test(s)) {
-      const { data } = await admin.from('channels').select('id,slug,name,type,is_archived,ai_excluded').eq('id', s).maybeSingle()
+      const { data } = await admin.from('channels').select('id,slug,name,type,is_archived,ai_excluded,forward_to_channel_id').eq('id', s).maybeSingle()
       return (data as any) ?? null
     }
-    // Match by slug OR name, forgiving about case, a leading '#', and slug-vs-name differences
-    // (e.g. "rop-scorecard" resolving to the channel named "ROP Scorecard" / slug "daily-numbers").
-    // Done in code so a channel name with commas/spaces/punctuation can't break a PostgREST filter.
-    const { data } = await admin.from('channels').select('id,slug,name,type,is_archived,ai_excluded')
-    const list = (data ?? []) as Array<{ id: string; slug: string; name: string; type: string; is_archived: boolean; ai_excluded: boolean }>
+    const { data } = await admin.from('channels').select('id,slug,name,type,is_archived,ai_excluded,forward_to_channel_id')
+    const list = (data ?? []) as Chan[]
     const norm = (x: string) => x.toLowerCase().replace(/^#/, '').trim()
     const slugify = (x: string) => norm(x).replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
     const t = norm(s)
@@ -232,9 +217,21 @@ Deno.serve(async (req) => {
       null
     )
   }
+  async function followForward(ch: Chan): Promise<Chan> {
+    let cur = ch
+    let hops = 0
+    while (cur.is_archived && cur.forward_to_channel_id && hops++ < 5) {
+      const next = await resolveChannel(cur.forward_to_channel_id)
+      if (!next || next.id === cur.id) break
+      cur = next
+    }
+    if (cur.is_archived) {
+      const fb = await resolveChannel(FALLBACK_FORWARD)
+      if (fb && !fb.is_archived) return fb
+    }
+    return cur
+  }
   async function allowedChannelIds(): Promise<string[]> {
-    // 'all' → every channel of any type (announcements, location, department, private…) that isn't
-    // archived or explicitly AI-excluded. 'all_public' → public channels only. 'listed' → allow-list.
     if (A.channel_scope === 'all') {
       const { data } = await admin.from('channels').select('id').eq('is_archived', false).eq('ai_excluded', false)
       return (data ?? []).map((c: any) => c.id)
@@ -259,15 +256,12 @@ Deno.serve(async (req) => {
     const { data } = await admin.from('ai_agent_channels').select('can_post').eq('agent_id', A.id).eq('channel_id', ch.id).maybeSingle()
     return !!data?.can_post
   }
-  // Attach display names to a set of message rows without leaking employee impersonation.
   async function withAuthors(rows: any[]): Promise<any[]> {
     const ids = [...new Set(rows.map((r) => r.user_id))]
     const { data: profs } = await admin.from('profiles').select('id,display_name,full_name').in('id', ids)
     const byId = new Map((profs ?? []).map((p: any) => [p.id, p.display_name || p.full_name || 'Unknown']))
     return rows.map((r) => {
       const meta = (r.metadata ?? {}) as any
-      // Show the per-message author_name (the specific project) first, so read-backs attribute
-      // correctly even when several projects share one token.
       const author = meta.ai_agent
         ? `${meta.author_name || meta.ai_agent.name} (AI)`
         : (meta.author_name || meta.slack_author || byId.get(r.user_id) || 'Unknown')
@@ -279,7 +273,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // ── Reads ────────────────────────────────────────────────────────────────
     if (action === 'list_channels') {
       const ids = await allowedChannelIds()
       if (!ids.length) { await audit('ok', true, { count: 0 }); return json({ ok: true, channels: [], correlation_id: correlationId }) }
@@ -336,8 +329,6 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'list_users') {
-      // The staff directory, so projects can match people by NAME and route by ROP Chat's own
-      // identity (id/email) instead of depending on an external system's email.
       const q = String(body.query ?? '').trim().toLowerCase()
       const includeInactive = body.include_inactive === true
       const limit = Math.min(Math.max(Number(body.limit) || 200, 1), 500)
@@ -363,13 +354,50 @@ Deno.serve(async (req) => {
       return json({ ok: true, users: rows, correlation_id: correlationId })
     }
 
+    if (action === 'read_dm' || action === 'read_direct_messages') {
+      // Read the messages of a DM the AGENT (the bot account) is part of — so a project can find the
+      // id of a DM it sent (e.g. to delete or follow up on it). Scope: only 1:1/group conversations the
+      // bot participates in. Resolve by explicit conversation_id, or by the counterpart's id/email.
+      if (!A.allow_dms) return deny('This agent is not permitted to access direct messages.')
+      const limit = Math.min(Math.max(Number(body.limit) || 30, 1), 100)
+      let convId: string | null = uuidRe.test(String(body.conversation_id ?? '')) ? String(body.conversation_id) : null
+      if (!convId) {
+        let otherId: string | null = null
+        if (uuidRe.test(String(body.with_user_id ?? body.to_user_id ?? ''))) otherId = String(body.with_user_id ?? body.to_user_id)
+        else {
+          const email = String(body.with_email ?? body.to_email ?? '').trim()
+          if (email) {
+            const { data: u } = await admin.from('profiles').select('id').ilike('email', email).maybeSingle()
+            if (!u) return deny(`No user with email ${email}`, 404)
+            otherId = u.id
+          }
+        }
+        if (!otherId) return deny('Provide "conversation_id", "with_user_id", or "with_email"', 400)
+        const memberKey = [BOT_ID, otherId].sort().join(':')
+        const { data: conv } = await admin.from('direct_conversations').select('id').eq('is_group', false).eq('member_key', memberKey).maybeSingle()
+        if (!conv) { await audit('ok', true, { messages: 0 }); return json({ ok: true, conversation_id: null, messages: [], correlation_id: correlationId }) }
+        convId = conv.id
+      }
+      const { data: mem } = await admin.from('direct_conversation_members').select('user_id').eq('conversation_id', convId).eq('user_id', BOT_ID).maybeSingle()
+      if (!mem) return deny('This agent is not a participant in that conversation.')
+      let q = admin.from('messages').select('id,user_id,body,metadata,created_at,parent_message_id,reply_count')
+        .eq('conversation_id', convId).order('created_at', { ascending: false }).limit(limit)
+      if (body.include_deleted !== true) q = q.eq('is_deleted', false)
+      if (body.before) q = q.lt('created_at', String(body.before))
+      const { data } = await q
+      const msgs = await withAuthors((data ?? []).reverse())
+      await audit('ok', true, { conversation_id: convId, count: msgs.length })
+      return json({ ok: true, conversation_id: convId, messages: msgs, correlation_id: correlationId })
+    }
+
     // ── Writes ────────────────────────────────────────────────────────────────
     const aiTag = { slug: A.slug, name: A.name, provider: A.provider }
 
-    async function insertMessage(target: { channel_id?: string; conversation_id?: string }, opts: { text: string; html?: string; title?: string; author_name?: string; parent?: string; items?: InAttachment[] }) {
+    async function insertMessage(target: { channel_id?: string; conversation_id?: string }, opts: { text: string; html?: string; title?: string; author_name?: string; parent?: string; items?: InAttachment[]; report?: string }) {
       const metadata: Record<string, unknown> = {
         via_api: true, ai_agent: aiTag, author_name: opts.author_name || A.name,
         ...(opts.html ? { format: 'html', html: opts.html, card_title: opts.title } : {}),
+        ...(opts.report ? { report: opts.report } : {}),
       }
       const { data, error } = await admin.from('messages')
         .insert({ ...target, user_id: BOT_ID, body: opts.text, parent_message_id: opts.parent ?? null, metadata })
@@ -381,7 +409,6 @@ Deno.serve(async (req) => {
       return { id, attachments }
     }
 
-    // Sensitive-action gate: queue for human approval instead of executing.
     async function queueApproval(payload: Record<string, unknown>, preview: string) {
       const { data } = await admin.from('ai_action_approvals')
         .insert({ agent_id: A.id, action, payload: { ...payload, ai_agent: aiTag }, preview }).select('id').single()
@@ -390,8 +417,10 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'post_message') {
-      const ch = await resolveChannel(String(body.channel ?? body.channel_id ?? ''))
+      let ch = await resolveChannel(String(body.channel ?? body.channel_id ?? ''))
       if (!ch) return deny('Channel not found', 404)
+      const original = ch
+      ch = await followForward(ch)
       if (!(await canPost(ch))) return deny('This agent may not post to that channel.')
       const html = typeof body.html === 'string' && body.html.trim() ? body.html : undefined
       const items = parseJsonAttachments(body.attachments ?? body.files)
@@ -400,10 +429,11 @@ Deno.serve(async (req) => {
       if (!text) return deny('Provide "text", "html", or "attachments"', 400)
       if (A.require_approval_for.includes('post_message'))
         return await queueApproval({ channel_id: ch.id, text, author_name: body.author_name }, `Post to #${ch.slug}: ${text.slice(0, 140)}`)
-      const { id, attachments } = await insertMessage({ channel_id: ch.id }, { text, html, title: body.title, author_name: body.author_name, items })
+      const { id, attachments } = await insertMessage({ channel_id: ch.id }, { text, html, title: body.title, author_name: body.author_name, items, report: reportTag })
       await admin.from('ai_agents').update({ last_used_at: new Date().toISOString() }).eq('id', A.id)
-      await audit('ok', true, { message_id: id, channel: ch.slug, attachments }, ch.id)
-      return json({ ok: true, message_id: id, channel_id: ch.id, attachments, correlation_id: correlationId })
+      const forwarded = original.id !== ch.id
+      await audit('ok', true, { message_id: id, channel: ch.slug, forwarded_from: forwarded ? original.slug : undefined, attachments }, ch.id)
+      return json({ ok: true, message_id: id, channel_id: ch.id, forwarded_from: forwarded ? original.slug : undefined, attachments, correlation_id: correlationId })
     }
 
     if (action === 'reply_thread') {
@@ -419,18 +449,12 @@ Deno.serve(async (req) => {
       if (!text) return deny('Provide "text" or "attachments"', 400)
       if (A.require_approval_for.includes('reply_thread'))
         return await queueApproval({ channel_id: ch.id, parent_message_id: parentId, text }, `Reply in #${ch.slug}: ${text.slice(0, 140)}`)
-      const { id, attachments } = await insertMessage({ channel_id: ch.id }, { text, parent: parentId, items })
+      const { id, attachments } = await insertMessage({ channel_id: ch.id }, { text, parent: parentId, items, report: reportTag })
       await audit('ok', true, { message_id: id, parent: parentId, attachments }, ch.id)
       return json({ ok: true, message_id: id, parent_message_id: parentId, attachments, correlation_id: correlationId })
     }
 
     if (action === 'delete_message' || action === 'delete_messages') {
-      // Soft-delete (reversible) one or more messages. The original text is preserved on the row
-      // (is_deleted=true) so an admin can always restore it, exactly like a staff delete in the app.
-      // An agent may delete anywhere it can post (channels) or in a DM it's part of. Removing a message
-      // it didn't author (a human's) is honored too, but if the agent is configured to require approval
-      // for 'delete_message' those are queued for a human instead. Pass only_own:true to hard-restrict
-      // a call to this agent's own AI posts. Accepts message_id or message_ids[]. Fully audited.
       const rawIds: string[] = Array.isArray(body.message_ids)
         ? body.message_ids.map((x: unknown) => String(x))
         : (body.message_id != null ? [String(body.message_id)] : [])
@@ -446,7 +470,7 @@ Deno.serve(async (req) => {
       const results: Array<{ message_id: string; deleted: boolean; reason?: string }> = []
       const toDelete: string[] = []
       const channelsTouched = new Set<string>()
-      let sawForeign = false // a message this agent didn't post — more sensitive to remove
+      let sawForeign = false
       for (const id of ids) {
         const m = byId.get(id)
         if (!m) { results.push({ message_id: id, deleted: false, reason: 'not found' }); continue }
@@ -467,7 +491,6 @@ Deno.serve(async (req) => {
         toDelete.push(id)
       }
 
-      // Removing a human's message while this agent is set to require approval for deletes → queue it.
       if (sawForeign && A.require_approval_for.includes('delete_message') && toDelete.length) {
         const { data: appr } = await admin.from('ai_action_approvals')
           .insert({ agent_id: A.id, action: 'delete_message', payload: { message_ids: toDelete, ai_agent: aiTag }, preview: `Delete ${toDelete.length} message(s) (includes non-AI messages)` })
@@ -490,9 +513,9 @@ Deno.serve(async (req) => {
     if (action === 'send_dm') {
       if (!A.allow_dms) return deny('This agent is not permitted to send direct messages.')
       const items = parseJsonAttachments(body.attachments ?? body.files)
-      let text = String(body.text ?? body.message ?? '').trim()
+      const html = typeof body.html === 'string' && body.html.trim() ? body.html : undefined
+      let text = String(body.text ?? body.message ?? (html ? htmlToText(html) : '')).trim()
       if (!text && items.length) text = items.length === 1 ? '📎 Attachment' : `📎 ${items.length} attachments`
-      // Resolve the recipient by ROP Chat id (preferred — no email dependency) or by email.
       let user: { id: string } | null = null
       if (uuidRe.test(String(body.to_user_id ?? ''))) {
         const { data } = await admin.from('profiles').select('id').eq('id', String(body.to_user_id)).maybeSingle()
@@ -505,7 +528,7 @@ Deno.serve(async (req) => {
         if (!data) return deny(`No user with email ${email}`, 404)
         user = data
       }
-      if (!text) return deny('Provide "text" or "attachments"', 400)
+      if (!text) return deny('Provide "text", "html", or "attachments"', 400)
       const memberKey = [BOT_ID, user.id].sort().join(':')
       let convId: string
       const { data: existing } = await admin.from('direct_conversations').select('id').eq('is_group', false).eq('member_key', memberKey).maybeSingle()
@@ -516,7 +539,7 @@ Deno.serve(async (req) => {
         convId = conv.id
         await admin.from('direct_conversation_members').insert([{ conversation_id: convId, user_id: BOT_ID }, { conversation_id: convId, user_id: user.id }])
       }
-      const { id, attachments } = await insertMessage({ conversation_id: convId }, { text, author_name: body.author_name, items })
+      const { id, attachments } = await insertMessage({ conversation_id: convId }, { text, html, title: body.title, author_name: body.author_name, items, report: reportTag })
       await audit('ok', true, { message_id: id, conversation_id: convId, attachments })
       return json({ ok: true, message_id: id, conversation_id: convId, attachments, correlation_id: correlationId })
     }
@@ -529,7 +552,6 @@ Deno.serve(async (req) => {
       const items = parseJsonAttachments(body.attachments ?? body.files)
       let text = String(body.text ?? body.message ?? '').trim()
       if (!text && items.length) text = items.length === 1 ? '📎 Attachment' : `📎 ${items.length} attachments`
-      // Recipients by ROP Chat id (preferred) or by email.
       const userIds: string[] = Array.isArray(body.to_user_ids) ? body.to_user_ids.map((x: unknown) => String(x)).filter((x: string) => uuidRe.test(x)) : []
       if (userIds.length < 1 && emails.length < 1) return deny('Provide "to_user_ids" or "to_emails", plus "text" (or "attachments")', 400)
       if (!text) return deny('Provide "text" or "attachments"', 400)
@@ -556,7 +578,7 @@ Deno.serve(async (req) => {
         convId = conv.id
         await admin.from('direct_conversation_members').insert(allMembers.map((uid) => ({ conversation_id: convId, user_id: uid })))
       }
-      const { id, attachments } = await insertMessage({ conversation_id: convId }, { text, author_name: body.author_name, items })
+      const { id, attachments } = await insertMessage({ conversation_id: convId }, { text, author_name: body.author_name, items, report: reportTag })
       await audit('ok', true, { message_id: id, conversation_id: convId, members: memberIds.length, not_found: notFound, attachments })
       return json({ ok: true, message_id: id, conversation_id: convId, members: memberIds.length, not_found: notFound, attachments, correlation_id: correlationId })
     }
@@ -597,8 +619,6 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'register_webhook') {
-      // A project self-registers its return-path webhook — no human copy-paste. We store it and
-      // auto-create a dedicated command channel (grouped, leader-level) that routes to this project.
       const url = String(body.url ?? '').trim()
       if (!/^https:\/\//i.test(url)) return deny('Provide a valid https "url"', 400)
       const projectName = (String(body.project_name ?? body.author_name ?? A.name).trim() || A.name)
@@ -633,14 +653,12 @@ Deno.serve(async (req) => {
       const type = vis === 'private' ? 'private' : 'public'
       const description = typeof body.description === 'string' ? body.description.trim().slice(0, 300) : null
 
-      // Policy: the owner is ALWAYS a member of any agent-created channel (plus the BOT that posts).
       async function addOwnersAndBot(channelId: string) {
         const { data: owners } = await admin.from('profiles').select('id').eq('access_level', 'owner').eq('is_active', true)
         const ids = [...new Set([BOT_ID, ...((owners ?? []) as any[]).map((o) => o.id)])]
         await admin.from('channel_members').upsert(ids.map((uid) => ({ channel_id: channelId, user_id: uid })), { onConflict: 'channel_id,user_id', ignoreDuplicates: true })
       }
 
-      // Idempotent: if a channel with this name/slug already exists, reuse it (and make sure the owner is in it).
       const found = await resolveChannel(name)
       if (found) {
         await addOwnersAndBot(found.id)
@@ -665,9 +683,6 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'delete_channel' || action === 'archive_channel') {
-      // Archive a channel (reversible — same as the app's archive: history is kept and an admin can
-      // restore it in Admin → Channels). Channels are never hard-deleted. Scope: anywhere the agent
-      // can post. Refuses core broadcast channels (announcements/urgent) as a safety rail.
       const ch = await resolveChannel(String(body.channel ?? body.channel_id ?? body.name ?? ''))
       if (!ch) return deny('Channel not found', 404)
       if (ch.type === 'announcement') return deny('Announcement/urgent channels cannot be archived via the API.')
