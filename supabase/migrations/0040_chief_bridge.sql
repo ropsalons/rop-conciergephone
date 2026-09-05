@@ -226,6 +226,7 @@ begin
     url := hook.url,
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || coalesce(hook.secret, ''),
       'X-ROP-Webhook-Secret', coalesce(hook.secret, ''),
       'X-ROP-Event', ev,
       'X-ROP-Bot', 'Chief'
@@ -283,6 +284,7 @@ begin
         url := hook.url,
         headers := jsonb_build_object(
           'Content-Type', 'application/json',
+          'Authorization', 'Bearer ' || coalesce(hook.secret, ''),
           'X-ROP-Webhook-Secret', coalesce(hook.secret, ''),
           'X-ROP-Event', d.event,
           'X-ROP-Bot', 'Chief'

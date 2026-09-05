@@ -23,7 +23,8 @@ Owners can silence Chief in a channel via `chief_channel_mutes`.
 `POST` to the configured URL, headers:
 
 - `Content-Type: application/json`
-- `X-ROP-Webhook-Secret: <shared secret>`
+- `Authorization: Bearer <shared secret>` (the sender key — this is what Cursor/Grok validates)
+- `X-ROP-Webhook-Secret: <shared secret>` (same value, for receivers that prefer a custom header)
 - `X-ROP-Event: mention | dm | group_dm | thread_reply`
 - `X-ROP-Bot: Chief`
 
