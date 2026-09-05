@@ -41,6 +41,7 @@ interface Agent {
   allowed_actions: string[]
   require_approval_for: string[]
   rate_per_min: number
+  post_as_user_id: string | null
 }
 
 async function sha256hex(s: string): Promise<string> {
@@ -153,11 +154,14 @@ Deno.serve(async (req) => {
   const hash = await sha256hex(raw)
   const { data: agent } = await admin
     .from('ai_agents')
-    .select('id,name,slug,provider,is_active,channel_scope,allow_dms,allowed_actions,require_approval_for,rate_per_min')
+    .select('id,name,slug,provider,is_active,channel_scope,allow_dms,allowed_actions,require_approval_for,rate_per_min,post_as_user_id')
     .eq('token_hash', hash)
     .maybeSingle()
   if (!agent || !agent.is_active) return json({ ok: false, error: 'Invalid, revoked, or disabled agent token' }, 401)
   const A = agent as Agent
+  // The identity this agent posts AS. Defaults to the shared Integrations bot; agents like Chief post
+  // as their own user (post_as_user_id) so their messages/DMs render as that person, not a system bot.
+  const POSTER = A.post_as_user_id ?? BOT_ID
 
   const action = String(body.action ?? '')
   const idem: string | null =
@@ -373,12 +377,12 @@ Deno.serve(async (req) => {
           }
         }
         if (!otherId) return deny('Provide "conversation_id", "with_user_id", or "with_email"', 400)
-        const memberKey = [BOT_ID, otherId].sort().join(':')
+        const memberKey = [POSTER, otherId].sort().join(':')
         const { data: conv } = await admin.from('direct_conversations').select('id').eq('is_group', false).eq('member_key', memberKey).maybeSingle()
         if (!conv) { await audit('ok', true, { messages: 0 }); return json({ ok: true, conversation_id: null, messages: [], correlation_id: correlationId }) }
         convId = conv.id
       }
-      const { data: mem } = await admin.from('direct_conversation_members').select('user_id').eq('conversation_id', convId).eq('user_id', BOT_ID).maybeSingle()
+      const { data: mem } = await admin.from('direct_conversation_members').select('user_id').eq('conversation_id', convId).eq('user_id', POSTER).maybeSingle()
       if (!mem) return deny('This agent is not a participant in that conversation.')
       let q = admin.from('messages').select('id,user_id,body,metadata,created_at,parent_message_id,reply_count')
         .eq('conversation_id', convId).order('created_at', { ascending: false }).limit(limit)
@@ -400,12 +404,12 @@ Deno.serve(async (req) => {
         ...(opts.report ? { report: opts.report } : {}),
       }
       const { data, error } = await admin.from('messages')
-        .insert({ ...target, user_id: BOT_ID, body: opts.text, parent_message_id: opts.parent ?? null, metadata })
+        .insert({ ...target, user_id: POSTER, body: opts.text, parent_message_id: opts.parent ?? null, metadata })
         .select('id').single()
       if (error) throw error
       const id = data.id as string
       let attachments: { saved: number; skipped: number } | undefined
-      if (opts.items?.length) attachments = await saveAttachments(admin, { message_id: id, channel_id: target.channel_id ?? null, conversation_id: target.conversation_id ?? null, uploader_id: BOT_ID }, opts.items)
+      if (opts.items?.length) attachments = await saveAttachments(admin, { message_id: id, channel_id: target.channel_id ?? null, conversation_id: target.conversation_id ?? null, uploader_id: POSTER }, opts.items)
       return { id, attachments }
     }
 
@@ -439,19 +443,34 @@ Deno.serve(async (req) => {
     if (action === 'reply_thread') {
       const parentId = String(body.message_id ?? body.parent_message_id ?? '')
       if (!uuidRe.test(parentId)) return deny('Provide a valid message_id to reply to', 400)
-      const { data: parent } = await admin.from('messages').select('id,channel_id').eq('id', parentId).maybeSingle()
-      if (!parent || !parent.channel_id) return deny('Parent message not found (or is a DM).', 404)
-      const ch = await resolveChannel(parent.channel_id)
-      if (!ch || !(await canPost(ch))) return deny('This agent may not reply in that channel.')
-      const items = parseJsonAttachments(body.attachments ?? body.files)
-      let text = String(body.text ?? body.message ?? '').trim()
-      if (!text && items.length) text = items.length === 1 ? '📎 Attachment' : `📎 ${items.length} attachments`
-      if (!text) return deny('Provide "text" or "attachments"', 400)
-      if (A.require_approval_for.includes('reply_thread'))
-        return await queueApproval({ channel_id: ch.id, parent_message_id: parentId, text }, `Reply in #${ch.slug}: ${text.slice(0, 140)}`)
-      const { id, attachments } = await insertMessage({ channel_id: ch.id }, { text, parent: parentId, items, report: reportTag })
-      await audit('ok', true, { message_id: id, parent: parentId, attachments }, ch.id)
-      return json({ ok: true, message_id: id, parent_message_id: parentId, attachments, correlation_id: correlationId })
+      const { data: parent } = await admin.from('messages').select('id,channel_id,conversation_id').eq('id', parentId).maybeSingle()
+      if (!parent) return deny('Parent message not found.', 404)
+      if (parent.channel_id) {
+        const ch = await resolveChannel(parent.channel_id)
+        if (!ch || !(await canPost(ch))) return deny('This agent may not reply in that channel.')
+        const items = parseJsonAttachments(body.attachments ?? body.files)
+        let text = String(body.text ?? body.message ?? '').trim()
+        if (!text && items.length) text = items.length === 1 ? '📎 Attachment' : `📎 ${items.length} attachments`
+        if (!text) return deny('Provide "text" or "attachments"', 400)
+        if (A.require_approval_for.includes('reply_thread'))
+          return await queueApproval({ channel_id: ch.id, parent_message_id: parentId, text }, `Reply in #${ch.slug}: ${text.slice(0, 140)}`)
+        const { id, attachments } = await insertMessage({ channel_id: ch.id }, { text, parent: parentId, items, report: reportTag })
+        await audit('ok', true, { message_id: id, parent: parentId, attachments }, ch.id)
+        return json({ ok: true, message_id: id, parent_message_id: parentId, attachments, correlation_id: correlationId })
+      }
+      if (parent.conversation_id) {
+        if (!A.allow_dms) return deny('This agent is not permitted to reply in direct messages.')
+        const { data: mem } = await admin.from('direct_conversation_members').select('user_id').eq('conversation_id', parent.conversation_id).eq('user_id', POSTER).maybeSingle()
+        if (!mem) return deny('This agent is not a participant in that conversation.')
+        const items = parseJsonAttachments(body.attachments ?? body.files)
+        let text = String(body.text ?? body.message ?? '').trim()
+        if (!text && items.length) text = items.length === 1 ? '📎 Attachment' : `📎 ${items.length} attachments`
+        if (!text) return deny('Provide "text" or "attachments"', 400)
+        const { id, attachments } = await insertMessage({ conversation_id: parent.conversation_id }, { text, parent: parentId, items, report: reportTag })
+        await audit('ok', true, { message_id: id, parent: parentId, conversation_id: parent.conversation_id, attachments })
+        return json({ ok: true, message_id: id, parent_message_id: parentId, conversation_id: parent.conversation_id, attachments, correlation_id: correlationId })
+      }
+      return deny('Parent message has no channel or conversation.', 400)
     }
 
     if (action === 'delete_message' || action === 'delete_messages') {
@@ -481,11 +500,11 @@ Deno.serve(async (req) => {
           channelsTouched.add(ch.id)
         } else if (m.conversation_id) {
           if (!A.allow_dms) { results.push({ message_id: id, deleted: false, reason: 'DMs not permitted for this agent' }); continue }
-          const { data: mem } = await admin.from('direct_conversation_members').select('user_id').eq('conversation_id', m.conversation_id).eq('user_id', BOT_ID).maybeSingle()
+          const { data: mem } = await admin.from('direct_conversation_members').select('user_id').eq('conversation_id', m.conversation_id).eq('user_id', POSTER).maybeSingle()
           if (!mem) { results.push({ message_id: id, deleted: false, reason: 'not a participant in this conversation' }); continue }
         } else { results.push({ message_id: id, deleted: false, reason: 'message has no channel or conversation' }); continue }
         const meta = (m.metadata ?? {}) as any
-        const isBotPost = m.user_id === BOT_ID && !!meta.ai_agent
+        const isBotPost = m.user_id === POSTER && !!meta.ai_agent
         if (onlyOwn && !isBotPost) { results.push({ message_id: id, deleted: false, reason: 'not an AI-posted message (only_own set)' }); continue }
         if (!isBotPost) sawForeign = true
         toDelete.push(id)
@@ -529,15 +548,15 @@ Deno.serve(async (req) => {
         user = data
       }
       if (!text) return deny('Provide "text", "html", or "attachments"', 400)
-      const memberKey = [BOT_ID, user.id].sort().join(':')
+      const memberKey = [POSTER, user.id].sort().join(':')
       let convId: string
       const { data: existing } = await admin.from('direct_conversations').select('id').eq('is_group', false).eq('member_key', memberKey).maybeSingle()
       if (existing) convId = existing.id
       else {
-        const { data: conv, error } = await admin.from('direct_conversations').insert({ is_group: false, member_key: memberKey, created_by: BOT_ID }).select('id').single()
+        const { data: conv, error } = await admin.from('direct_conversations').insert({ is_group: false, member_key: memberKey, created_by: POSTER }).select('id').single()
         if (error) throw error
         convId = conv.id
-        await admin.from('direct_conversation_members').insert([{ conversation_id: convId, user_id: BOT_ID }, { conversation_id: convId, user_id: user.id }])
+        await admin.from('direct_conversation_members').insert([{ conversation_id: convId, user_id: POSTER }, { conversation_id: convId, user_id: user.id }])
       }
       const { id, attachments } = await insertMessage({ conversation_id: convId }, { text, html, title: body.title, author_name: body.author_name, items, report: reportTag })
       await audit('ok', true, { message_id: id, conversation_id: convId, attachments })
@@ -566,14 +585,14 @@ Deno.serve(async (req) => {
         if (u) memberIds.push(u.id); else notFound.push(em)
       }
       if (!memberIds.length) return deny(`No matching users for: ${notFound.join(', ')}`, 404)
-      const allMembers = [...new Set([BOT_ID, ...memberIds])]
+      const allMembers = [...new Set([POSTER, ...memberIds])]
       const memberKey = [...allMembers].sort().join(':')
       let convId: string
       const { data: existing } = await admin.from('direct_conversations').select('id').eq('is_group', true).eq('member_key', memberKey).maybeSingle()
       if (existing) convId = existing.id
       else {
         const { data: conv, error } = await admin.from('direct_conversations')
-          .insert({ is_group: true, title: body.title ?? null, member_key: memberKey, created_by: BOT_ID }).select('id').single()
+          .insert({ is_group: true, title: body.title ?? null, member_key: memberKey, created_by: POSTER }).select('id').single()
         if (error) throw error
         convId = conv.id
         await admin.from('direct_conversation_members').insert(allMembers.map((uid) => ({ conversation_id: convId, user_id: uid })))
